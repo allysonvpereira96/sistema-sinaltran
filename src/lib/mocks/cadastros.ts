@@ -1,13 +1,3 @@
-export type Unidade = {
-  id: string;
-  nome: string;
-  responsavel: string | null;
-  cidade: string | null;
-  estado: string | null;
-  cnpj: string | null;
-  ativo: boolean;
-};
-
 export type Cliente = {
   id: string;
   razao_social: string;
@@ -66,36 +56,6 @@ export type Equipamento = {
   status: "disponivel" | "em_uso" | "manutencao" | "inativo";
   ativo: boolean;
 };
-
-export const UNIDADES: Unidade[] = [
-  {
-    id: "u-1",
-    nome: "Sinaltran Matriz",
-    responsavel: "Ricardo Campos",
-    cidade: "Caxias do Sul",
-    estado: "RS",
-    cnpj: "12345678000190",
-    ativo: true,
-  },
-  {
-    id: "u-2",
-    nome: "Sinaltran Filial Porto Alegre",
-    responsavel: "Marcos Lima",
-    cidade: "Porto Alegre",
-    estado: "RS",
-    cnpj: "12345678000271",
-    ativo: true,
-  },
-  {
-    id: "u-3",
-    nome: "Sinaltran Filial Santa Maria",
-    responsavel: "Patrícia Almeida",
-    cidade: "Santa Maria",
-    estado: "RS",
-    cnpj: null,
-    ativo: false,
-  },
-];
 
 export const CLIENTES: Cliente[] = [
   {

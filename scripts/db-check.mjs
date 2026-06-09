@@ -34,8 +34,6 @@ profiles.rows.forEach((r) =>
   console.log(`  • ${r.email} → role ${r.role} (${r.id})`),
 );
 
-const unidades = await client.query(`select count(*) from public.unidades`);
-console.log(`\n🏢 Unidades cadastradas: ${unidades.rows[0].count}`);
 const cats = await client.query(
   `select count(*) from public.categorias_financeiras`,
 );

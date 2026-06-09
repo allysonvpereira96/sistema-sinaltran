@@ -33,7 +33,7 @@ import {
   ORCAMENTO_STATUS_TONE,
   type OrcamentoStatus,
 } from "@/lib/mocks/orcamentos";
-import { CLIENTES, UNIDADES } from "@/lib/mocks/cadastros";
+import { CLIENTES } from "@/lib/mocks/cadastros";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +55,6 @@ export default function OrcamentosPage() {
 
   const clienteById = useMemo(
     () => new Map(CLIENTES.map((c) => [c.id, c])),
-    [],
-  );
-  const unidadeById = useMemo(
-    () => new Map(UNIDADES.map((u) => [u.id, u])),
     [],
   );
 
@@ -227,14 +223,13 @@ export default function OrcamentosPage() {
               ) : (
                 filtrados.map((o) => {
                   const cliente = clienteById.get(o.cliente_id);
-                  const unidade = unidadeById.get(o.unidade_id);
                   const tone = ORCAMENTO_STATUS_TONE[o.status];
                   return (
                     <TableRow key={o.id}>
                       <TableCell>
                         <div className="font-mono text-xs text-muted-foreground">
                           {o.numero}
-                          {unidade ? ` · ${unidade.nome}` : ""}
+                          {o.cidade ? ` · ${o.cidade}/${o.estado ?? "—"}` : ""}
                         </div>
                         <div className="font-semibold mt-0.5">
                           {o.descricao ?? "—"}

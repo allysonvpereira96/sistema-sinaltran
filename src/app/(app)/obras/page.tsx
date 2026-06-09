@@ -36,7 +36,7 @@ import {
   type Obra,
   type ObraStatus,
 } from "@/lib/mocks/obras";
-import { CLIENTES, UNIDADES } from "@/lib/mocks/cadastros";
+import { CLIENTES } from "@/lib/mocks/cadastros";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -61,14 +61,9 @@ export default function ObrasPage() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroRapido>("todas");
   const [clienteId, setClienteId] = useState<string>("todos");
-  const [unidadeId, setUnidadeId] = useState<string>("todas");
 
   const clienteById = useMemo(
     () => new Map(CLIENTES.map((c) => [c.id, c])),
-    [],
-  );
-  const unidadeById = useMemo(
-    () => new Map(UNIDADES.map((u) => [u.id, u])),
     [],
   );
 
@@ -85,7 +80,6 @@ export default function ObrasPage() {
         return false;
       }
       if (clienteId !== "todos" && obra.cliente_id !== clienteId) return false;
-      if (unidadeId !== "todas" && obra.unidade_id !== unidadeId) return false;
 
       if (filtro === "em_andamento" && obra.status !== "em_andamento") return false;
       if (filtro === "concluidas" && obra.status !== "concluida") return false;
@@ -97,7 +91,7 @@ export default function ObrasPage() {
 
       return true;
     });
-  }, [busca, filtro, clienteId, unidadeId, clienteById]);
+  }, [busca, filtro, clienteId, clienteById]);
 
   const counts = useMemo(() => {
     const emAndamento = OBRAS.filter((o) => o.status === "em_andamento").length;
@@ -181,32 +175,18 @@ export default function ObrasPage() {
                 className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70"
               />
             </div>
-            <div className="grid grid-cols-2 gap-2 lg:flex lg:items-center">
-              <select
-                value={clienteId}
-                onChange={(e) => setClienteId(e.target.value)}
-                className="h-10 rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="todos">Todos os clientes</option>
-                {CLIENTES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_fantasia ?? c.razao_social}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={unidadeId}
-                onChange={(e) => setUnidadeId(e.target.value)}
-                className="h-10 rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="todas">Todas as unidades</option>
-                {UNIDADES.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={clienteId}
+              onChange={(e) => setClienteId(e.target.value)}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="todos">Todos os clientes</option>
+              {CLIENTES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome_fantasia ?? c.razao_social}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -259,7 +239,6 @@ export default function ObrasPage() {
               ) : (
                 filtradas.map((obra) => {
                   const cliente = clienteById.get(obra.cliente_id);
-                  const unidade = unidadeById.get(obra.unidade_id);
                   const { saldo_restante, percentual_executado } = calcularSaldo(obra);
                   const statusTone = OBRA_STATUS_TONE[obra.status];
                   const atrasada = isAtrasada(obra);
@@ -269,7 +248,6 @@ export default function ObrasPage() {
                         <div className="font-semibold">{obra.nome}</div>
                         <div className="text-xs text-muted-foreground font-mono">
                           {obra.numero}
-                          {unidade ? ` · ${unidade.nome}` : ""}
                         </div>
                       </TableCell>
                       <TableCell>

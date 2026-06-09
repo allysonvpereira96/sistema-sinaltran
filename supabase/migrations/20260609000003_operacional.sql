@@ -10,9 +10,11 @@ create table public.orcamentos (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
   cliente_id uuid references public.clientes(id) on delete set null,
-  unidade_id uuid references public.unidades(id) on delete set null,
   responsavel text,
   descricao text,
+  endereco text,
+  cidade text,
+  estado text,
   valor_total numeric(15, 2) not null default 0,
   status orcamento_status not null default 'rascunho',
   data_envio date,
@@ -73,7 +75,6 @@ create table public.obras (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
   cliente_id uuid references public.clientes(id) on delete set null,
-  unidade_id uuid references public.unidades(id) on delete set null,
   orcamento_id uuid references public.orcamentos(id) on delete set null,
   nome text not null,
   responsavel text,
@@ -95,7 +96,6 @@ create table public.obras (
 
 create index obras_cliente_idx on public.obras (cliente_id);
 create index obras_status_idx on public.obras (status);
-create index obras_unidade_idx on public.obras (unidade_id);
 
 alter table public.obras enable row level security;
 
@@ -275,7 +275,6 @@ create type public.colaborador_status as enum (
 
 create table public.colaboradores (
   id uuid primary key default gen_random_uuid(),
-  unidade_id uuid references public.unidades(id) on delete set null,
   obra_id uuid references public.obras(id) on delete set null,
   matricula text,
   nome_completo text not null,

@@ -24,7 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CLIENTES, UNIDADES, MATERIAIS } from "@/lib/mocks/cadastros";
+import { CLIENTES, MATERIAIS } from "@/lib/mocks/cadastros";
 import type { Orcamento, OrcamentoStatus } from "@/lib/mocks/orcamentos";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,9 @@ const itemSchema = z.object({
 const orcamentoSchema = z.object({
   numero: z.string().min(1, "Número é obrigatório"),
   cliente_id: z.string().min(1, "Cliente é obrigatório"),
-  unidade_id: z.string().min(1, "Unidade é obrigatória"),
+  endereco: z.string().optional().or(z.literal("")),
+  cidade: z.string().optional().or(z.literal("")),
+  estado: z.string().optional().or(z.literal("")),
   responsavel: z.string().min(1, "Responsável é obrigatório"),
   descricao: z.string().min(3, "Informe a descrição da proposta"),
   status: z.enum(orcamentoStatusValues),
@@ -77,9 +79,11 @@ function orcamentoToValues(o: Orcamento): OrcamentoFormValues {
   return {
     numero: o.numero,
     cliente_id: o.cliente_id,
-    unidade_id: o.unidade_id,
     responsavel: o.responsavel,
     descricao: o.descricao ?? "",
+    endereco: o.endereco ?? "",
+    cidade: o.cidade ?? "",
+    estado: o.estado ?? "",
     status: o.status,
     data_envio: o.data_envio ?? "",
     data_validade: o.data_validade ?? "",
@@ -117,9 +121,11 @@ export function OrcamentoForm({
       : {
           numero: nextOrcamentoNumero(),
           cliente_id: "",
-          unidade_id: "",
           responsavel: "",
           descricao: "",
+          endereco: "",
+          cidade: "",
+          estado: "RS",
           status: "rascunho",
           data_envio: "",
           data_validade: "",
@@ -233,16 +239,6 @@ export function OrcamentoForm({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Unidade *" error={errors.unidade_id?.message}>
-              <NativeSelect {...register("unidade_id")}>
-                <option value="">Selecione…</option>
-                {UNIDADES.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
             <Field label="Responsável *" error={errors.responsavel?.message}>
               <Input
                 {...register("responsavel")}
@@ -254,6 +250,38 @@ export function OrcamentoForm({
             </Field>
             <Field label="Validade da proposta" error={errors.data_validade?.message}>
               <Input type="date" {...register("data_validade")} />
+            </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Local da obra</CardTitle>
+            <CardDescription>
+              Endereço onde a obra será executada (será copiado para a obra ao
+              converter a proposta)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <Field
+              label="Endereço"
+              error={errors.endereco?.message}
+              className="sm:col-span-2"
+            >
+              <Input
+                {...register("endereco")}
+                placeholder="Rua, avenida, rodovia + trecho"
+              />
+            </Field>
+            <Field label="Estado" error={errors.estado?.message}>
+              <Input {...register("estado")} placeholder="RS" maxLength={2} />
+            </Field>
+            <Field
+              label="Cidade"
+              error={errors.cidade?.message}
+              className="sm:col-span-3"
+            >
+              <Input {...register("cidade")} placeholder="Caxias do Sul" />
             </Field>
           </CardContent>
         </Card>

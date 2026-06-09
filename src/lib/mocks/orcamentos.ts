@@ -1,4 +1,4 @@
-import { CLIENTES, UNIDADES, MATERIAIS } from "./cadastros";
+import { CLIENTES, MATERIAIS } from "./cadastros";
 
 export type OrcamentoStatus =
   | "rascunho"
@@ -22,9 +22,11 @@ export type Orcamento = {
   id: string;
   numero: string;
   cliente_id: string;
-  unidade_id: string;
   responsavel: string;
   descricao: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  estado: string | null;
   valor_total: number;
   status: OrcamentoStatus;
   data_envio: string | null;
@@ -109,9 +111,11 @@ export const ORCAMENTOS: Orcamento[] = [
     id: "oc-1",
     numero: "PR-2026-0028",
     cliente_id: CLIENTES[0].id,
-    unidade_id: UNIDADES[0].id,
     responsavel: "Ricardo Campos",
     descricao: "Sinalização horizontal Av. Brasil — Lote 2 (km 4,2 ao 8)",
+    endereco: "Av. Brasil, km 4,2 ao km 8",
+    cidade: "Caxias do Sul",
+    estado: "RS",
     valor_total: sum(o1Itens),
     status: "enviado",
     data_envio: "2026-05-28",
@@ -126,9 +130,11 @@ export const ORCAMENTOS: Orcamento[] = [
     id: "oc-2",
     numero: "PR-2026-0027",
     cliente_id: CLIENTES[1].id,
-    unidade_id: UNIDADES[1].id,
     responsavel: "Marcos Lima",
     descricao: "Implantação de tachas Rod. dos Bandeirantes — Trecho Norte",
+    endereco: "Rod. dos Bandeirantes, trecho norte",
+    cidade: "Vacaria",
+    estado: "RS",
     valor_total: sum(o2Itens),
     status: "aprovado",
     data_envio: "2026-05-15",
@@ -143,9 +149,11 @@ export const ORCAMENTOS: Orcamento[] = [
     id: "oc-3",
     numero: "PR-2026-0026",
     cliente_id: CLIENTES[0].id,
-    unidade_id: UNIDADES[0].id,
     responsavel: "Patrícia Almeida",
     descricao: "Placas Centro — Lote 4 (sinalização vertical)",
+    endereco: "Rua Sinimbu e adjacências",
+    cidade: "Caxias do Sul",
+    estado: "RS",
     valor_total: sum(o3Itens),
     status: "aprovado",
     data_envio: "2026-05-10",
@@ -160,9 +168,11 @@ export const ORCAMENTOS: Orcamento[] = [
     id: "oc-4",
     numero: "PR-2026-0025",
     cliente_id: CLIENTES[4].id,
-    unidade_id: UNIDADES[0].id,
     responsavel: "Ricardo Campos",
     descricao: "Semáforos Bairro Industrial — Bento Gonçalves",
+    endereco: "Bairro Industrial — cruzamentos a definir",
+    cidade: "Bento Gonçalves",
+    estado: "RS",
     valor_total: sum(o4Itens),
     status: "rascunho",
     data_envio: null,
@@ -177,9 +187,11 @@ export const ORCAMENTOS: Orcamento[] = [
     id: "oc-5",
     numero: "PR-2026-0024",
     cliente_id: CLIENTES[2].id,
-    unidade_id: UNIDADES[1].id,
     responsavel: "Marcos Lima",
     descricao: "Sinalização horizontal pedágio Sul — adicional",
+    endereco: "BR-290, praça de pedágio km 81",
+    cidade: "Eldorado do Sul",
+    estado: "RS",
     valor_total: 84500,
     status: "rejeitado",
     data_envio: "2026-04-22",

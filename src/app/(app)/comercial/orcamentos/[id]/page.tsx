@@ -23,7 +23,7 @@ import {
   ORCAMENTO_STATUS_LABEL,
   ORCAMENTO_STATUS_TONE,
 } from "@/lib/mocks/orcamentos";
-import { CLIENTES, UNIDADES } from "@/lib/mocks/cadastros";
+import { CLIENTES } from "@/lib/mocks/cadastros";
 import { OBRAS } from "@/lib/mocks/obras";
 import { formatBRL, formatDateBR, formatCNPJ, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,6 @@ export default async function OrcamentoDetalhePage({
   if (!orcamento) notFound();
 
   const cliente = CLIENTES.find((c) => c.id === orcamento.cliente_id);
-  const unidade = UNIDADES.find((u) => u.id === orcamento.unidade_id);
   const tone = ORCAMENTO_STATUS_TONE[orcamento.status];
   const obraVinculada = orcamento.obra_id
     ? OBRAS.find((o) => o.id === orcamento.obra_id)
@@ -74,7 +73,10 @@ export default async function OrcamentoDetalhePage({
               {orcamento.descricao}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {cliente?.razao_social ?? "—"} · {unidade?.nome ?? "—"}
+              {cliente?.razao_social ?? "—"}
+              {orcamento.cidade
+                ? ` · ${orcamento.cidade}/${orcamento.estado ?? "—"}`
+                : ""}
             </p>
           </div>
         </div>
@@ -230,11 +232,21 @@ export default async function OrcamentoDetalhePage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Responsável & datas</CardTitle>
+              <CardTitle>Local & responsável</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <InfoRow icon={User} label="Responsável" value={orcamento.responsavel} />
-              <InfoRow icon={Building2} label="Unidade" value={unidade?.nome ?? "—"} />
+              <InfoRow
+                icon={Building2}
+                label="Local da obra"
+                value={
+                  orcamento.endereco
+                    ? `${orcamento.endereco}${orcamento.cidade ? ` · ${orcamento.cidade}/${orcamento.estado ?? "—"}` : ""}`
+                    : orcamento.cidade
+                      ? `${orcamento.cidade}/${orcamento.estado ?? "—"}`
+                      : "—"
+                }
+              />
               <InfoRow
                 icon={CalendarRange}
                 label="Criado em"

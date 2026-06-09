@@ -1,4 +1,4 @@
-import { CLIENTES, UNIDADES } from "./cadastros";
+import { CLIENTES } from "./cadastros";
 
 export type ObraStatus =
   | "planejamento"
@@ -11,7 +11,6 @@ export type Obra = {
   id: string;
   numero: string;
   cliente_id: string;
-  unidade_id: string;
   orcamento_id: string | null;
   nome: string;
   responsavel: string;
@@ -55,7 +54,6 @@ export const OBRAS: Obra[] = [
     id: "o-1",
     numero: "OB-2026-014",
     cliente_id: CLIENTES[0].id, // Prefeitura de Caxias
-    unidade_id: UNIDADES[0].id,
     orcamento_id: null,
     nome: "Sinalização Av. Brasil — Lote 1",
     responsavel: "Ricardo Campos",
@@ -77,7 +75,6 @@ export const OBRAS: Obra[] = [
     id: "o-2",
     numero: "OB-2026-013",
     cliente_id: CLIENTES[1].id, // DNIT
-    unidade_id: UNIDADES[1].id,
     orcamento_id: null,
     nome: "Tachas Rod. dos Bandeirantes — Trecho Sul",
     responsavel: "Marcos Lima",
@@ -99,7 +96,6 @@ export const OBRAS: Obra[] = [
     id: "o-3",
     numero: "OB-2026-011",
     cliente_id: CLIENTES[0].id,
-    unidade_id: UNIDADES[0].id,
     orcamento_id: null,
     nome: "Placas Centro — Lote 3 (sinalização vertical)",
     responsavel: "Patrícia Almeida",
@@ -121,7 +117,6 @@ export const OBRAS: Obra[] = [
     id: "o-4",
     numero: "OB-2026-009",
     cliente_id: CLIENTES[2].id, // CCR ViaSul
-    unidade_id: UNIDADES[1].id,
     orcamento_id: null,
     nome: "Semáforos Bairro Industrial",
     responsavel: "Marcos Lima",
@@ -143,7 +138,6 @@ export const OBRAS: Obra[] = [
     id: "o-5",
     numero: "OB-2026-007",
     cliente_id: CLIENTES[3].id, // Construtora Triunfo
-    unidade_id: UNIDADES[0].id,
     orcamento_id: null,
     nome: "Repintura Faixas Escola Municipal",
     responsavel: "Patrícia Almeida",
@@ -165,7 +159,6 @@ export const OBRAS: Obra[] = [
     id: "o-6",
     numero: "OB-2026-005",
     cliente_id: CLIENTES[1].id,
-    unidade_id: UNIDADES[1].id,
     orcamento_id: null,
     nome: "Implantação tachas Rod. Tabaí-Canoas",
     responsavel: "Ricardo Campos",
@@ -187,7 +180,6 @@ export const OBRAS: Obra[] = [
     id: "o-7",
     numero: "OB-2026-003",
     cliente_id: CLIENTES[2].id,
-    unidade_id: UNIDADES[1].id,
     orcamento_id: null,
     nome: "Sinalização horizontal pedágio Sul",
     responsavel: "Marcos Lima",

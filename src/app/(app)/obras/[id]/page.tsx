@@ -26,7 +26,7 @@ import {
   OBRA_STATUS_TONE,
   calcularSaldo,
 } from "@/lib/mocks/obras";
-import { CLIENTES, UNIDADES } from "@/lib/mocks/cadastros";
+import { CLIENTES } from "@/lib/mocks/cadastros";
 import { formatBRL, formatDateBR, formatCNPJ } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +40,6 @@ export default async function ObraDetalhePage({
   if (!obra) notFound();
 
   const cliente = CLIENTES.find((c) => c.id === obra.cliente_id);
-  const unidade = UNIDADES.find((u) => u.id === obra.unidade_id);
   const saldo = calcularSaldo(obra);
   const statusTone = OBRA_STATUS_TONE[obra.status];
 
@@ -72,7 +71,7 @@ export default async function ObraDetalhePage({
               {obra.nome}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {cliente?.razao_social ?? "—"} · {unidade?.nome ?? "—"}
+              {cliente?.razao_social ?? "—"}
             </p>
           </div>
         </div>

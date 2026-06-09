@@ -19,7 +19,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CLIENTES, UNIDADES } from "@/lib/mocks/cadastros";
+import { CLIENTES } from "@/lib/mocks/cadastros";
 import type { Obra, ObraStatus } from "@/lib/mocks/obras";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +35,6 @@ const obraSchema = z.object({
   numero: z.string().min(1, "Número é obrigatório"),
   nome: z.string().min(3, "Informe o nome da obra"),
   cliente_id: z.string().min(1, "Cliente é obrigatório"),
-  unidade_id: z.string().min(1, "Unidade é obrigatória"),
   responsavel: z.string().min(1, "Responsável é obrigatório"),
   endereco: z.string().optional().or(z.literal("")),
   cidade: z.string().optional().or(z.literal("")),
@@ -75,7 +74,6 @@ function obraToValues(obra: Obra): ObraFormValues {
     numero: obra.numero,
     nome: obra.nome,
     cliente_id: obra.cliente_id,
-    unidade_id: obra.unidade_id,
     responsavel: obra.responsavel,
     endereco: obra.endereco ?? "",
     cidade: obra.cidade ?? "",
@@ -108,7 +106,6 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
           numero: nextObraNumero(),
           nome: "",
           cliente_id: "",
-          unidade_id: "",
           responsavel: "",
           endereco: "",
           cidade: "",
@@ -178,16 +175,6 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
                 {CLIENTES.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nome_fantasia ?? c.razao_social}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Unidade *" error={errors.unidade_id?.message}>
-              <NativeSelect {...register("unidade_id")}>
-                <option value="">Selecione…</option>
-                {UNIDADES.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome}
                   </option>
                 ))}
               </NativeSelect>
