@@ -1,4 +1,4 @@
-import { CLIENTES, MATERIAIS } from "./cadastros";
+import { CLIENTES, EMPRESAS } from "./cadastros";
 
 export type OrcamentoStatus =
   | "rascunho"
@@ -9,24 +9,33 @@ export type OrcamentoStatus =
 
 export type OrcamentoItem = {
   id: string;
+  secao: string;
   ordem: number;
   material_id: string | null;
   descricao: string;
   unidade_medida: string;
   quantidade: number;
-  valor_unitario: number;
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+  valor_total_mao_obra: number;
+  valor_total_material: number;
   valor_total: number;
 };
 
 export type Orcamento = {
   id: string;
   numero: string;
+  empresa_id: string;
   cliente_id: string;
   responsavel: string;
   descricao: string | null;
   endereco: string | null;
   cidade: string | null;
   estado: string | null;
+  engenheiro_responsavel: string | null;
+  crea_engenheiro: string | null;
+  prazo_execucao: string | null;
+  condicoes_pagamento: string | null;
   valor_total: number;
   status: OrcamentoStatus;
   data_envio: string | null;
@@ -58,49 +67,125 @@ export const ORCAMENTO_STATUS_TONE: Record<
 };
 
 function buildItem(
+  secao: string,
   ordem: number,
   material_id: string | null,
   descricao: string,
   unidade_medida: string,
   quantidade: number,
-  valor_unitario: number,
+  valor_unit_mao_obra: number,
+  valor_unit_material: number,
 ): OrcamentoItem {
+  const valor_total_mao_obra = quantidade * valor_unit_mao_obra;
+  const valor_total_material = quantidade * valor_unit_material;
   return {
     id: `oi-${ordem}-${Math.random().toString(36).slice(2, 7)}`,
+    secao,
     ordem,
     material_id,
     descricao,
     unidade_medida,
     quantidade,
-    valor_unitario,
-    valor_total: quantidade * valor_unitario,
+    valor_unit_mao_obra,
+    valor_unit_material,
+    valor_total_mao_obra,
+    valor_total_material,
+    valor_total: valor_total_mao_obra + valor_total_material,
   };
 }
 
-const o1Itens: OrcamentoItem[] = [
-  buildItem(1, MATERIAIS[0].id, "Pintura acrílica branca — sinalização horizontal", "kg", 1200, 18.5),
-  buildItem(2, MATERIAIS[1].id, "Pintura acrílica amarela — sinalização horizontal", "kg", 480, 19.2),
-  buildItem(3, MATERIAIS[2].id, "Esferas de vidro drop-on para retrorrefletorização", "kg", 600, 6.8),
-  buildItem(4, null, "Aplicação termoplástica em via — mão de obra", "m²", 2800, 22.5),
-];
-
-const o2Itens: OrcamentoItem[] = [
-  buildItem(1, MATERIAIS[6].id, "Tachas refletivas brancas monodirecionais", "UN", 2400, 8.5),
-  buildItem(2, MATERIAIS[6].id, "Tachas refletivas amarelas bidirecionais", "UN", 800, 9.8),
-  buildItem(3, null, "Implantação e fixação de tachas — mão de obra", "UN", 3200, 12),
-];
-
-const o3Itens: OrcamentoItem[] = [
-  buildItem(1, MATERIAIS[3].id, "Placas R-1 (Parada obrigatória) 100cm", "UN", 24, 285),
-  buildItem(2, MATERIAIS[4].id, "Placas R-2 (Dê preferência) 100cm", "UN", 18, 265),
-  buildItem(3, MATERIAIS[5].id, "Coluna galvanizada 3m", "UN", 42, 145),
-  buildItem(4, null, "Instalação e fixação de placas — mão de obra", "UN", 42, 180),
-];
-
-const o4Itens: OrcamentoItem[] = [
-  buildItem(1, MATERIAIS[7].id, "Semáforo de LED 3 focos com controlador", "UN", 6, 4800),
-  buildItem(2, null, "Instalação, comissionamento e cabeamento", "UN", 6, 3200),
-  buildItem(3, null, "Controlador de tráfego central — programação", "vb", 1, 8500),
+// Mock baseado no orçamento real "ORC1 DOBIL ENGENHARIA ARARICA"
+const dobilItens: OrcamentoItem[] = [
+  buildItem(
+    "SINALIZAÇÃO HORIZONTAL",
+    1,
+    null,
+    "Sinalização horizontal com tinta acrílica NBR 11.862, micro esferas inclusas, pintura de eixo e bordos",
+    "m²",
+    189.8,
+    12.5,
+    16.5,
+  ),
+  buildItem(
+    "SINALIZAÇÃO HORIZONTAL",
+    2,
+    null,
+    "Sinalização horizontal com tinta acrílica NBR 11.862, micro esferas inclusas, pintura de áreas especiais",
+    "m²",
+    168.62,
+    4.5,
+    16.5,
+  ),
+  buildItem(
+    "SINALIZAÇÃO VERTICAL",
+    3,
+    null,
+    "Placa em chapa de aço 1,25mm, verso preto fosco, frente película GTP I marca 3M, modelo R1 L 0,33m",
+    "unid",
+    5,
+    0,
+    420,
+  ),
+  buildItem(
+    "SINALIZAÇÃO VERTICAL",
+    4,
+    null,
+    "Placa em chapa de aço 1,25mm, verso preto fosco, frente película GTP I marca 3M, modelo ADV. L 0,50m",
+    "unid",
+    43,
+    0,
+    105,
+  ),
+  buildItem(
+    "SINALIZAÇÃO VERTICAL",
+    5,
+    null,
+    "Placa em chapa de aço 1,25mm, verso preto fosco, frente película GTP I marca 3M, modelo regulamentação Ø 0,50m",
+    "unid",
+    10,
+    0,
+    105,
+  ),
+  buildItem(
+    "SINALIZAÇÃO VERTICAL",
+    6,
+    null,
+    "Placa em chapa de aço 1,25mm, frente e verso azul royal, toponímicas 0,45 x 0,25m",
+    "unid",
+    12,
+    0,
+    85,
+  ),
+  buildItem(
+    "SINALIZAÇÃO VERTICAL",
+    7,
+    null,
+    "Placa em chapa de aço 1,25mm, verso preto fosco, frente película GTP I marca 3M, modelo indicativa 1,20 x 1,60m",
+    "unid",
+    3,
+    0,
+    1036,
+  ),
+  buildItem(
+    "SUPORTES",
+    8,
+    null,
+    'Suporte metálico galvanizado 2" x 3,00m',
+    "unid",
+    62,
+    140,
+    175,
+  ),
+  buildItem(
+    "SUPORTES",
+    9,
+    null,
+    'Suporte metálico galvanizado 2" x 3,50m',
+    "unid",
+    5,
+    140,
+    195,
+  ),
 ];
 
 const sum = (itens: OrcamentoItem[]) =>
@@ -109,33 +194,43 @@ const sum = (itens: OrcamentoItem[]) =>
 export const ORCAMENTOS: Orcamento[] = [
   {
     id: "oc-1",
-    numero: "PR-2026-0028",
-    cliente_id: CLIENTES[0].id,
-    responsavel: "Ricardo Campos",
-    descricao: "Sinalização horizontal Av. Brasil — Lote 2 (km 4,2 ao 8)",
-    endereco: "Av. Brasil, km 4,2 ao km 8",
-    cidade: "Caxias do Sul",
+    numero: "ORC-2026-0001",
+    empresa_id: EMPRESAS[0].id,
+    cliente_id: CLIENTES[3].id,
+    responsavel: "Vinicius Silva",
+    descricao: "Sinalização viária — obra Ararica",
+    endereco: "Trecho urbano — Ararica",
+    cidade: "Ararica",
     estado: "RS",
-    valor_total: sum(o1Itens),
+    engenheiro_responsavel: "Gabriela Betiolo",
+    crea_engenheiro: "244084 CREA/RS",
+    prazo_execucao: "5 dias",
+    condicoes_pagamento: "Boleto 30 dias",
+    valor_total: sum(dobilItens),
     status: "enviado",
     data_envio: "2026-05-28",
-    data_validade: "2026-06-28",
+    data_validade: "2026-06-27",
     data_aprovacao: null,
-    observacoes: "Cliente solicitou condições de pagamento em 2 medições.",
+    observacoes: null,
     obra_id: null,
-    created_at: "2026-05-27T10:00:00Z",
-    itens: o1Itens,
+    created_at: "2026-05-28T10:00:00Z",
+    itens: dobilItens,
   },
   {
     id: "oc-2",
-    numero: "PR-2026-0027",
-    cliente_id: CLIENTES[1].id,
-    responsavel: "Marcos Lima",
-    descricao: "Implantação de tachas Rod. dos Bandeirantes — Trecho Norte",
+    numero: "ORC-2026-0002",
+    empresa_id: EMPRESAS[0].id,
+    cliente_id: CLIENTES[0].id,
+    responsavel: "Vinicius Silva",
+    descricao: "Implantação tachas Rod. dos Bandeirantes",
     endereco: "Rod. dos Bandeirantes, trecho norte",
     cidade: "Vacaria",
     estado: "RS",
-    valor_total: sum(o2Itens),
+    engenheiro_responsavel: null,
+    crea_engenheiro: null,
+    prazo_execucao: "10 dias",
+    condicoes_pagamento: "Boleto 30 dias",
+    valor_total: 56400,
     status: "aprovado",
     data_envio: "2026-05-15",
     data_validade: "2026-06-15",
@@ -143,66 +238,38 @@ export const ORCAMENTOS: Orcamento[] = [
     observacoes: null,
     obra_id: "o-2",
     created_at: "2026-05-14T08:00:00Z",
-    itens: o2Itens,
+    itens: [
+      buildItem("TACHAS REFLETIVAS", 1, null, "Tachas refletivas brancas monodirecionais", "unid", 2400, 4, 8.5),
+      buildItem("TACHAS REFLETIVAS", 2, null, "Tachas refletivas amarelas bidirecionais", "unid", 800, 4, 9.8),
+    ],
   },
   {
     id: "oc-3",
-    numero: "PR-2026-0026",
-    cliente_id: CLIENTES[0].id,
-    responsavel: "Patrícia Almeida",
-    descricao: "Placas Centro — Lote 4 (sinalização vertical)",
-    endereco: "Rua Sinimbu e adjacências",
-    cidade: "Caxias do Sul",
+    numero: "ORC-2026-0003",
+    empresa_id: EMPRESAS[1].id, // Sinalshop
+    cliente_id: CLIENTES[2].id,
+    responsavel: "Marcos Lima",
+    descricao: "Fornecimento de tinta termoplástica — pedágio Sul",
+    endereco: "BR-290, praça de pedágio km 81",
+    cidade: "Eldorado do Sul",
     estado: "RS",
-    valor_total: sum(o3Itens),
-    status: "aprovado",
-    data_envio: "2026-05-10",
-    data_validade: "2026-06-10",
-    data_aprovacao: "2026-05-19",
-    observacoes: "Aprovação confirmada por ofício 482/2026.",
-    obra_id: "o-3",
-    created_at: "2026-05-08T09:00:00Z",
-    itens: o3Itens,
-  },
-  {
-    id: "oc-4",
-    numero: "PR-2026-0025",
-    cliente_id: CLIENTES[4].id,
-    responsavel: "Ricardo Campos",
-    descricao: "Semáforos Bairro Industrial — Bento Gonçalves",
-    endereco: "Bairro Industrial — cruzamentos a definir",
-    cidade: "Bento Gonçalves",
-    estado: "RS",
-    valor_total: sum(o4Itens),
+    engenheiro_responsavel: null,
+    crea_engenheiro: null,
+    prazo_execucao: "Pronta entrega",
+    condicoes_pagamento: "À vista",
+    valor_total: 58200,
     status: "rascunho",
     data_envio: null,
     data_validade: null,
     data_aprovacao: null,
-    observacoes: "Aguardando definição do número de cruzamentos com a prefeitura.",
+    observacoes: "Aguardando confirmação de volume.",
     obra_id: null,
     created_at: "2026-06-02T14:00:00Z",
-    itens: o4Itens,
-  },
-  {
-    id: "oc-5",
-    numero: "PR-2026-0024",
-    cliente_id: CLIENTES[2].id,
-    responsavel: "Marcos Lima",
-    descricao: "Sinalização horizontal pedágio Sul — adicional",
-    endereco: "BR-290, praça de pedágio km 81",
-    cidade: "Eldorado do Sul",
-    estado: "RS",
-    valor_total: 84500,
-    status: "rejeitado",
-    data_envio: "2026-04-22",
-    data_validade: "2026-05-22",
-    data_aprovacao: null,
-    observacoes: "Cliente optou por executar internamente.",
-    obra_id: null,
-    created_at: "2026-04-20T13:00:00Z",
     itens: [
-      buildItem(1, null, "Sinalização horizontal — pintura termoplástica", "m²", 1200, 48.5),
-      buildItem(2, null, "Sinalização vertical complementar", "UN", 12, 2200),
+      buildItem("TINTA", 1, null, "Tinta acrílica branca para sinalização — sacaria 25kg", "kg", 1200, 0, 18.5),
+      buildItem("TINTA", 2, null, "Tinta acrílica amarela para sinalização — sacaria 25kg", "kg", 480, 0, 19.2),
+      buildItem("INSUMOS", 3, null, "Esferas de vidro drop-on", "kg", 800, 0, 6.8),
+      buildItem("INSUMOS", 4, null, "Diluente acrílico", "L", 200, 0, 12.4),
     ],
   },
 ];

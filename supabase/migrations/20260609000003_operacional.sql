@@ -9,12 +9,17 @@
 create table public.orcamentos (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
+  empresa_id uuid references public.empresas(id) on delete set null,
   cliente_id uuid references public.clientes(id) on delete set null,
   responsavel text,
   descricao text,
   endereco text,
   cidade text,
   estado text,
+  engenheiro_responsavel text,
+  crea_engenheiro text,
+  prazo_execucao text,
+  condicoes_pagamento text,
   valor_total numeric(15, 2) not null default 0,
   status orcamento_status not null default 'rascunho',
   data_envio date,
@@ -28,23 +33,29 @@ create table public.orcamentos (
 );
 
 create index orcamentos_cliente_idx on public.orcamentos (cliente_id);
+create index orcamentos_empresa_idx on public.orcamentos (empresa_id);
 create index orcamentos_status_idx on public.orcamentos (status);
 
 create table public.orcamento_itens (
   id uuid primary key default gen_random_uuid(),
   orcamento_id uuid not null references public.orcamentos(id) on delete cascade,
-  ordem int not null default 0,
+  secao text,                          -- ex: "SINALIZAÇÃO HORIZONTAL"
+  ordem int not null default 0,        -- ordem dentro da seção (1.1, 1.2, ...)
   material_id uuid references public.materiais(id) on delete set null,
   descricao text not null,
   unidade_medida text not null default 'UN',
   quantidade numeric(12, 3) not null default 1,
-  valor_unitario numeric(12, 2) not null default 0,
+  valor_unit_mao_obra numeric(12, 2) not null default 0,
+  valor_unit_material numeric(12, 2) not null default 0,
+  valor_total_mao_obra numeric(15, 2) not null default 0,
+  valor_total_material numeric(15, 2) not null default 0,
   valor_total numeric(15, 2) not null default 0,
   observacoes text,
   created_at timestamptz not null default now()
 );
 
 create index orcamento_itens_orcamento_idx on public.orcamento_itens (orcamento_id);
+create index orcamento_itens_secao_idx on public.orcamento_itens (orcamento_id, secao);
 
 alter table public.orcamentos enable row level security;
 alter table public.orcamento_itens enable row level security;
@@ -74,6 +85,7 @@ create trigger update_orcamentos_updated_at
 create table public.obras (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
+  empresa_id uuid references public.empresas(id) on delete set null,
   cliente_id uuid references public.clientes(id) on delete set null,
   orcamento_id uuid references public.orcamentos(id) on delete set null,
   nome text not null,
@@ -95,6 +107,7 @@ create table public.obras (
 );
 
 create index obras_cliente_idx on public.obras (cliente_id);
+create index obras_empresa_idx on public.obras (empresa_id);
 create index obras_status_idx on public.obras (status);
 
 alter table public.obras enable row level security;

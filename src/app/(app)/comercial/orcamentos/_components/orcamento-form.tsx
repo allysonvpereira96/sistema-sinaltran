@@ -24,7 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CLIENTES, MATERIAIS } from "@/lib/mocks/cadastros";
+import { CLIENTES, EMPRESAS, MATERIAIS } from "@/lib/mocks/cadastros";
 import type { Orcamento, OrcamentoStatus } from "@/lib/mocks/orcamentos";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -38,21 +38,28 @@ const orcamentoStatusValues = [
 ] as const;
 
 const itemSchema = z.object({
+  secao: z.string().min(1, "Seção é obrigatória"),
   material_id: z.string().nullable().optional(),
   descricao: z.string().min(1, "Descrição é obrigatória"),
   unidade_medida: z.string().min(1, "Un."),
   quantidade: z.number().min(0.001, "Informe a quantidade"),
-  valor_unitario: z.number().min(0, "Informe o valor"),
+  valor_unit_mao_obra: z.number().min(0, "Inválido"),
+  valor_unit_material: z.number().min(0, "Inválido"),
 });
 
 const orcamentoSchema = z.object({
   numero: z.string().min(1, "Número é obrigatório"),
+  empresa_id: z.string().min(1, "Empresa emissora é obrigatória"),
   cliente_id: z.string().min(1, "Cliente é obrigatório"),
+  responsavel: z.string().min(1, "Responsável é obrigatório"),
+  descricao: z.string().min(3, "Informe a descrição da proposta"),
   endereco: z.string().optional().or(z.literal("")),
   cidade: z.string().optional().or(z.literal("")),
   estado: z.string().optional().or(z.literal("")),
-  responsavel: z.string().min(1, "Responsável é obrigatório"),
-  descricao: z.string().min(3, "Informe a descrição da proposta"),
+  engenheiro_responsavel: z.string().optional().or(z.literal("")),
+  crea_engenheiro: z.string().optional().or(z.literal("")),
+  prazo_execucao: z.string().optional().or(z.literal("")),
+  condicoes_pagamento: z.string().optional().or(z.literal("")),
   status: z.enum(orcamentoStatusValues),
   data_envio: z.string().optional().or(z.literal("")),
   data_validade: z.string().optional().or(z.literal("")),
@@ -72,28 +79,35 @@ const STATUS_LABEL: Record<OrcamentoStatus, string> = {
 
 function nextOrcamentoNumero() {
   const ano = new Date().getFullYear();
-  return `PR-${ano}-????`;
+  return `ORC-${ano}-????`;
 }
 
 function orcamentoToValues(o: Orcamento): OrcamentoFormValues {
   return {
     numero: o.numero,
+    empresa_id: o.empresa_id,
     cliente_id: o.cliente_id,
     responsavel: o.responsavel,
     descricao: o.descricao ?? "",
     endereco: o.endereco ?? "",
     cidade: o.cidade ?? "",
     estado: o.estado ?? "",
+    engenheiro_responsavel: o.engenheiro_responsavel ?? "",
+    crea_engenheiro: o.crea_engenheiro ?? "",
+    prazo_execucao: o.prazo_execucao ?? "",
+    condicoes_pagamento: o.condicoes_pagamento ?? "",
     status: o.status,
     data_envio: o.data_envio ?? "",
     data_validade: o.data_validade ?? "",
     observacoes: o.observacoes ?? "",
     itens: o.itens.map((i) => ({
+      secao: i.secao,
       material_id: i.material_id,
       descricao: i.descricao,
       unidade_medida: i.unidade_medida,
       quantidade: i.quantidade,
-      valor_unitario: i.valor_unitario,
+      valor_unit_mao_obra: i.valor_unit_mao_obra,
+      valor_unit_material: i.valor_unit_material,
     })),
   };
 }
@@ -120,23 +134,30 @@ export function OrcamentoForm({
       ? orcamentoToValues(initialData)
       : {
           numero: nextOrcamentoNumero(),
+          empresa_id: EMPRESAS[0].id,
           cliente_id: "",
-          responsavel: "",
+          responsavel: EMPRESAS[0].responsavel_padrao ?? "",
           descricao: "",
           endereco: "",
           cidade: "",
           estado: "RS",
+          engenheiro_responsavel: "",
+          crea_engenheiro: "",
+          prazo_execucao: "",
+          condicoes_pagamento: "Boleto 30 dias",
           status: "rascunho",
           data_envio: "",
           data_validade: "",
           observacoes: "",
           itens: [
             {
+              secao: "SINALIZAÇÃO HORIZONTAL",
               material_id: null,
               descricao: "",
               unidade_medida: "UN",
               quantidade: 1,
-              valor_unitario: 0,
+              valor_unit_mao_obra: 0,
+              valor_unit_material: 0,
             },
           ],
         },
@@ -151,35 +172,62 @@ export function OrcamentoForm({
     if (initialData) reset(orcamentoToValues(initialData));
   }, [initialData, reset]);
 
-  // Watch dos itens para calcular subtotal/total em tempo real
   const watchedItens = useWatch({ control, name: "itens" });
 
   const subtotais = useMemo(
     () =>
       (watchedItens ?? []).map((i) => {
         const q = Number(i?.quantidade) || 0;
-        const v = Number(i?.valor_unitario) || 0;
-        return q * v;
+        const mo = Number(i?.valor_unit_mao_obra) || 0;
+        const mat = Number(i?.valor_unit_material) || 0;
+        return {
+          mao_obra: q * mo,
+          material: q * mat,
+          total: q * (mo + mat),
+        };
       }),
     [watchedItens],
   );
 
-  const valorTotal = useMemo(
-    () => subtotais.reduce((acc, v) => acc + v, 0),
-    [subtotais],
-  );
+  const totaisGerais = useMemo(() => {
+    return subtotais.reduce(
+      (acc, s) => ({
+        mao_obra: acc.mao_obra + s.mao_obra,
+        material: acc.material + s.material,
+        total: acc.total + s.total,
+      }),
+      { mao_obra: 0, material: 0, total: 0 },
+    );
+  }, [subtotais]);
+
+  // Seções únicas para sugerir no datalist
+  const secoesSugeridas = useMemo(() => {
+    const set = new Set<string>([
+      "SINALIZAÇÃO HORIZONTAL",
+      "SINALIZAÇÃO VERTICAL",
+      "TACHAS REFLETIVAS",
+      "SUPORTES",
+      "SEMÁFOROS",
+      "TINTA",
+      "INSUMOS",
+    ]);
+    (watchedItens ?? []).forEach((i) => {
+      if (i?.secao) set.add(i.secao);
+    });
+    return [...set];
+  }, [watchedItens]);
 
   const onSubmit: SubmitHandler<OrcamentoFormValues> = async () => {
     await new Promise((r) => setTimeout(r, 400));
     toast.success(isEdit ? "Orçamento atualizado" : "Orçamento criado", {
       description:
-        "Os dados serão persistidos no Supabase assim que a conexão estiver configurada.",
+        "Em breve este orçamento será persistido no Supabase em vez de mocks.",
     });
     router.push("/comercial/orcamentos");
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
+    <div className="p-6 lg:p-8 max-w-[1300px] mx-auto space-y-6">
       <header className="flex items-center gap-4">
         <Link
           href="/comercial/orcamentos"
@@ -195,7 +243,7 @@ export function OrcamentoForm({
           <p className="text-sm text-muted-foreground">
             {isEdit
               ? "Atualize os dados da proposta comercial."
-              : "Monte uma proposta com itens e valores. Após aprovação, ela pode virar uma obra com 1 clique."}
+              : "Monte uma proposta com itens divididos por seção, MO e material separados. Após aprovação, vira obra com 1 clique."}
           </p>
         </div>
       </header>
@@ -207,17 +255,17 @@ export function OrcamentoForm({
             <CardDescription>Dados gerais da proposta</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Número" error={errors.numero?.message}>
-              <Input {...register("numero")} placeholder="PR-2026-0001" />
-            </Field>
-            <Field label="Status">
-              <NativeSelect {...register("status")}>
-                {orcamentoStatusValues.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+            <Field label="Empresa emissora *" error={errors.empresa_id?.message}>
+              <NativeSelect {...register("empresa_id")}>
+                {EMPRESAS.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nome} — {e.razao_social}
                   </option>
                 ))}
               </NativeSelect>
+            </Field>
+            <Field label="Número" error={errors.numero?.message}>
+              <Input {...register("numero")} placeholder="ORC-2026-0001" />
             </Field>
             <Field
               label="Descrição *"
@@ -226,7 +274,7 @@ export function OrcamentoForm({
             >
               <Input
                 {...register("descricao")}
-                placeholder="Ex.: Sinalização horizontal Av. Brasil — Lote 2"
+                placeholder="Ex.: Sinalização viária — obra Ararica"
               />
             </Field>
             <Field label="Cliente *" error={errors.cliente_id?.message}>
@@ -239,11 +287,20 @@ export function OrcamentoForm({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Responsável *" error={errors.responsavel?.message}>
+            <Field label="Responsável pela proposta *" error={errors.responsavel?.message}>
               <Input
                 {...register("responsavel")}
-                placeholder="Nome do responsável pela proposta"
+                placeholder="Nome do responsável"
               />
+            </Field>
+            <Field label="Status">
+              <NativeSelect {...register("status")}>
+                {orcamentoStatusValues.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </NativeSelect>
             </Field>
             <Field label="Data de envio" error={errors.data_envio?.message}>
               <Input type="date" {...register("data_envio")} />
@@ -258,8 +315,7 @@ export function OrcamentoForm({
           <CardHeader>
             <CardTitle>Local da obra</CardTitle>
             <CardDescription>
-              Endereço onde a obra será executada (será copiado para a obra ao
-              converter a proposta)
+              Endereço de execução (será copiado para a obra ao converter)
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
@@ -281,7 +337,48 @@ export function OrcamentoForm({
               error={errors.cidade?.message}
               className="sm:col-span-3"
             >
-              <Input {...register("cidade")} placeholder="Caxias do Sul" />
+              <Input {...register("cidade")} placeholder="Ararica" />
+            </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Condições de fornecimento</CardTitle>
+            <CardDescription>
+              Engenheiro responsável (cliente), prazo e pagamento
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Engenheiro responsável (cliente)"
+              error={errors.engenheiro_responsavel?.message}
+            >
+              <Input
+                {...register("engenheiro_responsavel")}
+                placeholder="Nome do engenheiro"
+              />
+            </Field>
+            <Field label="CREA" error={errors.crea_engenheiro?.message}>
+              <Input
+                {...register("crea_engenheiro")}
+                placeholder="ex.: 244084 CREA/RS"
+              />
+            </Field>
+            <Field label="Prazo de execução" error={errors.prazo_execucao?.message}>
+              <Input
+                {...register("prazo_execucao")}
+                placeholder="ex.: 5 dias"
+              />
+            </Field>
+            <Field
+              label="Condições de pagamento"
+              error={errors.condicoes_pagamento?.message}
+            >
+              <Input
+                {...register("condicoes_pagamento")}
+                placeholder="ex.: Boleto 30 dias"
+              />
             </Field>
           </CardContent>
         </Card>
@@ -291,7 +388,8 @@ export function OrcamentoForm({
             <div>
               <CardTitle>Itens da proposta</CardTitle>
               <CardDescription>
-                Adicione os serviços e materiais com quantidade e valor unitário
+                Cada item separa Mão de Obra (R$) e Material (R$). Pode ser
+                zero em um dos campos (ex.: placa = só material).
               </CardDescription>
             </div>
             <Button
@@ -299,20 +397,31 @@ export function OrcamentoForm({
               size="sm"
               variant="outline"
               className="gap-2"
-              onClick={() =>
+              onClick={() => {
+                const lastSecao =
+                  watchedItens?.[watchedItens.length - 1]?.secao ??
+                  "SINALIZAÇÃO HORIZONTAL";
                 append({
+                  secao: lastSecao,
                   material_id: null,
                   descricao: "",
                   unidade_medida: "UN",
                   quantidade: 1,
-                  valor_unitario: 0,
-                })
-              }
+                  valor_unit_mao_obra: 0,
+                  valor_unit_material: 0,
+                });
+              }}
             >
               <Plus className="size-4" /> Adicionar item
             </Button>
           </CardHeader>
           <CardContent>
+            <datalist id="secoes-sugeridas">
+              {secoesSugeridas.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -321,12 +430,15 @@ export function OrcamentoForm({
                     <th className="text-left font-semibold py-2 px-2 min-w-[260px]">
                       Descrição
                     </th>
-                    <th className="text-left font-semibold py-2 px-2 w-24">Un.</th>
-                    <th className="text-right font-semibold py-2 px-2 w-32">Qtd.</th>
-                    <th className="text-right font-semibold py-2 px-2 w-36">
-                      Valor unit.
+                    <th className="text-left font-semibold py-2 px-2 w-20">Un.</th>
+                    <th className="text-right font-semibold py-2 px-2 w-24">Qtd.</th>
+                    <th className="text-right font-semibold py-2 px-2 w-32">
+                      MO unit.
                     </th>
-                    <th className="text-right font-semibold py-2 px-2 w-36">
+                    <th className="text-right font-semibold py-2 px-2 w-32">
+                      Mat. unit.
+                    </th>
+                    <th className="text-right font-semibold py-2 px-2 w-32">
                       Subtotal
                     </th>
                     <th className="w-10" />
@@ -338,37 +450,16 @@ export function OrcamentoForm({
                       <td className="py-2 pr-2 text-xs font-mono text-muted-foreground align-top pt-4">
                         {index + 1}
                       </td>
-                      <td className="py-2 px-2 align-top">
+                      <td className="py-2 px-2 align-top space-y-1.5">
+                        <input
+                          {...register(`itens.${index}.secao` as const)}
+                          list="secoes-sugeridas"
+                          placeholder="Seção (ex.: SINALIZAÇÃO HORIZONTAL)"
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-[11px] uppercase tracking-wider font-semibold text-foreground/80"
+                        />
                         <select
-                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs mb-1.5"
+                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
                           {...register(`itens.${index}.material_id` as const)}
-                          onChange={(e) => {
-                            const m = MATERIAIS.find((mat) => mat.id === e.target.value);
-                            if (m) {
-                              const input = document.querySelector<HTMLInputElement>(
-                                `input[name="itens.${index}.descricao"]`,
-                              );
-                              const valor = document.querySelector<HTMLInputElement>(
-                                `input[name="itens.${index}.valor_unitario"]`,
-                              );
-                              const un = document.querySelector<HTMLInputElement>(
-                                `input[name="itens.${index}.unidade_medida"]`,
-                              );
-                              if (input && !input.value) input.value = m.descricao;
-                              if (valor && !valor.value) {
-                                valor.value = String(m.valor_referencia);
-                                valor.dispatchEvent(
-                                  new Event("input", { bubbles: true }),
-                                );
-                              }
-                              if (un) {
-                                un.value = m.unidade_medida;
-                                un.dispatchEvent(
-                                  new Event("input", { bubbles: true }),
-                                );
-                              }
-                            }
-                          }}
                         >
                           <option value="">Material avulso (sem catálogo)</option>
                           {MATERIAIS.map((m) => (
@@ -379,11 +470,11 @@ export function OrcamentoForm({
                         </select>
                         <Input
                           {...register(`itens.${index}.descricao` as const)}
-                          placeholder="Descrição do item"
+                          placeholder="Descrição completa do item"
                           className="h-9"
                         />
                         {errors.itens?.[index]?.descricao ? (
-                          <p className="text-[10px] text-rose-600 mt-1">
+                          <p className="text-[10px] text-rose-600">
                             {errors.itens[index]?.descricao?.message}
                           </p>
                         ) : null}
@@ -391,7 +482,7 @@ export function OrcamentoForm({
                       <td className="py-2 px-2 align-top">
                         <Input
                           {...register(`itens.${index}.unidade_medida` as const)}
-                          className="h-9 text-xs uppercase"
+                          className="h-9 text-xs"
                           maxLength={6}
                         />
                       </td>
@@ -409,15 +500,27 @@ export function OrcamentoForm({
                         <Input
                           type="number"
                           step="0.01"
-                          {...register(`itens.${index}.valor_unitario` as const, {
-                            valueAsNumber: true,
-                          })}
+                          {...register(
+                            `itens.${index}.valor_unit_mao_obra` as const,
+                            { valueAsNumber: true },
+                          )}
+                          className="h-9 text-right tabular-nums"
+                        />
+                      </td>
+                      <td className="py-2 px-2 align-top">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          {...register(
+                            `itens.${index}.valor_unit_material` as const,
+                            { valueAsNumber: true },
+                          )}
                           className="h-9 text-right tabular-nums"
                         />
                       </td>
                       <td className="py-2 px-2 align-top">
                         <div className="h-9 grid place-items-end font-semibold tabular-nums text-sm">
-                          {formatBRL(subtotais[index] ?? 0)}
+                          {formatBRL(subtotais[index]?.total ?? 0)}
                         </div>
                       </td>
                       <td className="py-2 align-top">
@@ -437,11 +540,28 @@ export function OrcamentoForm({
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-foreground/10">
-                    <td colSpan={5} className="py-3 px-2 text-right text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                      Total do orçamento
+                    <td colSpan={4} />
+                    <td className="py-2 px-2 text-right text-xs uppercase tracking-wider text-muted-foreground">
+                      Total MO
                     </td>
-                    <td className="py-3 px-2 text-right text-lg font-bold tabular-nums">
-                      {formatBRL(valorTotal)}
+                    <td className="py-2 px-2 text-right text-xs uppercase tracking-wider text-muted-foreground">
+                      Total Mat.
+                    </td>
+                    <td className="py-2 px-2 text-right text-xs uppercase tracking-wider text-muted-foreground">
+                      Total Geral
+                    </td>
+                    <td />
+                  </tr>
+                  <tr>
+                    <td colSpan={4} />
+                    <td className="py-2 px-2 text-right font-semibold tabular-nums">
+                      {formatBRL(totaisGerais.mao_obra)}
+                    </td>
+                    <td className="py-2 px-2 text-right font-semibold tabular-nums">
+                      {formatBRL(totaisGerais.material)}
+                    </td>
+                    <td className="py-2 px-2 text-right text-lg font-bold tabular-nums">
+                      {formatBRL(totaisGerais.total)}
                     </td>
                     <td />
                   </tr>
@@ -462,7 +582,7 @@ export function OrcamentoForm({
             <Textarea
               rows={4}
               {...register("observacoes")}
-              placeholder="Condições, prazos especiais ou notas internas"
+              placeholder="Notas internas, condições especiais"
             />
           </CardContent>
         </Card>

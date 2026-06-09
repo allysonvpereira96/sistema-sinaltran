@@ -1,3 +1,46 @@
+export type Empresa = {
+  id: string;
+  nome: string;
+  razao_social: string;
+  cnpj: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  estado: string | null;
+  telefone: string | null;
+  email: string | null;
+  responsavel_padrao: string | null;
+  ativa: boolean;
+};
+
+export const EMPRESAS: Empresa[] = [
+  {
+    id: "emp-1",
+    nome: "Sinaltran",
+    razao_social: "SINALTRAN SINALIZAÇÕES LTDA",
+    cnpj: "05336209000144",
+    endereco: "Estrada Manoel de Souza Rosa, 3065",
+    cidade: "Gravataí",
+    estado: "RS",
+    telefone: "5199892073",
+    email: "vendas.sinaltranrs@gmail.com",
+    responsavel_padrao: "Vinicius Silva",
+    ativa: true,
+  },
+  {
+    id: "emp-2",
+    nome: "Sinalshop",
+    razao_social: "SINALSHOP",
+    cnpj: null,
+    endereco: null,
+    cidade: null,
+    estado: "RS",
+    telefone: null,
+    email: null,
+    responsavel_padrao: null,
+    ativa: true,
+  },
+];
+
 export type Cliente = {
   id: string;
   razao_social: string;

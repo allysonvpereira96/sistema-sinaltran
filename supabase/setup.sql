@@ -122,9 +122,44 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 -- ============================================================================
 -- Sinaltran · Cadastros básicos
---   Clientes, Fornecedores, Materiais, Equipamentos,
---   Tipos de mão de obra, Categorias financeiras, Centros de custo
+--   Empresas (Sinaltran/Sinalshop), Clientes, Fornecedores, Materiais,
+--   Equipamentos, Tipos de mão de obra, Categorias financeiras, Centros de custo
 -- ============================================================================
+
+-- ============================================================================
+-- EMPRESAS (entidades legais emissoras de orçamento)
+--   · Sinaltran Sinalizações LTDA — placas, tachões, serviços
+--   · Sinalshop — tintas
+-- ============================================================================
+create table public.empresas (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  razao_social text not null,
+  cnpj text,
+  endereco text,
+  cidade text,
+  estado text,
+  cep text,
+  telefone text,
+  email text,
+  responsavel_padrao text,
+  ativa boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.empresas enable row level security;
+
+create policy "Empresas: autenticado vê"
+  on public.empresas for select to authenticated using (true);
+
+create policy "Empresas: admin gerencia"
+  on public.empresas for all to authenticated
+  using (public.is_admin(auth.uid()));
+
+create trigger update_empresas_updated_at
+  before update on public.empresas
+  for each row execute function public.update_updated_at_column();
 
 -- ============================================================================
 -- CLIENTES (contratantes — prefeituras, DNIT, construtoras, privados)
@@ -410,6 +445,31 @@ insert into public.categorias_financeiras (nome, tipo) values
   ('Aluguel', 'despesa'),
   ('Serviços de terceiros', 'despesa'),
   ('Receita de obras', 'receita');
+
+insert into public.empresas (
+  nome, razao_social, cnpj, endereco, cidade, estado,
+  responsavel_padrao, email
+) values
+  (
+    'Sinaltran',
+    'SINALTRAN SINALIZAÇÕES LTDA',
+    '05.336.209/0001-44',
+    'Estrada Manoel de Souza Rosa, 3065',
+    'Gravataí',
+    'RS',
+    'Vinicius Silva',
+    'vendas.sinaltranrs@gmail.com'
+  ),
+  (
+    'Sinalshop',
+    'SINALSHOP',
+    null,
+    null,
+    null,
+    'RS',
+    null,
+    null
+  );
 -- ============================================================================
 -- Sinaltran · Operacional
 --   Orçamentos, Obras, Medições, Compras, Contas a pagar, Colaboradores
@@ -421,12 +481,17 @@ insert into public.categorias_financeiras (nome, tipo) values
 create table public.orcamentos (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
+  empresa_id uuid references public.empresas(id) on delete set null,
   cliente_id uuid references public.clientes(id) on delete set null,
   responsavel text,
   descricao text,
   endereco text,
   cidade text,
   estado text,
+  engenheiro_responsavel text,
+  crea_engenheiro text,
+  prazo_execucao text,
+  condicoes_pagamento text,
   valor_total numeric(15, 2) not null default 0,
   status orcamento_status not null default 'rascunho',
   data_envio date,
@@ -440,23 +505,29 @@ create table public.orcamentos (
 );
 
 create index orcamentos_cliente_idx on public.orcamentos (cliente_id);
+create index orcamentos_empresa_idx on public.orcamentos (empresa_id);
 create index orcamentos_status_idx on public.orcamentos (status);
 
 create table public.orcamento_itens (
   id uuid primary key default gen_random_uuid(),
   orcamento_id uuid not null references public.orcamentos(id) on delete cascade,
-  ordem int not null default 0,
+  secao text,                          -- ex: "SINALIZAÇÃO HORIZONTAL"
+  ordem int not null default 0,        -- ordem dentro da seção (1.1, 1.2, ...)
   material_id uuid references public.materiais(id) on delete set null,
   descricao text not null,
   unidade_medida text not null default 'UN',
   quantidade numeric(12, 3) not null default 1,
-  valor_unitario numeric(12, 2) not null default 0,
+  valor_unit_mao_obra numeric(12, 2) not null default 0,
+  valor_unit_material numeric(12, 2) not null default 0,
+  valor_total_mao_obra numeric(15, 2) not null default 0,
+  valor_total_material numeric(15, 2) not null default 0,
   valor_total numeric(15, 2) not null default 0,
   observacoes text,
   created_at timestamptz not null default now()
 );
 
 create index orcamento_itens_orcamento_idx on public.orcamento_itens (orcamento_id);
+create index orcamento_itens_secao_idx on public.orcamento_itens (orcamento_id, secao);
 
 alter table public.orcamentos enable row level security;
 alter table public.orcamento_itens enable row level security;
@@ -486,6 +557,7 @@ create trigger update_orcamentos_updated_at
 create table public.obras (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
+  empresa_id uuid references public.empresas(id) on delete set null,
   cliente_id uuid references public.clientes(id) on delete set null,
   orcamento_id uuid references public.orcamentos(id) on delete set null,
   nome text not null,
@@ -507,6 +579,7 @@ create table public.obras (
 );
 
 create index obras_cliente_idx on public.obras (cliente_id);
+create index obras_empresa_idx on public.obras (empresa_id);
 create index obras_status_idx on public.obras (status);
 
 alter table public.obras enable row level security;

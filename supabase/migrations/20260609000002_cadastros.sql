@@ -1,8 +1,43 @@
 -- ============================================================================
 -- Sinaltran · Cadastros básicos
---   Clientes, Fornecedores, Materiais, Equipamentos,
---   Tipos de mão de obra, Categorias financeiras, Centros de custo
+--   Empresas (Sinaltran/Sinalshop), Clientes, Fornecedores, Materiais,
+--   Equipamentos, Tipos de mão de obra, Categorias financeiras, Centros de custo
 -- ============================================================================
+
+-- ============================================================================
+-- EMPRESAS (entidades legais emissoras de orçamento)
+--   · Sinaltran Sinalizações LTDA — placas, tachões, serviços
+--   · Sinalshop — tintas
+-- ============================================================================
+create table public.empresas (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  razao_social text not null,
+  cnpj text,
+  endereco text,
+  cidade text,
+  estado text,
+  cep text,
+  telefone text,
+  email text,
+  responsavel_padrao text,
+  ativa boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.empresas enable row level security;
+
+create policy "Empresas: autenticado vê"
+  on public.empresas for select to authenticated using (true);
+
+create policy "Empresas: admin gerencia"
+  on public.empresas for all to authenticated
+  using (public.is_admin(auth.uid()));
+
+create trigger update_empresas_updated_at
+  before update on public.empresas
+  for each row execute function public.update_updated_at_column();
 
 -- ============================================================================
 -- CLIENTES (contratantes — prefeituras, DNIT, construtoras, privados)
@@ -288,3 +323,28 @@ insert into public.categorias_financeiras (nome, tipo) values
   ('Aluguel', 'despesa'),
   ('Serviços de terceiros', 'despesa'),
   ('Receita de obras', 'receita');
+
+insert into public.empresas (
+  nome, razao_social, cnpj, endereco, cidade, estado,
+  responsavel_padrao, email
+) values
+  (
+    'Sinaltran',
+    'SINALTRAN SINALIZAÇÕES LTDA',
+    '05.336.209/0001-44',
+    'Estrada Manoel de Souza Rosa, 3065',
+    'Gravataí',
+    'RS',
+    'Vinicius Silva',
+    'vendas.sinaltranrs@gmail.com'
+  ),
+  (
+    'Sinalshop',
+    'SINALSHOP',
+    null,
+    null,
+    null,
+    'RS',
+    null,
+    null
+  );

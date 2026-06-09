@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -23,7 +24,7 @@ import {
   ORCAMENTO_STATUS_LABEL,
   ORCAMENTO_STATUS_TONE,
 } from "@/lib/mocks/orcamentos";
-import { CLIENTES } from "@/lib/mocks/cadastros";
+import { CLIENTES, EMPRESAS } from "@/lib/mocks/cadastros";
 import { OBRAS } from "@/lib/mocks/obras";
 import { formatBRL, formatDateBR, formatCNPJ, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,29 @@ export default async function OrcamentoDetalhePage({
   if (!orcamento) notFound();
 
   const cliente = CLIENTES.find((c) => c.id === orcamento.cliente_id);
+  const empresa = EMPRESAS.find((e) => e.id === orcamento.empresa_id);
   const tone = ORCAMENTO_STATUS_TONE[orcamento.status];
+
+  // Agrupar itens por seção
+  const secoes: { secao: string; itens: typeof orcamento.itens; subtotal: number }[] = [];
+  for (const item of orcamento.itens) {
+    let bucket = secoes.find((s) => s.secao === item.secao);
+    if (!bucket) {
+      bucket = { secao: item.secao, itens: [], subtotal: 0 };
+      secoes.push(bucket);
+    }
+    bucket.itens.push(item);
+    bucket.subtotal += item.valor_total;
+  }
+
+  const totaisMo = orcamento.itens.reduce(
+    (acc, i) => acc + i.valor_total_mao_obra,
+    0,
+  );
+  const totaisMat = orcamento.itens.reduce(
+    (acc, i) => acc + i.valor_total_material,
+    0,
+  );
   const obraVinculada = orcamento.obra_id
     ? OBRAS.find((o) => o.id === orcamento.obra_id)
     : null;
@@ -73,7 +96,9 @@ export default async function OrcamentoDetalhePage({
               {orcamento.descricao}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {cliente?.razao_social ?? "—"}
+              {empresa ? <span className="font-semibold">{empresa.nome}</span> : null}
+              {empresa && cliente ? " · " : ""}
+              {cliente?.razao_social ?? ""}
               {orcamento.cidade
                 ? ` · ${orcamento.cidade}/${orcamento.estado ?? "—"}`
                 : ""}
@@ -159,7 +184,7 @@ export default async function OrcamentoDetalhePage({
           <CardHeader>
             <CardTitle>Itens da proposta</CardTitle>
             <CardDescription>
-              Descrição, quantidade e valor de cada item
+              Agrupados por seção, separando mão de obra de material
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
@@ -168,10 +193,19 @@ export default async function OrcamentoDetalhePage({
                 <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b">
                   <th className="text-left font-semibold py-2 px-4 w-10">#</th>
                   <th className="text-left font-semibold py-2 px-2">Descrição</th>
-                  <th className="text-center font-semibold py-2 px-2 w-16">Un.</th>
-                  <th className="text-right font-semibold py-2 px-2 w-24">Qtd.</th>
+                  <th className="text-center font-semibold py-2 px-2 w-14">Un.</th>
+                  <th className="text-right font-semibold py-2 px-2 w-20">Qtd.</th>
+                  <th className="text-right font-semibold py-2 px-2 w-24">
+                    MO un.
+                  </th>
+                  <th className="text-right font-semibold py-2 px-2 w-24">
+                    Mat. un.
+                  </th>
                   <th className="text-right font-semibold py-2 px-2 w-28">
-                    Val. unit.
+                    Tot. MO
+                  </th>
+                  <th className="text-right font-semibold py-2 px-2 w-28">
+                    Tot. Mat
                   </th>
                   <th className="text-right font-semibold py-2 px-4 w-32">
                     Subtotal
@@ -179,31 +213,73 @@ export default async function OrcamentoDetalhePage({
                 </tr>
               </thead>
               <tbody>
-                {orcamento.itens.map((item) => (
-                  <tr key={item.id} className="border-b last:border-b-0">
-                    <td className="py-2 px-4 text-xs font-mono text-muted-foreground">
-                      {item.ordem}
-                    </td>
-                    <td className="py-2 px-2">{item.descricao}</td>
-                    <td className="py-2 px-2 text-center text-xs uppercase">
-                      {item.unidade_medida}
-                    </td>
-                    <td className="py-2 px-2 text-right tabular-nums">
-                      {formatNumber(item.quantidade)}
-                    </td>
-                    <td className="py-2 px-2 text-right tabular-nums text-xs">
-                      {formatBRL(item.valor_unitario)}
-                    </td>
-                    <td className="py-2 px-4 text-right tabular-nums font-semibold">
-                      {formatBRL(item.valor_total)}
-                    </td>
-                  </tr>
+                {secoes.map((s, si) => (
+                  <Fragment key={s.secao}>
+                    <tr className="bg-muted/40">
+                      <td colSpan={9} className="py-2 px-4 text-[10px] uppercase tracking-[0.18em] font-bold text-foreground/80">
+                        {si + 1}. {s.secao}
+                      </td>
+                    </tr>
+                    {s.itens.map((item, ii) => (
+                      <tr key={item.id} className="border-b last:border-b-0">
+                        <td className="py-2 px-4 text-xs font-mono text-muted-foreground">
+                          {si + 1}.{ii + 1}
+                        </td>
+                        <td className="py-2 px-2">{item.descricao}</td>
+                        <td className="py-2 px-2 text-center text-xs uppercase">
+                          {item.unidade_medida}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-xs">
+                          {formatNumber(item.quantidade)}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-xs">
+                          {item.valor_unit_mao_obra > 0
+                            ? formatBRL(item.valor_unit_mao_obra)
+                            : "—"}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-xs">
+                          {item.valor_unit_material > 0
+                            ? formatBRL(item.valor_unit_material)
+                            : "—"}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-xs">
+                          {item.valor_total_mao_obra > 0
+                            ? formatBRL(item.valor_total_mao_obra)
+                            : "—"}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-xs">
+                          {item.valor_total_material > 0
+                            ? formatBRL(item.valor_total_material)
+                            : "—"}
+                        </td>
+                        <td className="py-2 px-4 text-right tabular-nums font-semibold">
+                          {formatBRL(item.valor_total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-foreground/10">
-                  <td colSpan={5} className="py-3 px-2 text-right text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    Total da proposta
+                  <td colSpan={6} />
+                  <td className="py-2 px-2 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Total MO
+                  </td>
+                  <td className="py-2 px-2 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Total Mat.
+                  </td>
+                  <td className="py-2 px-4 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Total Geral
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={6} />
+                  <td className="py-2 px-2 text-right font-semibold tabular-nums text-sm">
+                    {formatBRL(totaisMo)}
+                  </td>
+                  <td className="py-2 px-2 text-right font-semibold tabular-nums text-sm">
+                    {formatBRL(totaisMat)}
                   </td>
                   <td className="py-3 px-4 text-right text-lg font-bold tabular-nums">
                     {formatBRL(orcamento.valor_total)}
@@ -215,6 +291,33 @@ export default async function OrcamentoDetalhePage({
         </Card>
 
         <div className="space-y-4">
+          {empresa ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Empresa emissora</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <InfoRow
+                  icon={Building2}
+                  label="Razão social"
+                  value={empresa.razao_social}
+                />
+                <InfoRow
+                  icon={Wallet}
+                  label="CNPJ"
+                  value={empresa.cnpj ? formatCNPJ(empresa.cnpj) : "—"}
+                />
+                {empresa.endereco ? (
+                  <InfoRow
+                    icon={Building2}
+                    label="Endereço"
+                    value={`${empresa.endereco}${empresa.cidade ? ` · ${empresa.cidade}/${empresa.estado ?? "—"}` : ""}`}
+                  />
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader>
               <CardTitle>Cliente</CardTitle>
@@ -226,6 +329,33 @@ export default async function OrcamentoDetalhePage({
                 icon={Wallet}
                 label="CNPJ"
                 value={cliente?.cnpj_cpf ? formatCNPJ(cliente.cnpj_cpf) : "—"}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Condições de fornecimento</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <InfoRow
+                icon={User}
+                label="Eng. responsável (cliente)"
+                value={
+                  orcamento.engenheiro_responsavel
+                    ? `${orcamento.engenheiro_responsavel}${orcamento.crea_engenheiro ? ` · ${orcamento.crea_engenheiro}` : ""}`
+                    : "—"
+                }
+              />
+              <InfoRow
+                icon={CalendarRange}
+                label="Prazo de execução"
+                value={orcamento.prazo_execucao ?? "—"}
+              />
+              <InfoRow
+                icon={Wallet}
+                label="Pagamento"
+                value={orcamento.condicoes_pagamento ?? "—"}
               />
             </CardContent>
           </Card>
