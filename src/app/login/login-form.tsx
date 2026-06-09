@@ -20,14 +20,19 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, startTransition] = useTransition();
+  const demoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      toast.error("Supabase ainda não foi configurado.", {
-        description:
-          "Conecte o projeto ao Supabase e preencha o .env.local antes de tentar entrar.",
+    // Modo demonstração — Supabase ainda não configurado.
+    if (demoMode) {
+      startTransition(async () => {
+        await new Promise((r) => setTimeout(r, 350));
+        toast.success("Bem-vindo ao modo demonstração", {
+          description: "Sem autenticação real — qualquer credencial entra.",
+        });
+        router.push("/dashboard");
       });
       return;
     }
@@ -55,7 +60,9 @@ export function LoginForm() {
       <CardHeader>
         <CardTitle>Entrar no sistema</CardTitle>
         <CardDescription>
-          Use suas credenciais corporativas para acessar o painel.
+          {demoMode
+            ? "Modo demonstração — qualquer e-mail/senha entra (Supabase não conectado)."
+            : "Use suas credenciais corporativas para acessar o painel."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,7 +76,9 @@ export function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu.nome@sinaltran.com"
+              placeholder={
+                demoMode ? "demo@sinaltran.com" : "seu.nome@sinaltran.com"
+              }
             />
           </div>
           <div className="space-y-2">
@@ -81,6 +90,7 @@ export function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder={demoMode ? "qualquer-senha" : ""}
             />
           </div>
           <Button type="submit" className="w-full" disabled={pending}>
