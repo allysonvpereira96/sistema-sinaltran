@@ -13,6 +13,11 @@ import {
   Users,
   BarChart3,
   Settings,
+  Building2,
+  Briefcase,
+  Truck,
+  Boxes,
+  Wrench,
 } from "lucide-react";
 
 export type NavItem = {
@@ -67,6 +72,16 @@ export const navigation: NavSection[] = [
     title: "Departamento Pessoal",
     items: [
       { label: "Colaboradores", href: "/pessoal/colaboradores", icon: Users },
+    ],
+  },
+  {
+    title: "Cadastros",
+    items: [
+      { label: "Unidades", href: "/cadastros/unidades", icon: Building2 },
+      { label: "Clientes", href: "/cadastros/clientes", icon: Briefcase },
+      { label: "Fornecedores", href: "/cadastros/fornecedores", icon: Truck },
+      { label: "Materiais", href: "/cadastros/materiais", icon: Boxes },
+      { label: "Equipamentos", href: "/cadastros/equipamentos", icon: Wrench },
     ],
   },
   {
