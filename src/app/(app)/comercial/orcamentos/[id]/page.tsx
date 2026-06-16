@@ -19,16 +19,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { getOrcamento } from "@/lib/actions/orcamentos";
 import {
-  ORCAMENTOS,
   ORCAMENTO_STATUS_LABEL,
   ORCAMENTO_STATUS_TONE,
-} from "@/lib/mocks/orcamentos";
-import { CLIENTES, EMPRESAS } from "@/lib/mocks/cadastros";
-import { OBRAS } from "@/lib/mocks/obras";
+  type OrcamentoItemRow,
+} from "@/lib/types/orcamento";
 import { formatBRL, formatDateBR, formatCNPJ, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConverterEmObraButton } from "./_components/converter-em-obra";
+
+export const dynamic = "force-dynamic";
 
 export default async function OrcamentoDetalhePage({
   params,
@@ -36,19 +37,20 @@ export default async function OrcamentoDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const orcamento = ORCAMENTOS.find((o) => o.id === id);
+  const orcamento = await getOrcamento(id);
   if (!orcamento) notFound();
 
-  const cliente = CLIENTES.find((c) => c.id === orcamento.cliente_id);
-  const empresa = EMPRESAS.find((e) => e.id === orcamento.empresa_id);
+  const cliente = orcamento.cliente;
+  const empresa = orcamento.empresa;
   const tone = ORCAMENTO_STATUS_TONE[orcamento.status];
 
   // Agrupar itens por seção
-  const secoes: { secao: string; itens: typeof orcamento.itens; subtotal: number }[] = [];
+  const secoes: { secao: string; itens: OrcamentoItemRow[]; subtotal: number }[] = [];
   for (const item of orcamento.itens) {
-    let bucket = secoes.find((s) => s.secao === item.secao);
+    const chave = item.secao ?? "GERAL";
+    let bucket = secoes.find((s) => s.secao === chave);
     if (!bucket) {
-      bucket = { secao: item.secao, itens: [], subtotal: 0 };
+      bucket = { secao: chave, itens: [], subtotal: 0 };
       secoes.push(bucket);
     }
     bucket.itens.push(item);
@@ -63,10 +65,7 @@ export default async function OrcamentoDetalhePage({
     (acc, i) => acc + i.valor_total_material,
     0,
   );
-  const obraVinculada = orcamento.obra_id
-    ? OBRAS.find((o) => o.id === orcamento.obra_id)
-    : null;
-  const podeConverter = orcamento.status === "aprovado" && !obraVinculada;
+  const podeConverter = orcamento.status === "aprovado" && !orcamento.obra_id;
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
@@ -93,7 +92,7 @@ export default async function OrcamentoDetalhePage({
               </span>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-2">
-              {orcamento.descricao}
+              {orcamento.descricao ?? "—"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {empresa ? <span className="font-semibold">{empresa.nome}</span> : null}
@@ -119,7 +118,7 @@ export default async function OrcamentoDetalhePage({
         </div>
       </header>
 
-      {obraVinculada ? (
+      {orcamento.obra_id ? (
         <Card className="border-emerald-200 bg-emerald-50/40">
           <CardContent className="p-4 flex items-start gap-3">
             <div className="size-10 rounded-md bg-emerald-100 text-emerald-700 grid place-items-center shrink-0">
@@ -130,18 +129,11 @@ export default async function OrcamentoDetalhePage({
                 Convertido em obra
               </div>
               <p className="text-sm text-emerald-700/90">
-                Esta proposta originou a obra{" "}
-                <Link
-                  href={`/obras/${obraVinculada.id}`}
-                  className="font-mono font-semibold underline"
-                >
-                  {obraVinculada.numero}
-                </Link>{" "}
-                — {obraVinculada.nome}.
+                Esta proposta já originou uma obra.
               </p>
             </div>
             <Link
-              href={`/obras/${obraVinculada.id}`}
+              href={`/obras/${orcamento.obra_id}`}
               className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
             >
               Ir para a obra
@@ -365,7 +357,7 @@ export default async function OrcamentoDetalhePage({
               <CardTitle>Local & responsável</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <InfoRow icon={User} label="Responsável" value={orcamento.responsavel} />
+              <InfoRow icon={User} label="Responsável" value={orcamento.responsavel ?? "—"} />
               <InfoRow
                 icon={Building2}
                 label="Local da obra"

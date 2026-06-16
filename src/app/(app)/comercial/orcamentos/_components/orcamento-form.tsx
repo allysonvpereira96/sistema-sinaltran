@@ -24,11 +24,21 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { EMPRESAS, MATERIAIS } from "@/lib/mocks/cadastros";
-import type { Orcamento, OrcamentoStatus } from "@/lib/mocks/orcamentos";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ClientePicker } from "@/components/app/cliente-picker";
+import {
+  createOrcamento,
+  updateOrcamento,
+  type EmpresaResumo,
+  type MaterialResumo,
+} from "@/lib/actions/orcamentos";
+import {
+  ORCAMENTO_STATUS_LABEL,
+  type OrcamentoDetalhe,
+  type OrcamentoInput,
+  type OrcamentoStatus,
+} from "@/lib/types/orcamento";
 
 const orcamentoStatusValues = [
   "rascunho",
@@ -49,7 +59,7 @@ const itemSchema = z.object({
 });
 
 const orcamentoSchema = z.object({
-  numero: z.string().min(1, "Número é obrigatório"),
+  numero: z.string().optional().or(z.literal("")),
   empresa_id: z.string().min(1, "Empresa emissora é obrigatória"),
   cliente_id: z.string().min(1, "Cliente é obrigatório"),
   responsavel: z.string().min(1, "Responsável é obrigatório"),
@@ -70,25 +80,12 @@ const orcamentoSchema = z.object({
 
 export type OrcamentoFormValues = z.infer<typeof orcamentoSchema>;
 
-const STATUS_LABEL: Record<OrcamentoStatus, string> = {
-  rascunho: "Rascunho",
-  enviado: "Enviado",
-  aprovado: "Aprovado",
-  rejeitado: "Rejeitado",
-  perdido: "Perdido",
-};
-
-function nextOrcamentoNumero() {
-  const ano = new Date().getFullYear();
-  return `ORC-${ano}-????`;
-}
-
-function orcamentoToValues(o: Orcamento): OrcamentoFormValues {
+function detalheToValues(o: OrcamentoDetalhe): OrcamentoFormValues {
   return {
     numero: o.numero,
-    empresa_id: o.empresa_id,
-    cliente_id: o.cliente_id,
-    responsavel: o.responsavel,
+    empresa_id: o.empresa_id ?? "",
+    cliente_id: o.cliente_id ?? "",
+    responsavel: o.responsavel ?? "",
     descricao: o.descricao ?? "",
     endereco: o.endereco ?? "",
     cidade: o.cidade ?? "",
@@ -102,7 +99,7 @@ function orcamentoToValues(o: Orcamento): OrcamentoFormValues {
     data_validade: o.data_validade ?? "",
     observacoes: o.observacoes ?? "",
     itens: o.itens.map((i) => ({
-      secao: i.secao,
+      secao: i.secao ?? "",
       material_id: i.material_id,
       descricao: i.descricao,
       unidade_medida: i.unidade_medida,
@@ -116,9 +113,15 @@ function orcamentoToValues(o: Orcamento): OrcamentoFormValues {
 export function OrcamentoForm({
   mode,
   initialData,
+  empresas,
+  materiais,
+  numeroSugerido,
 }: {
   mode: "create" | "edit";
-  initialData?: Orcamento;
+  initialData?: OrcamentoDetalhe;
+  empresas: EmpresaResumo[];
+  materiais: MaterialResumo[];
+  numeroSugerido?: string;
 }) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -134,12 +137,12 @@ export function OrcamentoForm({
   } = useForm<OrcamentoFormValues>({
     resolver: zodResolver(orcamentoSchema),
     defaultValues: initialData
-      ? orcamentoToValues(initialData)
+      ? detalheToValues(initialData)
       : {
-          numero: nextOrcamentoNumero(),
-          empresa_id: EMPRESAS[0].id,
+          numero: numeroSugerido ?? "",
+          empresa_id: empresas[0]?.id ?? "",
           cliente_id: "",
-          responsavel: EMPRESAS[0].responsavel_padrao ?? "",
+          responsavel: empresas[0]?.responsavel_padrao ?? "",
           descricao: "",
           endereco: "",
           cidade: "",
@@ -172,7 +175,7 @@ export function OrcamentoForm({
   });
 
   useEffect(() => {
-    if (initialData) reset(orcamentoToValues(initialData));
+    if (initialData) reset(detalheToValues(initialData));
   }, [initialData, reset]);
 
   const watchedItens = useWatch({ control, name: "itens" });
@@ -220,13 +223,53 @@ export function OrcamentoForm({
     return [...set];
   }, [watchedItens]);
 
-  const onSubmit: SubmitHandler<OrcamentoFormValues> = async () => {
-    await new Promise((r) => setTimeout(r, 400));
-    toast.success(isEdit ? "Orçamento atualizado" : "Orçamento criado", {
-      description:
-        "Em breve este orçamento será persistido no Supabase em vez de mocks.",
-    });
-    router.push("/comercial/orcamentos");
+  const onSubmit: SubmitHandler<OrcamentoFormValues> = async (values) => {
+    const input: OrcamentoInput = {
+      numero: values.numero || null,
+      empresa_id: values.empresa_id,
+      cliente_id: values.cliente_id,
+      responsavel: values.responsavel,
+      descricao: values.descricao,
+      endereco: values.endereco || null,
+      cidade: values.cidade || null,
+      estado: values.estado || null,
+      engenheiro_responsavel: values.engenheiro_responsavel || null,
+      crea_engenheiro: values.crea_engenheiro || null,
+      prazo_execucao: values.prazo_execucao || null,
+      condicoes_pagamento: values.condicoes_pagamento || null,
+      status: values.status,
+      data_envio: values.data_envio || null,
+      data_validade: values.data_validade || null,
+      observacoes: values.observacoes || null,
+      itens: values.itens.map((i) => ({
+        secao: i.secao,
+        material_id: i.material_id || null,
+        descricao: i.descricao,
+        unidade_medida: i.unidade_medida,
+        quantidade: i.quantidade,
+        valor_unit_mao_obra: i.valor_unit_mao_obra,
+        valor_unit_material: i.valor_unit_material,
+      })),
+    };
+
+    const res =
+      isEdit && initialData
+        ? await updateOrcamento(initialData.id, input)
+        : await createOrcamento(input);
+
+    if (!res.ok) {
+      toast.error("Erro ao salvar", { description: res.error });
+      return;
+    }
+    toast.success(isEdit ? "Orçamento atualizado" : "Orçamento criado");
+    const destino =
+      isEdit && initialData
+        ? `/comercial/orcamentos/${initialData.id}`
+        : "id" in res
+          ? `/comercial/orcamentos/${res.id}`
+          : "/comercial/orcamentos";
+    router.push(destino);
+    router.refresh();
   };
 
   return (
@@ -260,7 +303,7 @@ export function OrcamentoForm({
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Empresa emissora *" error={errors.empresa_id?.message}>
               <NativeSelect {...register("empresa_id")}>
-                {EMPRESAS.map((e) => (
+                {empresas.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.nome} — {e.razao_social}
                   </option>
@@ -268,7 +311,12 @@ export function OrcamentoForm({
               </NativeSelect>
             </Field>
             <Field label="Número" error={errors.numero?.message}>
-              <Input {...register("numero")} placeholder="ORC-2026-0001" />
+              <Input
+                {...register("numero")}
+                placeholder="ORC-2026-0001"
+                readOnly={!isEdit}
+                className={cn(!isEdit && "bg-muted/50")}
+              />
             </Field>
             <Field
               label="Descrição *"
@@ -289,8 +337,6 @@ export function OrcamentoForm({
                     shouldValidate: true,
                     shouldDirty: true,
                   });
-                  // Auto-preenche local da obra quando o cliente tem cidade/UF
-                  // e o form ainda não tem essa info
                   if (id && !watch("cidade") && cliente?.cidade) {
                     setValue("cidade", cliente.cidade);
                   }
@@ -311,7 +357,7 @@ export function OrcamentoForm({
               <NativeSelect {...register("status")}>
                 {orcamentoStatusValues.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+                    {ORCAMENTO_STATUS_LABEL[s as OrcamentoStatus]}
                   </option>
                 ))}
               </NativeSelect>
@@ -476,9 +522,10 @@ export function OrcamentoForm({
                           {...register(`itens.${index}.material_id` as const)}
                         >
                           <option value="">Material avulso (sem catálogo)</option>
-                          {MATERIAIS.map((m) => (
+                          {materiais.map((m) => (
                             <option key={m.id} value={m.id}>
-                              {m.codigo} · {m.descricao.slice(0, 48)}
+                              {m.codigo ? `${m.codigo} · ` : ""}
+                              {m.descricao.slice(0, 48)}
                             </option>
                           ))}
                         </select>
