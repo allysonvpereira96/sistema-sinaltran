@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Bell, Search } from "lucide-react";
 import { navigation } from "@/config/navigation";
+import { ThemeToggle } from "./theme-toggle";
 
 function findCrumbs(pathname: string) {
   for (const section of navigation) {
@@ -43,6 +44,7 @@ export function AppTopbar() {
               className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70 text-foreground"
             />
           </div>
+          <ThemeToggle />
           <button
             type="button"
             className="size-9 grid place-items-center rounded-md border bg-card text-foreground hover:bg-muted transition-colors"

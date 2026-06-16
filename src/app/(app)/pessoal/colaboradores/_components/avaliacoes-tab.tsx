@@ -114,7 +114,7 @@ export function AvaliacoesTab({
                   <div className="flex items-center gap-3">
                     {a.nota != null && (
                       <div className="size-12 rounded-lg bg-primary/10 grid place-items-center">
-                        <span className="text-lg font-bold text-primary tabular-nums">{a.nota.toFixed(1)}</span>
+                        <span className="text-lg font-bold text-foreground tabular-nums">{a.nota.toFixed(1)}</span>
                       </div>
                     )}
                     <div>

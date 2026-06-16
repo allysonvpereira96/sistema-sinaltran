@@ -268,7 +268,7 @@ export function ClientePicker({ value, onChange, error, className }: Props) {
                       <button
                         type="button"
                         onClick={handleNewFromQuery}
-                        className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center gap-2 text-xs font-medium text-primary"
+                        className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center gap-2 text-xs font-medium text-foreground"
                       >
                         <Plus className="size-3.5" />
                         Cadastrar novo cliente

@@ -70,7 +70,7 @@ export default async function ObraDetalhePage({
               {obra.orcamento_id ? (
                 <Link
                   href={`/comercial/orcamentos/${obra.orcamento_id}`}
-                  className="text-xs text-primary underline"
+                  className="text-xs text-foreground underline underline-offset-2"
                 >
                   ver orçamento de origem
                 </Link>
