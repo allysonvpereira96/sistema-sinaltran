@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useForm,
   useFieldArray,
@@ -27,7 +27,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ClientePicker } from "@/components/app/cliente-picker";
-import { CatalogoPicker } from "@/components/app/catalogo-picker";
+import {
+  CatalogoPicker,
+  type CriadoCatalogo,
+} from "@/components/app/catalogo-picker";
 import {
   createOrcamento,
   updateOrcamento,
@@ -146,8 +149,8 @@ export function OrcamentoForm({
   mode,
   initialData,
   empresas,
-  materiais,
-  servicos,
+  materiais: materiaisProp,
+  servicos: servicosProp,
   numeroSugerido,
 }: {
   mode: "create" | "edit";
@@ -159,6 +162,10 @@ export function OrcamentoForm({
 }) {
   const router = useRouter();
   const isEdit = mode === "edit";
+
+  // Catálogo em estado: cresce quando um item é cadastrado na hora.
+  const [servicos, setServicos] = useState(servicosProp);
+  const [materiais, setMateriais] = useState(materiaisProp);
 
   const {
     register,
@@ -258,43 +265,62 @@ export function OrcamentoForm({
     return [...set];
   }, [watchedItens]);
 
+  // Preenche o item a partir de um serviço.
+  function preencherServico(index: number, s: ServicoResumo) {
+    setValue(`itens.${index}.servico_id`, s.id);
+    setValue(`itens.${index}.material_id`, null);
+    setValue(`itens.${index}.descricao`, s.descricao_completa || s.descricao, {
+      shouldValidate: true,
+    });
+    if (s.unidade_padrao) {
+      setValue(
+        `itens.${index}.unidade_medida`,
+        UNIDADE_ITEM[s.unidade_padrao] ?? s.unidade_padrao,
+      );
+    }
+    if (s.preco_unitario > 0) {
+      setValue(`itens.${index}.valor_unit_mao_obra`, s.preco_unitario);
+    }
+  }
+
+  // Preenche o item a partir de um material.
+  function preencherMaterial(index: number, m: MaterialResumo) {
+    setValue(`itens.${index}.material_id`, m.id);
+    setValue(`itens.${index}.servico_id`, null);
+    setValue(`itens.${index}.descricao`, m.descricao, { shouldValidate: true });
+    if (m.unidade_medida) {
+      setValue(`itens.${index}.unidade_medida`, m.unidade_medida);
+    }
+    if (m.valor_referencia && m.valor_referencia > 0) {
+      setValue(`itens.${index}.valor_unit_material`, m.valor_referencia);
+    }
+    if (m.valor_mao_obra && m.valor_mao_obra > 0) {
+      setValue(`itens.${index}.valor_unit_mao_obra`, m.valor_mao_obra);
+    }
+  }
+
   // Ao escolher um item do catálogo (serviço ou material), preenche os campos.
   function aplicarCatalogo(index: number, valor: string) {
     if (valor.startsWith("srv:")) {
       const s = servicos.find((x) => x.id === valor.slice(4));
-      if (!s) return;
-      setValue(`itens.${index}.servico_id`, s.id);
-      setValue(`itens.${index}.material_id`, null);
-      setValue(`itens.${index}.descricao`, s.descricao_completa || s.descricao, {
-        shouldValidate: true,
-      });
-      if (s.unidade_padrao) {
-        setValue(
-          `itens.${index}.unidade_medida`,
-          UNIDADE_ITEM[s.unidade_padrao] ?? s.unidade_padrao,
-        );
-      }
-      if (s.preco_unitario > 0) {
-        setValue(`itens.${index}.valor_unit_mao_obra`, s.preco_unitario);
-      }
+      if (s) preencherServico(index, s);
     } else if (valor.startsWith("mat:")) {
       const m = materiais.find((x) => x.id === valor.slice(4));
-      if (!m) return;
-      setValue(`itens.${index}.material_id`, m.id);
-      setValue(`itens.${index}.servico_id`, null);
-      setValue(`itens.${index}.descricao`, m.descricao, { shouldValidate: true });
-      if (m.unidade_medida) {
-        setValue(`itens.${index}.unidade_medida`, m.unidade_medida);
-      }
-      if (m.valor_referencia && m.valor_referencia > 0) {
-        setValue(`itens.${index}.valor_unit_material`, m.valor_referencia);
-      }
-      if (m.valor_mao_obra && m.valor_mao_obra > 0) {
-        setValue(`itens.${index}.valor_unit_mao_obra`, m.valor_mao_obra);
-      }
+      if (m) preencherMaterial(index, m);
     } else {
       setValue(`itens.${index}.material_id`, null);
       setValue(`itens.${index}.servico_id`, null);
+    }
+  }
+
+  // Item cadastrado na hora pelo modal do seletor: entra no catálogo e no item.
+  function handleItemCriado(index: number, criado: CriadoCatalogo) {
+    if (criado.tipo === "servico") {
+      setServicos((prev) => [criado.item, ...prev]);
+      preencherServico(index, criado.item);
+    } else {
+      setMateriais((prev) => [criado.item, ...prev]);
+      preencherMaterial(index, criado.item);
     }
   }
 
@@ -610,6 +636,7 @@ export function OrcamentoForm({
                             : ""
                       }
                       onChange={(v) => aplicarCatalogo(index, v)}
+                      onCreate={(criado) => handleItemCriado(index, criado)}
                     />
                     <Input
                       {...register(`itens.${index}.descricao` as const)}

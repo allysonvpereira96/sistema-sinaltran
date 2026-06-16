@@ -134,19 +134,22 @@ function payload(input: MaterialInput) {
 
 export async function createMaterial(
   input: MaterialInput,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; id: string; codigo: string } | { ok: false; error: string }> {
   if (!input.descricao?.trim()) {
     return { ok: false, error: "Descrição é obrigatória." };
   }
-  if (!hasSupabase()) return { ok: true, id: `mat-${Date.now().toString(36)}` };
+  const codigoBase = input.codigo?.trim();
+  if (!hasSupabase()) {
+    return { ok: true, id: `mat-${Date.now().toString(36)}`, codigo: codigoBase || "—" };
+  }
 
   const supabase = await createClient();
-  const codigo = input.codigo?.trim() || (await proximoCodigo());
+  const codigo = codigoBase || (await proximoCodigo());
 
   const { data, error } = await supabase
     .from(TABLE)
     .insert({ ...payload(input), codigo })
-    .select("id")
+    .select("id, codigo")
     .single();
   if (error) {
     if (error.code === "23505") {
@@ -156,7 +159,8 @@ export async function createMaterial(
     return { ok: false, error: error.message };
   }
   revalidatePath(BASE_PATH);
-  return { ok: true, id: (data as { id: string }).id };
+  const row = data as { id: string; codigo: string };
+  return { ok: true, id: row.id, codigo: row.codigo };
 }
 
 export async function updateMaterial(

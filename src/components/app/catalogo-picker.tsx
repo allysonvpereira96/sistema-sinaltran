@@ -1,11 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, X, Wrench, Package } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Search, X, Wrench, Package, Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ServicoResumo } from "@/lib/actions/servicos";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { createMaterial, type MaterialInput } from "@/lib/actions/materiais";
+import { createServico, type ServicoInput, type ServicoResumo } from "@/lib/actions/servicos";
 import type { MaterialResumo } from "@/lib/actions/orcamentos";
+
+export type CriadoCatalogo =
+  | { tipo: "servico"; item: ServicoResumo }
+  | { tipo: "material"; item: MaterialResumo };
 
 type Props = {
   servicos: ServicoResumo[];
@@ -13,17 +30,27 @@ type Props = {
   /** Valor codificado do item: "srv:<id>" | "mat:<id>" | "". */
   value: string;
   onChange: (value: string) => void;
+  /** Chamado quando o usuário cadastra um item novo pelo modal. */
+  onCreate?: (criado: CriadoCatalogo) => void;
 };
 
 const MAX_RESULTS = 60;
 
-export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) {
+const UNIDADES = ["UN", "m²", "m", "m³", "kg", "L", "par", "cento", "diária", "h", "vb"];
+
+export function CatalogoPicker({
+  servicos,
+  materiais,
+  value,
+  onChange,
+  onCreate,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Rótulo do item atualmente selecionado (para exibir no botão).
   const selectedLabel = useMemo(() => {
     if (value.startsWith("srv:")) {
       const s = servicos.find((x) => x.id === value.slice(4));
@@ -38,27 +65,32 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
     return null;
   }, [value, servicos, materiais]);
 
+  // Busca por palavras: cada palavra digitada pode estar em qualquer ordem;
+  // acentos são ignorados (normalizeSearch).
+  const tokens = useMemo(
+    () => normalizeSearch(query.trim()).split(/\s+/).filter(Boolean),
+    [query],
+  );
+  const matchTokens = useMemo(
+    () => (texto: string) => {
+      if (tokens.length === 0) return true;
+      const h = normalizeSearch(texto);
+      return tokens.every((t) => h.includes(t));
+    },
+    [tokens],
+  );
+
   const filtrados = useMemo(() => {
-    const q = normalizeSearch(query.trim());
-    const matchS = (s: ServicoResumo) =>
-      !q ||
-      normalizeSearch(s.codigo).includes(q) ||
-      normalizeSearch(s.descricao).includes(q);
-    const matchM = (m: MaterialResumo) =>
-      !q ||
-      normalizeSearch(m.codigo ?? "").includes(q) ||
-      normalizeSearch(m.descricao).includes(q);
-    const srv = servicos.filter(matchS);
-    const mat = materiais.filter(matchM);
+    const srv = servicos.filter((s) => matchTokens(`${s.codigo} ${s.descricao}`));
+    const mat = materiais.filter((m) => matchTokens(`${m.codigo ?? ""} ${m.descricao}`));
     return {
       srv: srv.slice(0, MAX_RESULTS),
       mat: mat.slice(0, MAX_RESULTS),
       totalSrv: srv.length,
       totalMat: mat.length,
     };
-  }, [query, servicos, materiais]);
+  }, [matchTokens, servicos, materiais]);
 
-  // Fecha ao clicar fora.
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
@@ -68,7 +100,6 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
-  // Foca o campo de busca ao abrir.
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
@@ -77,6 +108,13 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
     onChange(v);
     setQuery("");
     setOpen(false);
+  }
+
+  function handleCriado(criado: CriadoCatalogo) {
+    setModalOpen(false);
+    setOpen(false);
+    setQuery("");
+    onCreate?.(criado);
   }
 
   return (
@@ -122,7 +160,7 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Digite código ou descrição…"
+            placeholder="Digite palavras-chave (ex.: placa R1 0,33)…"
             className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70"
           />
         </div>
@@ -198,13 +236,261 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
             ))}
 
             {filtrados.srv.length === 0 && filtrados.mat.length === 0 ? (
-              <li className="px-3 py-4 text-center text-muted-foreground">
-                Nada encontrado para “{query}”.
+              <li className="px-3 py-3 text-center text-muted-foreground">
+                Nada encontrado{query ? ` para “${query}”` : ""}.
               </li>
             ) : null}
           </ul>
+
+          <div className="border-t bg-muted/40">
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2 text-xs font-medium text-primary"
+            >
+              <Plus className="size-3.5" />
+              Cadastrar novo item{query ? ` (“${query}”)` : ""}
+            </button>
+          </div>
         </div>
       ) : null}
+
+      <NovoItemModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        descricaoInicial={query}
+        onCreated={handleCriado}
+      />
+    </div>
+  );
+}
+
+/* ===========================================================================
+ * Modal: cadastrar serviço ou material rapidamente durante o orçamento
+ * ======================================================================== */
+
+function NovoItemModal({
+  open,
+  onOpenChange,
+  descricaoInicial,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  descricaoInicial: string;
+  onCreated: (criado: CriadoCatalogo) => void;
+}) {
+  const [tipo, setTipo] = useState<"material" | "servico">("material");
+  const [descricao, setDescricao] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [unidade, setUnidade] = useState("UN");
+  const [valorMaterial, setValorMaterial] = useState("");
+  const [valorMaoObra, setValorMaoObra] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open) return;
+    setTipo("material");
+    setDescricao(descricaoInicial.trim());
+    setCategoria("");
+    setUnidade("UN");
+    setValorMaterial("");
+    setValorMaoObra("");
+  }, [open, descricaoInicial]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!descricao.trim()) {
+      toast.error("Informe a descrição.");
+      return;
+    }
+    const material = Number(valorMaterial) || 0;
+    const maoObra = Number(valorMaoObra) || 0;
+
+    startTransition(async () => {
+      if (tipo === "material") {
+        const input: MaterialInput = {
+          descricao: descricao.trim(),
+          familia: categoria.trim() || null,
+          unidade_medida: unidade,
+          valor_referencia: material,
+          valor_mao_obra: maoObra,
+        };
+        const res = await createMaterial(input);
+        if (!res.ok) {
+          toast.error("Erro ao cadastrar material", { description: res.error });
+          return;
+        }
+        toast.success("Material cadastrado");
+        onCreated({
+          tipo: "material",
+          item: {
+            id: res.id,
+            codigo: res.codigo,
+            descricao: input.descricao,
+            unidade_medida: unidade,
+            valor_referencia: material,
+            valor_mao_obra: maoObra,
+          },
+        });
+      } else {
+        const input: ServicoInput = {
+          descricao: descricao.trim(),
+          descricao_completa: descricao.trim(),
+          categoria: categoria.trim() || null,
+          unidade_padrao: unidade,
+          preco_unitario: maoObra || material,
+        };
+        const res = await createServico(input);
+        if (!res.ok) {
+          toast.error("Erro ao cadastrar serviço", { description: res.error });
+          return;
+        }
+        toast.success("Serviço cadastrado");
+        onCreated({
+          tipo: "servico",
+          item: {
+            id: res.id,
+            codigo: res.codigo,
+            descricao: input.descricao,
+            descricao_completa: input.descricao,
+            unidade_padrao: unidade,
+            preco_unitario: maoObra || material,
+          },
+        });
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Cadastrar novo item</DialogTitle>
+          <DialogDescription>
+            Cadastre na hora um serviço ou material. Ele entra no catálogo e já é
+            selecionado neste item do orçamento.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex gap-2">
+            {(["material", "servico"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTipo(t)}
+                className={cn(
+                  "flex-1 h-9 rounded-md border text-sm font-medium transition-colors",
+                  tipo === t
+                    ? "border-transparent bg-primary text-primary-foreground"
+                    : "border-input bg-background hover:bg-muted",
+                )}
+              >
+                {t === "material" ? "Material" : "Serviço"}
+              </button>
+            ))}
+          </div>
+
+          <ModalField label="Descrição *">
+            <Input
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ex.: Placa R-1 chapa de aço 1,25mm, película GTP I, Ø 0,50m"
+              autoFocus
+            />
+          </ModalField>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ModalField label={tipo === "material" ? "Família" : "Categoria"}>
+              <Input
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                placeholder={
+                  tipo === "material"
+                    ? "Ex.: Sinalização vertical"
+                    : "Ex.: Sinalização vertical"
+                }
+              />
+            </ModalField>
+            <ModalField label="Unidade">
+              <select
+                value={unidade}
+                onChange={(e) => setUnidade(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {UNIDADES.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </ModalField>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ModalField
+              label={tipo === "material" ? "Preço do material (R$)" : "Preço (R$)"}
+            >
+              <Input
+                type="number"
+                step="0.01"
+                value={valorMaterial}
+                onChange={(e) => setValorMaterial(e.target.value)}
+                placeholder="0,00"
+                className="text-right tabular-nums"
+              />
+            </ModalField>
+            {tipo === "material" ? (
+              <ModalField label="Instalação / MO (R$)">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={valorMaoObra}
+                  onChange={(e) => setValorMaoObra(e.target.value)}
+                  placeholder="0,00"
+                  className="text-right tabular-nums"
+                />
+              </ModalField>
+            ) : null}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            Você pode deixar os preços em branco e ajustar depois em Cadastros.
+          </p>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending} className="gap-2">
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Plus className="size-4" />
+              )}
+              Cadastrar e usar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ModalField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+        {label}
+      </Label>
+      {children}
     </div>
   );
 }
