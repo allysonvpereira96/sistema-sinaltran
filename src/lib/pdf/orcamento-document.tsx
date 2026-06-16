@@ -3,10 +3,18 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { OrcamentoDetalhe, OrcamentoItemRow } from "@/lib/types/orcamento";
-import { formatBRL, formatCNPJ, formatDateBR, formatNumber } from "@/lib/format";
+import {
+  formatBRL,
+  formatCNPJ,
+  formatDateBR,
+  formatNumber,
+  formatTelefone,
+} from "@/lib/format";
+import { LOGO_SINALTRAN } from "@/lib/pdf/logo-sinaltran";
 
 // Paleta — amarelo de destaque da Sinaltran + cinzas de borda.
 const AMARELO = "#EAB308";
@@ -33,16 +41,10 @@ const styles = StyleSheet.create({
   headerLine: { fontSize: 7.5, marginBottom: 1.5 },
   headerLineBold: { fontSize: 8.5, fontFamily: "Helvetica-Bold", marginBottom: 2 },
   logoBox: {
-    width: 124,
+    width: 140,
     alignItems: "flex-end",
   },
-  logoMark: {
-    fontSize: 15,
-    fontFamily: "Helvetica-Bold",
-    color: AMARELO,
-    letterSpacing: 0.5,
-  },
-  logoSub: { fontSize: 5.5, color: CINZA, letterSpacing: 1.5, marginTop: 1 },
+  logo: { width: 132, height: 36 },
   // Tabela
   table: { borderWidth: 0.7, borderColor: BORDA, marginTop: 2 },
   rowHeader: {
@@ -134,7 +136,7 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
 
   const contatoResp = [
     orcamento.responsavel,
-    empresa?.telefone,
+    empresa?.telefone ? formatTelefone(empresa.telefone) : null,
     empresa?.email,
   ]
     .filter(Boolean)
@@ -158,7 +160,7 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
       <Page size="A4" orientation="landscape" style={styles.page}>
         {/* Cabeçalho */}
         <View style={styles.header}>
-          <View style={{ width: 124 }} />
+          <View style={{ width: 140 }} />
           <View style={styles.headerInfo}>
             <Text style={styles.headerLineBold}>
               ORÇAMENTO FORNECIDO POR: {empresa?.razao_social ?? "—"}
@@ -193,8 +195,8 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
             </Text>
           </View>
           <View style={styles.logoBox}>
-            <Text style={styles.logoMark}>SINALTRAN</Text>
-            <Text style={styles.logoSub}>SINALIZAÇÃO VIÁRIA</Text>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={LOGO_SINALTRAN} style={styles.logo} />
           </View>
         </View>
 
