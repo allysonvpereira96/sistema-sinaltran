@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { OBRAS } from "@/lib/mocks/obras";
+import { getObra } from "@/lib/actions/obras";
 import { ObraForm } from "../../_components/obra-form";
 
 export default async function EditarObraPage({
@@ -8,7 +8,7 @@ export default async function EditarObraPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const obra = OBRAS.find((o) => o.id === id);
+  const obra = await getObra(id);
   if (!obra) notFound();
   return <ObraForm mode="edit" initialData={obra} />;
 }

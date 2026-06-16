@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { HardHat } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { converterOrcamentoEmObra } from "@/lib/actions/obras";
 
 export function ConverterEmObraButton({
   orcamentoId,
@@ -17,13 +18,16 @@ export function ConverterEmObraButton({
 
   function handleConvert() {
     startTransition(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      const res = await converterOrcamentoEmObra(orcamentoId);
+      if (!res.ok) {
+        toast.error("Não foi possível converter", { description: res.error });
+        return;
+      }
       toast.success("Obra criada a partir do orçamento", {
-        description:
-          "Quando o Supabase estiver conectado, o orçamento será marcado como 'aprovado' e uma nova obra será inserida com os mesmos dados.",
+        description: "O orçamento foi marcado como aprovado e vinculado à obra.",
       });
-      // Em produção: redirecionar para /obras/<nova-id>/editar
-      router.push("/obras");
+      router.push(`/obras/${res.obraId}`);
+      router.refresh();
     });
   }
 
@@ -49,12 +53,7 @@ export function ConverterEmObraButton({
       >
         Cancelar
       </Button>
-      <Button
-        size="sm"
-        onClick={handleConvert}
-        disabled={pending}
-        className="gap-2"
-      >
+      <Button size="sm" onClick={handleConvert} disabled={pending} className="gap-2">
         <HardHat className="size-4" />
         {pending ? "Convertendo…" : "Sim, converter"}
       </Button>

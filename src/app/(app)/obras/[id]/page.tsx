@@ -20,15 +20,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { buttonVariants } from "@/components/ui/button";
+import { getObra } from "@/lib/actions/obras";
 import {
-  OBRAS,
   OBRA_STATUS_LABEL,
   OBRA_STATUS_TONE,
   calcularSaldo,
-} from "@/lib/mocks/obras";
-import { CLIENTES } from "@/lib/mocks/cadastros";
+} from "@/lib/types/obra";
 import { formatBRL, formatDateBR, formatCNPJ } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 export default async function ObraDetalhePage({
   params,
@@ -36,11 +37,11 @@ export default async function ObraDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const obra = OBRAS.find((o) => o.id === id);
+  const obra = await getObra(id);
   if (!obra) notFound();
 
-  const cliente = CLIENTES.find((c) => c.id === obra.cliente_id);
-  const saldo = calcularSaldo(obra);
+  const cliente = obra.cliente;
+  const saldo = calcularSaldo(obra.valor_total, obra.valor_medido);
   const statusTone = OBRA_STATUS_TONE[obra.status];
 
   return (
@@ -66,6 +67,14 @@ export default async function ObraDetalhePage({
               <span className="text-xs font-mono text-muted-foreground">
                 {obra.numero}
               </span>
+              {obra.orcamento_id ? (
+                <Link
+                  href={`/comercial/orcamentos/${obra.orcamento_id}`}
+                  className="text-xs text-primary underline"
+                >
+                  ver orçamento de origem
+                </Link>
+              ) : null}
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-2">
               {obra.nome}
@@ -112,9 +121,7 @@ export default async function ObraDetalhePage({
             </div>
             <div className="mt-3 flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Início</span>
-              <span className="font-mono">
-                {formatDateBR(obra.data_inicio)}
-              </span>
+              <span className="font-mono">{formatDateBR(obra.data_inicio)}</span>
             </div>
             <div className="flex items-center justify-between text-xs mt-1">
               <span className="text-muted-foreground">Previsão</span>
@@ -133,20 +140,22 @@ export default async function ObraDetalhePage({
             <CardDescription>Informações principais da obra</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-            <InfoRow icon={Users} label="Responsável" value={obra.responsavel} />
+            <InfoRow icon={Users} label="Responsável" value={obra.responsavel ?? "—"} />
             <InfoRow
               icon={MapPin}
               label="Local"
               value={
                 obra.endereco
-                  ? `${obra.endereco}${obra.cidade ? ` · ${obra.cidade}/${obra.estado}` : ""}`
-                  : "—"
+                  ? `${obra.endereco}${obra.cidade ? ` · ${obra.cidade}/${obra.estado ?? ""}` : ""}`
+                  : obra.cidade
+                    ? `${obra.cidade}/${obra.estado ?? ""}`
+                    : "—"
               }
             />
             <InfoRow
               icon={CalendarRange}
               label="Cronograma"
-              value={`${formatDateBR(obra.data_inicio)} → ${formatDateBR(obra.data_fim_prevista)}`}
+              value={`${formatDateBR(obra.data_inicio) || "—"} → ${formatDateBR(obra.data_fim_prevista) || "—"}`}
             />
             <InfoRow
               icon={Wallet}
@@ -194,7 +203,7 @@ export default async function ObraDetalhePage({
               </div>
               <div className="text-sm">{cliente?.responsavel ?? "—"}</div>
               <div className="text-xs text-muted-foreground">
-                {cliente?.cidade}/{cliente?.estado}
+                {cliente?.cidade ? `${cliente.cidade}/${cliente.estado ?? ""}` : ""}
               </div>
             </div>
           </CardContent>

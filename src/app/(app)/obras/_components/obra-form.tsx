@@ -19,8 +19,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CLIENTES } from "@/lib/mocks/cadastros";
-import type { Obra, ObraStatus } from "@/lib/mocks/obras";
+import { ClientePicker } from "@/components/app/cliente-picker";
+import { createObra, updateObra, type ObraInput } from "@/lib/actions/obras";
+import {
+  OBRA_STATUS_LABEL,
+  type ObraDetalhe,
+  type ObraStatus,
+} from "@/lib/types/obra";
 import { cn } from "@/lib/utils";
 
 const obraStatusValues = [
@@ -32,10 +37,10 @@ const obraStatusValues = [
 ] as const;
 
 const obraSchema = z.object({
-  numero: z.string().min(1, "Número é obrigatório"),
+  numero: z.string().optional().or(z.literal("")),
   nome: z.string().min(3, "Informe o nome da obra"),
   cliente_id: z.string().min(1, "Cliente é obrigatório"),
-  responsavel: z.string().min(1, "Responsável é obrigatório"),
+  responsavel: z.string().optional().or(z.literal("")),
   endereco: z.string().optional().or(z.literal("")),
   cidade: z.string().optional().or(z.literal("")),
   estado: z.string().optional().or(z.literal("")),
@@ -43,7 +48,7 @@ const obraSchema = z.object({
   data_inicio: z.string().optional().or(z.literal("")),
   data_fim_prevista: z.string().optional().or(z.literal("")),
   data_fim_real: z.string().optional().or(z.literal("")),
-  valor_total: z.number({ message: "Informe o valor total" }).min(0, "Valor deve ser positivo"),
+  valor_total: z.number().min(0, "Valor deve ser positivo"),
   mao_obra_direta: z.number().min(0, "Valor deve ser positivo"),
   mao_obra_indireta: z.number().min(0, "Valor deve ser positivo"),
   observacoes: z.string().optional().or(z.literal("")),
@@ -51,30 +56,12 @@ const obraSchema = z.object({
 
 export type ObraFormValues = z.infer<typeof obraSchema>;
 
-type ObraFormProps = {
-  mode: "create" | "edit";
-  initialData?: Obra;
-};
-
-const STATUS_LABEL: Record<ObraStatus, string> = {
-  planejamento: "Planejamento",
-  em_andamento: "Em andamento",
-  pausada: "Pausada",
-  concluida: "Concluída",
-  cancelada: "Cancelada",
-};
-
-function nextObraNumero() {
-  const ano = new Date().getFullYear();
-  return `OB-${ano}-???`;
-}
-
-function obraToValues(obra: Obra): ObraFormValues {
+function obraToValues(obra: ObraDetalhe): ObraFormValues {
   return {
     numero: obra.numero,
     nome: obra.nome,
-    cliente_id: obra.cliente_id,
-    responsavel: obra.responsavel,
+    cliente_id: obra.cliente_id ?? "",
+    responsavel: obra.responsavel ?? "",
     endereco: obra.endereco ?? "",
     cidade: obra.cidade ?? "",
     estado: obra.estado ?? "",
@@ -89,7 +76,15 @@ function obraToValues(obra: Obra): ObraFormValues {
   };
 }
 
-export function ObraForm({ mode, initialData }: ObraFormProps) {
+export function ObraForm({
+  mode,
+  initialData,
+  numeroSugerido,
+}: {
+  mode: "create" | "edit";
+  initialData?: ObraDetalhe;
+  numeroSugerido?: string;
+}) {
   const router = useRouter();
   const isEdit = mode === "edit";
 
@@ -97,13 +92,15 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ObraFormValues>({
     resolver: zodResolver(obraSchema),
     defaultValues: initialData
       ? obraToValues(initialData)
       : {
-          numero: nextObraNumero(),
+          numero: numeroSugerido ?? "",
           nome: "",
           cliente_id: "",
           responsavel: "",
@@ -125,13 +122,43 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
     if (initialData) reset(obraToValues(initialData));
   }, [initialData, reset]);
 
-  const onSubmit: SubmitHandler<ObraFormValues> = async () => {
-    await new Promise((r) => setTimeout(r, 400));
-    toast.success(isEdit ? "Obra atualizada" : "Obra criada", {
-      description:
-        "Os dados serão persistidos no Supabase assim que a conexão estiver configurada.",
-    });
-    router.push("/obras");
+  const onSubmit: SubmitHandler<ObraFormValues> = async (values) => {
+    const input: ObraInput = {
+      numero: values.numero || null,
+      nome: values.nome,
+      cliente_id: values.cliente_id,
+      responsavel: values.responsavel || null,
+      endereco: values.endereco || null,
+      cidade: values.cidade || null,
+      estado: values.estado || null,
+      status: values.status,
+      data_inicio: values.data_inicio || null,
+      data_fim_prevista: values.data_fim_prevista || null,
+      data_fim_real: values.data_fim_real || null,
+      valor_total: values.valor_total,
+      mao_obra_direta: values.mao_obra_direta,
+      mao_obra_indireta: values.mao_obra_indireta,
+      observacoes: values.observacoes || null,
+    };
+
+    const res =
+      isEdit && initialData
+        ? await updateObra(initialData.id, input)
+        : await createObra(input);
+
+    if (!res.ok) {
+      toast.error("Erro ao salvar", { description: res.error });
+      return;
+    }
+    toast.success(isEdit ? "Obra atualizada" : "Obra criada");
+    const destino =
+      isEdit && initialData
+        ? `/obras/${initialData.id}`
+        : "id" in res
+          ? `/obras/${res.id}`
+          : "/obras";
+    router.push(destino);
+    router.refresh();
   };
 
   return (
@@ -164,29 +191,47 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Número da obra" error={errors.numero?.message}>
-              <Input {...register("numero")} placeholder="OB-2026-001" />
+              <Input
+                {...register("numero")}
+                placeholder="OB-2026-001"
+                readOnly={!isEdit}
+                className={cn(!isEdit && "bg-muted/50")}
+              />
             </Field>
             <Field label="Nome da obra *" error={errors.nome?.message}>
               <Input {...register("nome")} placeholder="Ex.: Sinalização Av. Brasil" />
             </Field>
-            <Field label="Cliente *" error={errors.cliente_id?.message}>
-              <NativeSelect {...register("cliente_id")}>
-                <option value="">Selecione…</option>
-                {CLIENTES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_fantasia ?? c.razao_social}
-                  </option>
-                ))}
-              </NativeSelect>
+            <Field
+              label="Cliente *"
+              error={errors.cliente_id?.message}
+              className="sm:col-span-2"
+            >
+              <input type="hidden" {...register("cliente_id")} />
+              <ClientePicker
+                value={watch("cliente_id")}
+                onChange={(id, cliente) => {
+                  setValue("cliente_id", id, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  });
+                  if (id && !watch("cidade") && cliente?.cidade) {
+                    setValue("cidade", cliente.cidade);
+                  }
+                  if (id && !watch("estado") && cliente?.estado) {
+                    setValue("estado", cliente.estado);
+                  }
+                }}
+                error={errors.cliente_id?.message}
+              />
             </Field>
-            <Field label="Responsável *" error={errors.responsavel?.message}>
+            <Field label="Responsável" error={errors.responsavel?.message}>
               <Input {...register("responsavel")} placeholder="Nome do responsável" />
             </Field>
             <Field label="Status">
               <NativeSelect {...register("status")}>
                 {obraStatusValues.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+                    {OBRA_STATUS_LABEL[s as ObraStatus]}
                   </option>
                 ))}
               </NativeSelect>
@@ -228,16 +273,10 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
             <Field label="Data de início" error={errors.data_inicio?.message}>
               <Input type="date" {...register("data_inicio")} />
             </Field>
-            <Field
-              label="Previsão de término"
-              error={errors.data_fim_prevista?.message}
-            >
+            <Field label="Previsão de término" error={errors.data_fim_prevista?.message}>
               <Input type="date" {...register("data_fim_prevista")} />
             </Field>
-            <Field
-              label="Término real"
-              error={errors.data_fim_real?.message}
-            >
+            <Field label="Término real" error={errors.data_fim_real?.message}>
               <Input type="date" {...register("data_fim_real")} />
             </Field>
           </CardContent>
@@ -251,10 +290,7 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
-            <Field
-              label="Valor total contratado"
-              error={errors.valor_total?.message}
-            >
+            <Field label="Valor total contratado" error={errors.valor_total?.message}>
               <Input
                 type="number"
                 step="0.01"
@@ -262,10 +298,7 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
                 placeholder="0,00"
               />
             </Field>
-            <Field
-              label="Mão de obra direta"
-              error={errors.mao_obra_direta?.message}
-            >
+            <Field label="Mão de obra direta" error={errors.mao_obra_direta?.message}>
               <Input
                 type="number"
                 step="0.01"
@@ -301,10 +334,7 @@ export function ObraForm({ mode, initialData }: ObraFormProps) {
         </Card>
 
         <div className="flex items-center justify-end gap-3">
-          <Link
-            href="/obras"
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
+          <Link href="/obras" className={cn(buttonVariants({ variant: "outline" }))}>
             Cancelar
           </Link>
           <Button type="submit" disabled={isSubmitting} className="gap-2">
@@ -334,9 +364,7 @@ function Field({
         {label}
       </Label>
       {children}
-      {error ? (
-        <p className="text-xs text-rose-600 font-medium">{error}</p>
-      ) : null}
+      {error ? <p className="text-xs text-rose-600 font-medium">{error}</p> : null}
     </div>
   );
 }
