@@ -344,41 +344,47 @@ export const COLABORADORES: Colaborador[] = [
 
 // ── Tabelas-filhas (espelham as tabelas do módulo RH original) ───────────────
 
-export type DocumentoTipo =
-  | "rg"
-  | "cpf"
-  | "ctps"
-  | "comprovante_residencia"
-  | "aso"
-  | "contrato"
-  | "outro";
+/** Tipos de documento (texto livre no banco; valores conhecidos têm label). */
+export type DocumentoTipo = string;
 
+/** Espelha public.colaborador_documentos. */
 export type ColaboradorDocumento = {
   id: string;
   colaborador_id: string;
-  tipo: DocumentoTipo;
-  nome: string;
-  arquivo_url: string | null;
-  validade: string | null;
-  created_at: string;
+  tipo: string;
+  descricao: string | null;
+  arquivo_url: string;
+  dias_atestado: number | null;
+  uploaded_by: string | null;
+  data_upload: string;
 };
 
-export const DOCUMENTO_TIPO_LABEL: Record<DocumentoTipo, string> = {
-  rg: "RG",
-  cpf: "CPF",
-  ctps: "CTPS",
-  comprovante_residencia: "Comprovante de residência",
-  aso: "ASO (atestado ocupacional)",
-  contrato: "Contrato de trabalho",
-  outro: "Outro",
-};
+export const TIPOS_DOCUMENTO: { value: string; label: string }[] = [
+  { value: "doc_admissionais", label: "Doc. Admissionais" },
+  { value: "doc_pessoais", label: "Doc. Pessoais" },
+  { value: "doc_demissionais", label: "Doc. Demissionais" },
+  { value: "contratos", label: "Contratos" },
+  { value: "aso", label: "ASO" },
+  { value: "atestado", label: "Atestado Médico" },
+  { value: "ferias", label: "Férias" },
+  { value: "advertencia", label: "Advertência" },
+  { value: "contra_cheque", label: "Contra-cheque" },
+  { value: "outros", label: "Outros" },
+];
+
+const _DOC_LABEL: Record<string, string> = Object.fromEntries(
+  TIPOS_DOCUMENTO.map((t) => [t.value, t.label]),
+);
+export function documentoTipoLabel(tipo: string): string {
+  return _DOC_LABEL[tipo] ?? tipo;
+}
 
 export const COLABORADOR_DOCUMENTOS: ColaboradorDocumento[] = [
-  { id: "doc-1", colaborador_id: "col-1", tipo: "contrato", nome: "Contrato de trabalho assinado", arquivo_url: null, validade: null, created_at: "2021-02-01T09:00:00Z" },
-  { id: "doc-2", colaborador_id: "col-1", tipo: "aso", nome: "ASO admissional", arquivo_url: null, validade: "2026-02-01", created_at: "2021-02-01T09:10:00Z" },
-  { id: "doc-3", colaborador_id: "col-1", tipo: "rg", nome: "RG (frente e verso)", arquivo_url: null, validade: null, created_at: "2021-02-01T09:15:00Z" },
-  { id: "doc-4", colaborador_id: "col-2", tipo: "aso", nome: "ASO periódico", arquivo_url: null, validade: "2025-08-15", created_at: "2024-08-15T10:00:00Z" },
-  { id: "doc-5", colaborador_id: "col-8", tipo: "contrato", nome: "Contrato de trabalho", arquivo_url: null, validade: null, created_at: "2018-01-15T09:00:00Z" },
+  { id: "doc-1", colaborador_id: "col-1", tipo: "contratos", descricao: "Contrato de trabalho assinado", arquivo_url: "col-1/contratos/contrato.pdf", dias_atestado: null, uploaded_by: null, data_upload: "2021-02-01T09:00:00Z" },
+  { id: "doc-2", colaborador_id: "col-1", tipo: "aso", descricao: "ASO admissional", arquivo_url: "col-1/aso/aso.pdf", dias_atestado: null, uploaded_by: null, data_upload: "2021-02-01T09:10:00Z" },
+  { id: "doc-3", colaborador_id: "col-1", tipo: "doc_pessoais", descricao: "RG (frente e verso)", arquivo_url: "col-1/doc_pessoais/rg.pdf", dias_atestado: null, uploaded_by: null, data_upload: "2021-02-01T09:15:00Z" },
+  { id: "doc-4", colaborador_id: "col-2", tipo: "aso", descricao: "ASO periódico", arquivo_url: "col-2/aso/aso.pdf", dias_atestado: null, uploaded_by: null, data_upload: "2024-08-15T10:00:00Z" },
+  { id: "doc-5", colaborador_id: "col-8", tipo: "contratos", descricao: "Contrato de trabalho", arquivo_url: "col-8/contratos/contrato.pdf", dias_atestado: null, uploaded_by: null, data_upload: "2018-01-15T09:00:00Z" },
 ];
 
 export type ColaboradorDependente = {

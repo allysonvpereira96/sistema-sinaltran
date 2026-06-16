@@ -34,20 +34,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  COLABORADORES,
   COLABORADOR_STATUS_LABEL,
   COLABORADOR_STATUS_TONE,
-  COLABORADOR_DOCUMENTOS,
-  DOCUMENTO_TIPO_LABEL,
-  COLABORADOR_DEPENDENTES,
-  COLABORADOR_FERIAS,
   FERIAS_STATUS_LABEL,
-  COLABORADOR_HISTORICO,
   HISTORICO_TIPO_LABEL,
 } from "@/lib/mocks/colaboradores";
-import { OBRAS } from "@/lib/mocks/obras";
+import {
+  getColaboradorById,
+  listObrasResumo,
+  listDocumentos,
+  listDependentes,
+  listFerias,
+  listHistorico,
+} from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { DocumentosTab } from "../_components/documentos-tab";
 
 export default async function ColaboradorDetalhePage({
   params,
@@ -55,17 +57,20 @@ export default async function ColaboradorDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const c = COLABORADORES.find((x) => x.id === id);
+  const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const obra = c.obra_id ? OBRAS.find((o) => o.id === c.obra_id) : null;
+  const [obras, documentos, dependentes, ferias, historico] = await Promise.all([
+    listObrasResumo(),
+    listDocumentos(id),
+    listDependentes(id),
+    listFerias(id),
+    listHistorico(id),
+  ]);
+
+  const obra = c.obra_id ? obras.find((o) => o.id === c.obra_id) : null;
   const statusTone = COLABORADOR_STATUS_TONE[c.status];
-  const documentos = COLABORADOR_DOCUMENTOS.filter((d) => d.colaborador_id === c.id);
-  const dependentes = COLABORADOR_DEPENDENTES.filter((d) => d.colaborador_id === c.id);
-  const ferias = COLABORADOR_FERIAS.filter((f) => f.colaborador_id === c.id);
-  const historico = [...COLABORADOR_HISTORICO.filter((h) => h.colaborador_id === c.id)].sort(
-    (a, b) => b.data.localeCompare(a.data),
-  );
+  const historicoOrdenado = [...historico].sort((a, b) => b.data.localeCompare(a.data));
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
@@ -80,20 +85,13 @@ export default async function ColaboradorDetalhePage({
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="secondary"
-                className={cn("gap-1.5 font-medium", statusTone.bg, statusTone.text)}
-              >
+              <Badge variant="secondary" className={cn("gap-1.5 font-medium", statusTone.bg, statusTone.text)}>
                 <span className={cn("size-1.5 rounded-full", statusTone.dot)} />
                 {COLABORADOR_STATUS_LABEL[c.status]}
               </Badge>
-              <span className="text-xs font-mono text-muted-foreground">
-                mat. {c.matricula ?? "—"}
-              </span>
+              <span className="text-xs font-mono text-muted-foreground">mat. {c.matricula ?? "—"}</span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-2">
-              {c.nome_completo}
-            </h1>
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-2">{c.nome_completo}</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {c.cargo}
               {obra ? ` · ${obra.nome}` : ""}
@@ -101,10 +99,7 @@ export default async function ColaboradorDetalhePage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/pessoal/colaboradores/${c.id}/editar`}
-            className={cn(buttonVariants({}), "gap-2")}
-          >
+          <Link href={`/pessoal/colaboradores/${c.id}/editar`} className={cn(buttonVariants({}), "gap-2")}>
             <Pencil className="size-4" />
             Editar
           </Link>
@@ -116,7 +111,7 @@ export default async function ColaboradorDetalhePage({
         <KpiCard
           label="Remuneração base"
           value={c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"}
-          detail={c.ajuda_custo > 0 ? `+ ${formatBRL(c.ajuda_custo)} ajuda de custo` : "Sem ajuda de custo"}
+          detail={(c.ajuda_custo ?? 0) > 0 ? `+ ${formatBRL(c.ajuda_custo ?? 0)} ajuda de custo` : "Sem ajuda de custo"}
           icon={Wallet}
         />
         <KpiCard label="Dependentes" value={String(dependentes.length)} detail="Cadastrados" icon={Users} />
@@ -160,9 +155,7 @@ export default async function ColaboradorDetalhePage({
                 />
                 {c.observacoes ? (
                   <div className="sm:col-span-2">
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1">
-                      Observações
-                    </div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1">Observações</div>
                     <p className="text-sm leading-relaxed">{c.observacoes}</p>
                   </div>
                 ) : null}
@@ -176,7 +169,7 @@ export default async function ColaboradorDetalhePage({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <KeyVal label="Salário base" value={c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"} />
-                  <KeyVal label="Ajuda de custo" value={formatBRL(c.ajuda_custo)} />
+                  <KeyVal label="Ajuda de custo" value={formatBRL(c.ajuda_custo ?? 0)} />
                   <KeyVal label="Banco" value={c.banco ?? "—"} />
                   <KeyVal label="Agência / Conta" value={c.agencia || c.conta ? `${c.agencia ?? "—"} / ${c.conta ?? "—"}` : "—"} />
                   <KeyVal label="Chave PIX" value={c.chave_pix ?? "—"} />
@@ -201,34 +194,7 @@ export default async function ColaboradorDetalhePage({
         </TabsContent>
 
         <TabsContent value="documentos" className="pt-4">
-          <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              {documentos.length === 0 ? (
-                <EmptyState icon={FileText} text="Nenhum documento anexado." />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Documento</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Validade</TableHead>
-                      <TableHead>Anexado em</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {documentos.map((d) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="font-medium">{d.nome}</TableCell>
-                        <TableCell className="text-sm">{DOCUMENTO_TIPO_LABEL[d.tipo]}</TableCell>
-                        <TableCell className="text-sm">{d.validade ? formatDateBR(d.validade) : "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDateBR(d.created_at)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <DocumentosTab colaboradorId={c.id} documentos={documentos} />
         </TabsContent>
 
         <TabsContent value="dependentes" className="pt-4">
@@ -250,7 +216,7 @@ export default async function ColaboradorDetalhePage({
                     {dependentes.map((d) => (
                       <TableRow key={d.id}>
                         <TableCell className="font-medium">{d.nome}</TableCell>
-                        <TableCell className="text-sm">{d.parentesco}</TableCell>
+                        <TableCell className="text-sm">{d.parentesco ?? "—"}</TableCell>
                         <TableCell className="text-sm">{formatDateBR(d.data_nascimento)}</TableCell>
                         <TableCell className="text-sm">{d.cpf ?? "—"}</TableCell>
                       </TableRow>
@@ -304,17 +270,15 @@ export default async function ColaboradorDetalhePage({
         <TabsContent value="historico" className="pt-4">
           <Card>
             <CardContent className="p-5">
-              {historico.length === 0 ? (
+              {historicoOrdenado.length === 0 ? (
                 <EmptyState icon={History} text="Sem movimentações registradas." />
               ) : (
                 <ol className="relative border-l border-border ml-2 space-y-5">
-                  {historico.map((h) => (
+                  {historicoOrdenado.map((h) => (
                     <li key={h.id} className="ml-5">
                       <span className="absolute -left-1.5 size-3 rounded-full bg-primary" />
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {formatDateBR(h.data)}
-                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">{formatDateBR(h.data)}</span>
                         <Badge variant="secondary" className="bg-muted text-muted-foreground">
                           {HISTORICO_TIPO_LABEL[h.tipo]}
                         </Badge>
@@ -348,9 +312,7 @@ function KpiCard({
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              {label}
-            </div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
             <div className="text-xl font-bold mt-2 tabular-nums truncate">{value}</div>
             <div className="text-xs text-muted-foreground mt-1">{detail}</div>
           </div>
@@ -378,9 +340,7 @@ function InfoRow({
         <Icon className="size-4 text-muted-foreground" />
       </div>
       <div className="min-w-0">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-          {label}
-        </div>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
         <div className="text-sm font-medium break-words">{value}</div>
       </div>
     </div>
@@ -390,9 +350,7 @@ function InfoRow({
 function KeyVal({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </span>
+      <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
       <span className="text-sm font-medium text-right break-words">{value}</span>
     </div>
   );

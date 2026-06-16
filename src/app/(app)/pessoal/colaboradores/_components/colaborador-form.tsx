@@ -19,12 +19,17 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { OBRAS } from "@/lib/mocks/obras";
 import {
   COLABORADOR_STATUS_LABEL,
   type Colaborador,
   type ColaboradorStatus,
 } from "@/lib/mocks/colaboradores";
+import {
+  createColaborador,
+  updateColaborador,
+  type ColaboradorInput,
+  type ObraResumo,
+} from "@/lib/actions/colaboradores";
 import { cn } from "@/lib/utils";
 
 const statusValues = ["ativo", "afastado", "ferias", "desligado"] as const;
@@ -78,6 +83,7 @@ export type ColaboradorFormValues = z.infer<typeof colaboradorSchema>;
 type ColaboradorFormProps = {
   mode: "create" | "edit";
   initialData?: Colaborador;
+  obras: ObraResumo[];
 };
 
 function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
@@ -115,7 +121,7 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
   };
 }
 
-export function ColaboradorForm({ mode, initialData }: ColaboradorFormProps) {
+export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormProps) {
   const router = useRouter();
   const isEdit = mode === "edit";
 
@@ -166,13 +172,27 @@ export function ColaboradorForm({ mode, initialData }: ColaboradorFormProps) {
     if (initialData) reset(colaboradorToValues(initialData));
   }, [initialData, reset]);
 
-  const onSubmit: SubmitHandler<ColaboradorFormValues> = async () => {
-    await new Promise((r) => setTimeout(r, 400));
-    toast.success(isEdit ? "Colaborador atualizado" : "Colaborador cadastrado", {
-      description:
-        "Os dados serão persistidos no Supabase assim que a conexão estiver configurada.",
-    });
+  const onSubmit: SubmitHandler<ColaboradorFormValues> = async (values) => {
+    const input: ColaboradorInput = {
+      ...values,
+      genero: values.genero || null,
+      obra_id: values.obra_id || null,
+      remuneracao_base: values.remuneracao_base ?? null,
+      ajuda_custo: values.ajuda_custo ?? 0,
+    };
+
+    const res =
+      isEdit && initialData
+        ? await updateColaborador(initialData.id, input)
+        : await createColaborador(input);
+
+    if (!res.ok) {
+      toast.error("Erro ao salvar", { description: res.error });
+      return;
+    }
+    toast.success(isEdit ? "Colaborador atualizado" : "Colaborador cadastrado");
     router.push("/pessoal/colaboradores");
+    router.refresh();
   };
 
   return (
@@ -282,7 +302,7 @@ export function ColaboradorForm({ mode, initialData }: ColaboradorFormProps) {
             <Field label="Obra (alocação)" error={errors.obra_id?.message}>
               <NativeSelect {...register("obra_id")}>
                 <option value="">Sem alocação</option>
-                {OBRAS.map((o) => (
+                {obras.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.nome}
                   </option>

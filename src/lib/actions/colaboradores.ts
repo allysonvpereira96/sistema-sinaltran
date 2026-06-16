@@ -19,6 +19,26 @@ import {
 const TABLE = "colaboradores";
 const BUCKET = "colaborador-documentos";
 
+export type ObraResumo = { id: string; nome: string };
+
+/** Obras (id + nome) para selects/filtros. Lê a tabela real; mock no fallback. */
+export async function listObrasResumo(): Promise<ObraResumo[]> {
+  if (!hasSupabase()) {
+    const { OBRAS } = await import("@/lib/mocks/obras");
+    return OBRAS.map((o) => ({ id: o.id, nome: o.nome }));
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("obras")
+    .select("id, nome")
+    .order("nome", { ascending: true });
+  if (error) {
+    console.error("[listObrasResumo]", error.message);
+    return [];
+  }
+  return (data ?? []) as ObraResumo[];
+}
+
 export type ColaboradorInput = {
   nome_completo: string;
   matricula?: string | null;
