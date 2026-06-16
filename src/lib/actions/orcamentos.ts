@@ -164,6 +164,7 @@ function montarItens(itens: OrcamentoItemInput[]) {
       secao: i.secao?.trim() || null,
       ordem: idx + 1,
       material_id: i.material_id || null,
+      servico_id: i.servico_id || null,
       descricao: i.descricao.trim(),
       unidade_medida: i.unidade_medida || "UN",
       quantidade: q,

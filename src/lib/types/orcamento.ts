@@ -17,6 +17,7 @@ export type OrcamentoItemRow = {
   secao: string | null;
   ordem: number;
   material_id: string | null;
+  servico_id: string | null;
   descricao: string;
   unidade_medida: string;
   quantidade: number;
@@ -89,6 +90,7 @@ export type OrcamentoDetalhe = OrcamentoRow & {
 export type OrcamentoItemInput = {
   secao: string;
   material_id?: string | null;
+  servico_id?: string | null;
   descricao: string;
   unidade_medida: string;
   quantidade: number;

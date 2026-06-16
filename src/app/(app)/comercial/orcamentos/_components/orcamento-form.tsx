@@ -52,6 +52,7 @@ const orcamentoStatusValues = [
 const itemSchema = z.object({
   secao: z.string().min(1, "Seção é obrigatória"),
   material_id: z.string().nullable().optional(),
+  servico_id: z.string().nullable().optional(),
   descricao: z.string().min(1, "Descrição é obrigatória"),
   unidade_medida: z.string().min(1, "Un."),
   quantidade: z.number().min(0.001, "Informe a quantidade"),
@@ -112,6 +113,7 @@ function detalheToValues(o: OrcamentoDetalhe): OrcamentoFormValues {
     itens: o.itens.map((i) => ({
       secao: i.secao ?? "",
       material_id: i.material_id,
+      servico_id: i.servico_id,
       descricao: i.descricao,
       unidade_medida: i.unidade_medida,
       quantidade: i.quantidade,
@@ -172,6 +174,7 @@ export function OrcamentoForm({
             {
               secao: "SINALIZAÇÃO HORIZONTAL",
               material_id: null,
+              servico_id: null,
               descricao: "",
               unidade_medida: "UN",
               quantidade: 1,
@@ -241,6 +244,7 @@ export function OrcamentoForm({
     if (valor.startsWith("srv:")) {
       const s = servicos.find((x) => x.id === valor.slice(4));
       if (!s) return;
+      setValue(`itens.${index}.servico_id`, s.id);
       setValue(`itens.${index}.material_id`, null);
       setValue(`itens.${index}.descricao`, s.descricao_completa || s.descricao, {
         shouldValidate: true,
@@ -258,6 +262,7 @@ export function OrcamentoForm({
       const m = materiais.find((x) => x.id === valor.slice(4));
       if (!m) return;
       setValue(`itens.${index}.material_id`, m.id);
+      setValue(`itens.${index}.servico_id`, null);
       setValue(`itens.${index}.descricao`, m.descricao, { shouldValidate: true });
       if (m.unidade_medida) {
         setValue(`itens.${index}.unidade_medida`, m.unidade_medida);
@@ -267,6 +272,7 @@ export function OrcamentoForm({
       }
     } else {
       setValue(`itens.${index}.material_id`, null);
+      setValue(`itens.${index}.servico_id`, null);
     }
   }
 
@@ -291,6 +297,7 @@ export function OrcamentoForm({
       itens: values.itens.map((i) => ({
         secao: i.secao,
         material_id: i.material_id || null,
+        servico_id: i.servico_id || null,
         descricao: i.descricao,
         unidade_medida: i.unidade_medida,
         quantidade: i.quantidade,
@@ -511,6 +518,7 @@ export function OrcamentoForm({
                 append({
                   secao: lastSecao,
                   material_id: null,
+                  servico_id: null,
                   descricao: "",
                   unidade_medida: "UN",
                   quantidade: 1,
@@ -570,7 +578,13 @@ export function OrcamentoForm({
                         />
                         <select
                           className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
-                          defaultValue=""
+                          value={
+                            watchedItens?.[index]?.servico_id
+                              ? `srv:${watchedItens[index]?.servico_id}`
+                              : watchedItens?.[index]?.material_id
+                                ? `mat:${watchedItens[index]?.material_id}`
+                                : ""
+                          }
                           onChange={(e) => {
                             aplicarCatalogo(index, e.target.value);
                           }}
