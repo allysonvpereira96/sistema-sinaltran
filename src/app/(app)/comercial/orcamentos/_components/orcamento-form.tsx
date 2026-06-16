@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ClientePicker } from "@/components/app/cliente-picker";
+import { CatalogoPicker } from "@/components/app/catalogo-picker";
 import {
   createOrcamento,
   updateOrcamento,
@@ -579,8 +580,9 @@ export function OrcamentoForm({
                           type="hidden"
                           {...register(`itens.${index}.material_id` as const)}
                         />
-                        <select
-                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
+                        <CatalogoPicker
+                          servicos={servicos}
+                          materiais={materiais}
                           value={
                             watchedItens?.[index]?.servico_id
                               ? `srv:${watchedItens[index]?.servico_id}`
@@ -588,33 +590,8 @@ export function OrcamentoForm({
                                 ? `mat:${watchedItens[index]?.material_id}`
                                 : ""
                           }
-                          onChange={(e) => {
-                            aplicarCatalogo(index, e.target.value);
-                          }}
-                        >
-                          <option value="">
-                            Catálogo: item avulso (preencher manual)
-                          </option>
-                          {servicos.length > 0 ? (
-                            <optgroup label="Serviços">
-                              {servicos.map((s) => (
-                                <option key={s.id} value={`srv:${s.id}`}>
-                                  {s.codigo} · {s.descricao.slice(0, 44)}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ) : null}
-                          {materiais.length > 0 ? (
-                            <optgroup label="Materiais">
-                              {materiais.map((m) => (
-                                <option key={m.id} value={`mat:${m.id}`}>
-                                  {m.codigo ? `${m.codigo} · ` : ""}
-                                  {m.descricao.slice(0, 44)}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ) : null}
-                        </select>
+                          onChange={(v) => aplicarCatalogo(index, v)}
+                        />
                         <Input
                           {...register(`itens.${index}.descricao` as const)}
                           placeholder="Descrição completa do item"
