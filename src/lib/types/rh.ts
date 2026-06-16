@@ -88,6 +88,15 @@ export const ASO_PERIODICIDADES = [
  */
 export type TreinamentoCatalogoItem = { nome: string; validade_meses: number | null };
 
+/** Linha da tabela editável public.treinamentos_catalogo. */
+export type TreinamentoCatalogo = {
+  id: string;
+  nome: string;
+  validade_meses: number | null;
+  ativo: boolean;
+  created_at: string;
+};
+
 export const TREINAMENTOS_CATALOGO: TreinamentoCatalogoItem[] = [
   { nome: "NR-06 — EPI", validade_meses: null },
   { nome: "NR-10 — Segurança em instalações elétricas", validade_meses: 24 },

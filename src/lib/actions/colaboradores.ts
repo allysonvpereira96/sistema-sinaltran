@@ -26,7 +26,9 @@ import type {
   ColaboradorTreinamento,
   ColaboradorExperiencia,
   VencimentoRow,
+  TreinamentoCatalogo,
 } from "@/lib/types/rh";
+import { TREINAMENTOS_CATALOGO } from "@/lib/types/rh";
 
 const TABLE = "colaboradores";
 const BUCKET = "colaborador-documentos";
@@ -738,4 +740,83 @@ export async function listVencimentos(): Promise<VencimentoRow[]> {
     return [];
   }
   return (data ?? []) as VencimentoRow[];
+}
+
+// ── Catálogo de treinamentos (editável) ───────────────────────────────────────
+
+/** Lista o catálogo. Cai na lista fixa do código se o banco não tiver dados. */
+export async function listTreinamentosCatalogo(
+  apenasAtivos = true,
+): Promise<TreinamentoCatalogo[]> {
+  const fallback: TreinamentoCatalogo[] = TREINAMENTOS_CATALOGO.map((i, idx) => ({
+    id: `seed-${idx}`,
+    nome: i.nome,
+    validade_meses: i.validade_meses,
+    ativo: true,
+    created_at: "",
+  }));
+  if (!hasSupabase()) return fallback;
+
+  const supabase = await createClient();
+  let query = supabase.from("treinamentos_catalogo").select("*").order("nome", { ascending: true });
+  if (apenasAtivos) query = query.eq("ativo", true);
+  const { data, error } = await query;
+  if (error) {
+    console.error("[listTreinamentosCatalogo]", error.message);
+    return fallback;
+  }
+  // Se a tabela existe mas está vazia, usa o fallback para não esvaziar o select.
+  if (!data || data.length === 0) return apenasAtivos ? fallback : [];
+  return data as TreinamentoCatalogo[];
+}
+
+export async function createTreinamentoCatalogo(input: {
+  nome: string;
+  validade_meses?: number | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.nome?.trim()) return { ok: false, error: "Informe o nome do treinamento." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("treinamentos_catalogo").insert(
+    clean({ nome: input.nome.trim(), validade_meses: input.validade_meses ?? null }),
+  );
+  if (error) {
+    console.error("[createTreinamentoCatalogo]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/pessoal/treinamentos-catalogo");
+  return { ok: true };
+}
+
+export async function updateTreinamentoCatalogo(
+  id: string,
+  input: { nome?: string; validade_meses?: number | null; ativo?: boolean },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const patch: Record<string, unknown> = {};
+  if (input.nome !== undefined) patch.nome = input.nome.trim();
+  if (input.validade_meses !== undefined) patch.validade_meses = input.validade_meses;
+  if (input.ativo !== undefined) patch.ativo = input.ativo;
+  const { error } = await supabase.from("treinamentos_catalogo").update(patch).eq("id", id);
+  if (error) {
+    console.error("[updateTreinamentoCatalogo]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/pessoal/treinamentos-catalogo");
+  return { ok: true };
+}
+
+export async function deleteTreinamentoCatalogo(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("treinamentos_catalogo").delete().eq("id", id);
+  if (error) {
+    console.error("[deleteTreinamentoCatalogo]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/pessoal/treinamentos-catalogo");
+  return { ok: true };
 }

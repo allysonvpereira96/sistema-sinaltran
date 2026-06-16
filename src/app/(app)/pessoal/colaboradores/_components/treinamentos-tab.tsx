@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TREINAMENTOS_CATALOGO, type ColaboradorTreinamento } from "@/lib/types/rh";
+import type { ColaboradorTreinamento, TreinamentoCatalogo } from "@/lib/types/rh";
 import { createTreinamento, deleteTreinamento } from "@/lib/actions/colaboradores";
 import { formatDateBR } from "@/lib/format";
 import { classificarVencimento, diasAteVencimento, prazoLabel, VENC_LABEL, VENC_TONE } from "@/lib/vencimentos";
@@ -41,9 +41,11 @@ const FORM_INICIAL = {
 export function TreinamentosTab({
   colaboradorId,
   treinamentos,
+  catalogo,
 }: {
   colaboradorId: string;
   treinamentos: ColaboradorTreinamento[];
+  catalogo: TreinamentoCatalogo[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -67,7 +69,7 @@ export function TreinamentosTab({
       return;
     }
     setCustom(false);
-    const item = TREINAMENTOS_CATALOGO.find((i) => i.nome === value);
+    const item = catalogo.find((i) => i.nome === value);
     setForm((f) => ({
       ...f,
       treinamento: item ? item.nome : "",
@@ -207,8 +209,8 @@ export function TreinamentosTab({
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">Selecione…</option>
-                {TREINAMENTOS_CATALOGO.map((i) => (
-                  <option key={i.nome} value={i.nome}>
+                {catalogo.map((i) => (
+                  <option key={i.id} value={i.nome}>
                     {i.nome}{i.validade_meses != null ? ` · ${i.validade_meses}m` : " · sem validade"}
                   </option>
                 ))}

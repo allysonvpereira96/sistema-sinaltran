@@ -41,6 +41,7 @@ import {
   listAvaliacoes,
   listAso,
   listTreinamentos,
+  listTreinamentosCatalogo,
 } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -62,7 +63,7 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [obras, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos] =
+  const [obras, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos] =
     await Promise.all([
       listObrasResumo(),
       listDocumentos(id),
@@ -74,6 +75,7 @@ export default async function ColaboradorDetalhePage({
       listAvaliacoes(id),
       listAso(id),
       listTreinamentos(id),
+      listTreinamentosCatalogo(),
     ]);
 
   const obra = c.obra_id ? obras.find((o) => o.id === c.obra_id) : null;
@@ -223,7 +225,7 @@ export default async function ColaboradorDetalhePage({
         </TabsContent>
 
         <TabsContent value="treinamentos" className="pt-4">
-          <TreinamentosTab colaboradorId={c.id} treinamentos={treinamentos} />
+          <TreinamentosTab colaboradorId={c.id} treinamentos={treinamentos} catalogo={catalogoTreinamentos} />
         </TabsContent>
 
         <TabsContent value="avaliacoes" className="pt-4">

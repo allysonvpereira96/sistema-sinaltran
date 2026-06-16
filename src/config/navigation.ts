@@ -18,6 +18,8 @@ import {
   Boxes,
   Wrench,
   CalendarClock,
+  GraduationCap,
+  ListChecks,
 } from "lucide-react";
 
 export type NavItem = {
@@ -73,6 +75,7 @@ export const navigation: NavSection[] = [
     items: [
       { label: "Colaboradores", href: "/pessoal/colaboradores", icon: Users },
       { label: "Vencimentos", href: "/pessoal/vencimentos", icon: CalendarClock },
+      { label: "Catálogo de treinamentos", href: "/pessoal/treinamentos-catalogo", icon: GraduationCap },
     ],
   },
   {
@@ -80,6 +83,7 @@ export const navigation: NavSection[] = [
     items: [
       { label: "Clientes", href: "/cadastros/clientes", icon: Briefcase },
       { label: "Fornecedores", href: "/cadastros/fornecedores", icon: Truck },
+      { label: "Serviços", href: "/cadastros/servicos", icon: ListChecks },
       { label: "Materiais", href: "/cadastros/materiais", icon: Boxes },
       { label: "Equipamentos", href: "/cadastros/equipamentos", icon: Wrench },
     ],
