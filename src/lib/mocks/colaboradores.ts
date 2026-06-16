@@ -39,6 +39,10 @@ export type Colaborador = {
   emergencia_telefone: string | null;
   status: ColaboradorStatus;
   observacoes: string | null;
+  termo_uso_imagem?: boolean;
+  termo_uso_imagem_data?: string | null;
+  manual_conduta?: boolean;
+  manual_conduta_data?: string | null;
   created_at: string;
 };
 
@@ -453,4 +457,86 @@ export const COLABORADOR_HISTORICO: ColaboradorHistorico[] = [
   { id: "his-3", colaborador_id: "col-1", tipo: "alteracao_salarial", descricao: "Reajuste para R$ 5.200,00", data: "2025-05-01" },
   { id: "his-4", colaborador_id: "col-4", tipo: "afastamento", descricao: "Afastamento INSS (acidente de trajeto)", data: "2026-05-20" },
   { id: "his-5", colaborador_id: "col-6", tipo: "desligamento", descricao: "Desligamento a pedido", data: "2026-04-30" },
+];
+
+// ── Comentários ──────────────────────────────────────────────────────────────
+export type ColaboradorComentario = {
+  id: string;
+  colaborador_id: string;
+  comentario: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export const COLABORADOR_COMENTARIOS: ColaboradorComentario[] = [
+  { id: "com-1", colaborador_id: "col-1", comentario: "Excelente liderança de equipe na obra do Lote 1.", created_by: null, created_at: "2025-05-10T14:00:00Z" },
+  { id: "com-2", colaborador_id: "col-4", comentario: "Acompanhar retorno do afastamento junto ao RH.", created_by: null, created_at: "2026-05-22T09:30:00Z" },
+];
+
+// ── Ocorrências (caderno virtual) ────────────────────────────────────────────
+export type OcorrenciaTipo =
+  | "falta"
+  | "atraso"
+  | "atestado"
+  | "advertencia"
+  | "suspensao"
+  | "elogio"
+  | "observacao"
+  | "outro";
+
+export type ColaboradorOcorrencia = {
+  id: string;
+  colaborador_id: string;
+  tipo: OcorrenciaTipo;
+  descricao: string;
+  data: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export const OCORRENCIA_TIPO_LABEL: Record<OcorrenciaTipo, string> = {
+  falta: "Falta",
+  atraso: "Atraso",
+  atestado: "Atestado",
+  advertencia: "Advertência",
+  suspensao: "Suspensão",
+  elogio: "Elogio",
+  observacao: "Observação",
+  outro: "Outro",
+};
+
+export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: string }> = {
+  falta: { bg: "bg-rose-50", text: "text-rose-700" },
+  atraso: { bg: "bg-amber-50", text: "text-amber-700" },
+  atestado: { bg: "bg-sky-50", text: "text-sky-700" },
+  advertencia: { bg: "bg-orange-50", text: "text-orange-700" },
+  suspensao: { bg: "bg-rose-50", text: "text-rose-700" },
+  elogio: { bg: "bg-emerald-50", text: "text-emerald-700" },
+  observacao: { bg: "bg-slate-50", text: "text-slate-700" },
+  outro: { bg: "bg-slate-50", text: "text-slate-700" },
+};
+
+export const COLABORADOR_OCORRENCIAS: ColaboradorOcorrencia[] = [
+  { id: "oco-1", colaborador_id: "col-2", tipo: "elogio", descricao: "Reconhecimento por produtividade acima da meta.", data: "2026-03-12", created_by: null, created_at: "2026-03-12T10:00:00Z" },
+  { id: "oco-2", colaborador_id: "col-5", tipo: "atraso", descricao: "Atraso de 40 min sem justificativa.", data: "2026-05-04", created_by: null, created_at: "2026-05-04T08:40:00Z" },
+];
+
+// ── Avaliações de desempenho ─────────────────────────────────────────────────
+export type ColaboradorAvaliacao = {
+  id: string;
+  colaborador_id: string;
+  data: string;
+  periodo: string | null;
+  nota: number | null;
+  avaliador: string | null;
+  pontos_fortes: string | null;
+  pontos_melhorar: string | null;
+  observacoes: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export const COLABORADOR_AVALIACOES: ColaboradorAvaliacao[] = [
+  { id: "ava-1", colaborador_id: "col-1", data: "2025-12-15", periodo: "2025", nota: 9.2, avaliador: "Luiz Eduardo Tonet", pontos_fortes: "Liderança, organização de campo.", pontos_melhorar: "Delegar mais tarefas.", observacoes: null, created_by: null, created_at: "2025-12-15T16:00:00Z" },
+  { id: "ava-2", colaborador_id: "col-2", data: "2025-12-15", periodo: "2025", nota: 8.0, avaliador: "Ricardo Campos da Silva", pontos_fortes: "Domínio da máquina demarcadora.", pontos_melhorar: "Pontualidade.", observacoes: null, created_by: null, created_at: "2025-12-15T16:10:00Z" },
 ];

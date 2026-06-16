@@ -9,11 +9,17 @@ import {
   COLABORADOR_DEPENDENTES,
   COLABORADOR_FERIAS,
   COLABORADOR_HISTORICO,
+  COLABORADOR_COMENTARIOS,
+  COLABORADOR_OCORRENCIAS,
+  COLABORADOR_AVALIACOES,
   type Colaborador,
   type ColaboradorDocumento,
   type ColaboradorDependente,
   type ColaboradorFerias,
   type ColaboradorHistorico,
+  type ColaboradorComentario,
+  type ColaboradorOcorrencia,
+  type ColaboradorAvaliacao,
 } from "@/lib/mocks/colaboradores";
 
 const TABLE = "colaboradores";
@@ -70,6 +76,10 @@ export type ColaboradorInput = {
   emergencia_parentesco?: string | null;
   emergencia_telefone?: string | null;
   observacoes?: string | null;
+  termo_uso_imagem?: boolean;
+  termo_uso_imagem_data?: string | null;
+  manual_conduta?: boolean;
+  manual_conduta_data?: string | null;
 };
 
 /** Normaliza strings vazias para null antes de persistir. */
@@ -134,8 +144,15 @@ export async function createColaborador(
     console.error("[createColaborador]", error.message);
     return { ok: false, error: error.message };
   }
+  const novoId = (data as { id: string }).id;
+  await supabase.from("colaborador_historico").insert({
+    colaborador_id: novoId,
+    tipo: "admissao",
+    descricao: `Admitido como ${input.cargo}`,
+    data: input.data_admissao,
+  });
   revalidatePath("/pessoal/colaboradores");
-  return { ok: true, id: (data as { id: string }).id };
+  return { ok: true, id: novoId };
 }
 
 export async function updateColaborador(
@@ -145,11 +162,36 @@ export async function updateColaborador(
   if (!hasSupabase()) return { ok: true };
 
   const supabase = await createClient();
+
+  // estado anterior, para registrar histórico das mudanças relevantes
+  const { data: antes } = await supabase
+    .from(TABLE)
+    .select("cargo, remuneracao_base, status")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from(TABLE).update(clean(input)).eq("id", id);
   if (error) {
     console.error("[updateColaborador]", error.message);
     return { ok: false, error: error.message };
   }
+
+  if (antes) {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const entradas: { colaborador_id: string; tipo: string; descricao: string; data: string }[] = [];
+    if (antes.cargo !== input.cargo) {
+      entradas.push({ colaborador_id: id, tipo: "promocao", descricao: `Cargo alterado: ${antes.cargo} → ${input.cargo}`, data: hoje });
+    }
+    if ((antes.remuneracao_base ?? null) !== (input.remuneracao_base ?? null)) {
+      entradas.push({ colaborador_id: id, tipo: "alteracao_salarial", descricao: `Remuneração base alterada para R$ ${(input.remuneracao_base ?? 0).toFixed(2)}`, data: hoje });
+    }
+    if (antes.status !== input.status) {
+      const tipo = input.status === "desligado" ? "desligamento" : input.status === "afastado" ? "afastamento" : "transferencia";
+      entradas.push({ colaborador_id: id, tipo, descricao: `Status alterado: ${antes.status} → ${input.status}`, data: hoje });
+    }
+    if (entradas.length) await supabase.from("colaborador_historico").insert(entradas);
+  }
+
   revalidatePath("/pessoal/colaboradores");
   revalidatePath(`/pessoal/colaboradores/${id}`);
   return { ok: true };
@@ -378,4 +420,165 @@ export async function getDocumentoUrl(arquivoUrl: string): Promise<string | null
     return null;
   }
   return data?.signedUrl ?? null;
+}
+
+// ── Comentários ───────────────────────────────────────────────────────────────
+
+export async function listComentarios(colaboradorId: string): Promise<ColaboradorComentario[]> {
+  if (!hasSupabase()) return COLABORADOR_COMENTARIOS.filter((x) => x.colaborador_id === colaboradorId);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_comentarios")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[listComentarios]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorComentario[];
+}
+
+export async function createComentario(
+  colaboradorId: string,
+  comentario: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!comentario.trim()) return { ok: false, error: "Comentário vazio." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("colaborador_comentarios").insert({
+    colaborador_id: colaboradorId,
+    comentario: comentario.trim(),
+    created_by: user?.id ?? null,
+  });
+  if (error) {
+    console.error("[createComentario]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
+export async function deleteComentario(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_comentarios").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
+// ── Ocorrências ────────────────────────────────────────────────────────────────
+
+export async function listOcorrencias(colaboradorId: string): Promise<ColaboradorOcorrencia[]> {
+  if (!hasSupabase()) return COLABORADOR_OCORRENCIAS.filter((x) => x.colaborador_id === colaboradorId);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_ocorrencias")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("data", { ascending: false });
+  if (error) {
+    console.error("[listOcorrencias]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorOcorrencia[];
+}
+
+export async function createOcorrencia(input: {
+  colaborador_id: string;
+  tipo: ColaboradorOcorrencia["tipo"];
+  descricao: string;
+  data: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.descricao.trim()) return { ok: false, error: "Descrição é obrigatória." };
+  if (!input.data) return { ok: false, error: "Data é obrigatória." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("colaborador_ocorrencias")
+    .insert({ ...input, created_by: user?.id ?? null });
+  if (error) {
+    console.error("[createOcorrencia]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  return { ok: true };
+}
+
+export async function deleteOcorrencia(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_ocorrencias").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
+// ── Avaliações ─────────────────────────────────────────────────────────────────
+
+export async function listAvaliacoes(colaboradorId: string): Promise<ColaboradorAvaliacao[]> {
+  if (!hasSupabase()) return COLABORADOR_AVALIACOES.filter((x) => x.colaborador_id === colaboradorId);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_avaliacoes")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("data", { ascending: false });
+  if (error) {
+    console.error("[listAvaliacoes]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorAvaliacao[];
+}
+
+export async function createAvaliacao(input: {
+  colaborador_id: string;
+  data: string;
+  periodo?: string | null;
+  nota?: number | null;
+  avaliador?: string | null;
+  pontos_fortes?: string | null;
+  pontos_melhorar?: string | null;
+  observacoes?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.data) return { ok: false, error: "Data é obrigatória." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("colaborador_avaliacoes")
+    .insert(clean({ ...input, created_by: user?.id ?? null }));
+  if (error) {
+    console.error("[createAvaliacao]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  return { ok: true };
+}
+
+export async function deleteAvaliacao(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_avaliacoes").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
 }

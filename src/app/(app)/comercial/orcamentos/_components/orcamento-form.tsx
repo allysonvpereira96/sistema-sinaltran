@@ -24,10 +24,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CLIENTES, EMPRESAS, MATERIAIS } from "@/lib/mocks/cadastros";
+import { EMPRESAS, MATERIAIS } from "@/lib/mocks/cadastros";
 import type { Orcamento, OrcamentoStatus } from "@/lib/mocks/orcamentos";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ClientePicker } from "@/components/app/cliente-picker";
 
 const orcamentoStatusValues = [
   "rascunho",
@@ -127,6 +128,8 @@ export function OrcamentoForm({
     handleSubmit,
     control,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<OrcamentoFormValues>({
     resolver: zodResolver(orcamentoSchema),
@@ -278,14 +281,25 @@ export function OrcamentoForm({
               />
             </Field>
             <Field label="Cliente *" error={errors.cliente_id?.message}>
-              <NativeSelect {...register("cliente_id")}>
-                <option value="">Selecione…</option>
-                {CLIENTES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_fantasia ?? c.razao_social}
-                  </option>
-                ))}
-              </NativeSelect>
+              <input type="hidden" {...register("cliente_id")} />
+              <ClientePicker
+                value={watch("cliente_id")}
+                onChange={(id, cliente) => {
+                  setValue("cliente_id", id, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  });
+                  // Auto-preenche local da obra quando o cliente tem cidade/UF
+                  // e o form ainda não tem essa info
+                  if (id && !watch("cidade") && cliente?.cidade) {
+                    setValue("cidade", cliente.cidade);
+                  }
+                  if (id && !watch("estado") && cliente?.estado) {
+                    setValue("estado", cliente.estado);
+                  }
+                }}
+                error={errors.cliente_id?.message}
+              />
             </Field>
             <Field label="Responsável pela proposta *" error={errors.responsavel?.message}>
               <Input
