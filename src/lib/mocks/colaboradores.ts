@@ -27,6 +27,8 @@ export type Colaborador = {
   estado: string | null;
   cep: string | null;
   cargo: string;
+  setor?: string | null;
+  gestor?: string | null;
   obra_id: string | null;
   remuneracao_base: number | null;
   ajuda_custo: number;
