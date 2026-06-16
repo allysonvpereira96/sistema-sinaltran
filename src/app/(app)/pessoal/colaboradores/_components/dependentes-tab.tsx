@@ -30,9 +30,11 @@ import { formatDateBR } from "@/lib/format";
 export function DependentesTab({
   colaboradorId,
   dependentes,
+  readOnly = false,
 }: {
   colaboradorId: string;
   dependentes: ColaboradorDependente[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -73,12 +75,14 @@ export function DependentesTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={() => setOpen(true)}>
-          <Plus className="size-4" />
-          Adicionar dependente
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            Adicionar dependente
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -95,7 +99,7 @@ export function DependentesTab({
                   <TableHead>Parentesco</TableHead>
                   <TableHead>Nascimento</TableHead>
                   <TableHead>CPF</TableHead>
-                  <TableHead className="w-16 text-right">Ações</TableHead>
+                  {!readOnly && <TableHead className="w-16 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -105,11 +109,13 @@ export function DependentesTab({
                     <TableCell className="text-sm">{d.parentesco ?? "—"}</TableCell>
                     <TableCell className="text-sm">{formatDateBR(d.data_nascimento)}</TableCell>
                     <TableCell className="text-sm">{d.cpf ?? "—"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(d)} aria-label="Remover">
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </TableCell>
+                    {!readOnly && (
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(d)} aria-label="Remover">
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

@@ -42,10 +42,12 @@ export function TreinamentosTab({
   colaboradorId,
   treinamentos,
   catalogo,
+  readOnly = false,
 }: {
   colaboradorId: string;
   treinamentos: ColaboradorTreinamento[];
   catalogo: TreinamentoCatalogo[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -121,12 +123,14 @@ export function TreinamentosTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={() => setOpen(true)}>
-          <Plus className="size-4" />
-          Registrar treinamento
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            Registrar treinamento
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -144,7 +148,7 @@ export function TreinamentosTab({
                   <TableHead>Validade</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Situação</TableHead>
-                  <TableHead className="w-16 text-right">Ações</TableHead>
+                  {!readOnly && <TableHead className="w-16 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,11 +184,13 @@ export function TreinamentosTab({
                           {VENC_LABEL[status]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(t)} aria-label="Remover">
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </TableCell>
+                      {!readOnly && (
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(t)} aria-label="Remover">
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}

@@ -51,9 +51,11 @@ const FORM_INICIAL = {
 export function FeriasTab({
   colaboradorId,
   ferias,
+  readOnly = false,
 }: {
   colaboradorId: string;
   ferias: ColaboradorFerias[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -100,12 +102,14 @@ export function FeriasTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={() => setOpen(true)}>
-          <Plus className="size-4" />
-          Adicionar período
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            Adicionar período
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -122,7 +126,7 @@ export function FeriasTab({
                   <TableHead>Gozo</TableHead>
                   <TableHead className="text-right">Dias</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-16 text-right">Ações</TableHead>
+                  {!readOnly && <TableHead className="w-16 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -140,11 +144,13 @@ export function FeriasTab({
                         {FERIAS_STATUS_LABEL[f.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(f)} aria-label="Remover">
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </TableCell>
+                    {!readOnly && (
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(f)} aria-label="Remover">
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

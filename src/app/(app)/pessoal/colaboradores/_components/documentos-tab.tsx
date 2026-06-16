@@ -33,9 +33,11 @@ import { cn } from "@/lib/utils";
 export function DocumentosTab({
   colaboradorId,
   documentos,
+  readOnly = false,
 }: {
   colaboradorId: string;
   documentos: ColaboradorDocumento[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -108,6 +110,7 @@ export function DocumentosTab({
         </div>
       )}
 
+      {!readOnly && (
       <Card>
         <CardContent className="p-4 flex flex-wrap items-end gap-3">
           <div className="min-w-[180px]">
@@ -173,6 +176,7 @@ export function DocumentosTab({
           )}
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -210,9 +214,11 @@ export function DocumentosTab({
                         <Button variant="ghost" size="icon-sm" onClick={() => handleDownload(doc)} aria-label="Baixar">
                           <Download className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(doc)} aria-label="Excluir">
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                        {!readOnly && (
+                          <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(doc)} aria-label="Excluir">
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

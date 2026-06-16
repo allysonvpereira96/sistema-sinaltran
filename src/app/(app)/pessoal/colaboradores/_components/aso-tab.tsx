@@ -50,9 +50,11 @@ const FORM_INICIAL = {
 export function AsoTab({
   colaboradorId,
   aso,
+  readOnly = false,
 }: {
   colaboradorId: string;
   aso: ColaboradorAso[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -101,12 +103,14 @@ export function AsoTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={() => setOpen(true)}>
-          <Plus className="size-4" />
-          Registrar ASO
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            Registrar ASO
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -124,7 +128,7 @@ export function AsoTab({
                   <TableHead>Periodicidade</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Situação</TableHead>
-                  <TableHead className="w-16 text-right">Ações</TableHead>
+                  {!readOnly && <TableHead className="w-16 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -154,11 +158,13 @@ export function AsoTab({
                           {VENC_LABEL[status]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(a)} aria-label="Remover">
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </TableCell>
+                      {!readOnly && (
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(a)} aria-label="Remover">
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}

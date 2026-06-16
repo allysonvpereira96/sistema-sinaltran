@@ -34,9 +34,11 @@ const FORM_INICIAL = {
 export function AvaliacoesTab({
   colaboradorId,
   avaliacoes,
+  readOnly = false,
 }: {
   colaboradorId: string;
   avaliacoes: ColaboradorAvaliacao[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -87,12 +89,14 @@ export function AvaliacoesTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={() => setOpen(true)}>
-          <Plus className="size-4" />
-          Nova avaliação
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            Nova avaliação
+          </Button>
+        </div>
+      )}
 
       {avaliacoes.length === 0 ? (
         <Card>
@@ -121,9 +125,11 @@ export function AvaliacoesTab({
                       {a.avaliador ? <p className="text-xs text-muted-foreground mt-0.5">Avaliador: {a.avaliador}</p> : null}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(a)} aria-label="Excluir">
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  {!readOnly && (
+                    <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(a)} aria-label="Excluir">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
                 </div>
                 {(a.pontos_fortes || a.pontos_melhorar || a.observacoes) && (
                   <div className="grid gap-3 sm:grid-cols-2 mt-3 text-sm">

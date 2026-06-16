@@ -14,9 +14,11 @@ import { formatDateBR } from "@/lib/format";
 export function ComentariosTab({
   colaboradorId,
   comentarios,
+  readOnly = false,
 }: {
   colaboradorId: string;
   comentarios: ColaboradorComentario[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
@@ -47,22 +49,24 @@ export function ComentariosTab({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <Textarea
-            rows={3}
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Escreva um comentário interno sobre o colaborador…"
-          />
-          <div className="flex justify-end">
-            <Button className="gap-2" disabled={saving || !texto.trim()} onClick={handleAdd}>
-              <Send className="size-4" />
-              {saving ? "Enviando…" : "Comentar"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {!readOnly && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <Textarea
+              rows={3}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Escreva um comentário interno sobre o colaborador…"
+            />
+            <div className="flex justify-end">
+              <Button className="gap-2" disabled={saving || !texto.trim()} onClick={handleAdd}>
+                <Send className="size-4" />
+                {saving ? "Enviando…" : "Comentar"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {comentarios.length === 0 ? (
         <Card>
@@ -80,9 +84,11 @@ export function ComentariosTab({
                   <p className="text-sm whitespace-pre-wrap break-words">{c.comentario}</p>
                   <p className="text-xs text-muted-foreground mt-1.5">{formatDateBR(c.created_at)}</p>
                 </div>
-                <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(c)} aria-label="Excluir">
-                  <Trash2 className="size-3.5" />
-                </Button>
+                {!readOnly && (
+                  <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(c)} aria-label="Excluir">
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}

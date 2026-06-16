@@ -111,7 +111,7 @@ export default async function ColaboradorDetalhePage({
         <div className="flex items-center gap-2">
           <Link href={`/pessoal/colaboradores/${c.id}/editar`} className={cn(buttonVariants({}), "gap-2")}>
             <Pencil className="size-4" />
-            Editar
+            Editar e gerenciar
           </Link>
         </div>
       </header>
@@ -209,35 +209,35 @@ export default async function ColaboradorDetalhePage({
         </TabsContent>
 
         <TabsContent value="documentos" className="pt-4">
-          <DocumentosTab colaboradorId={c.id} documentos={documentos} />
+          <DocumentosTab colaboradorId={c.id} documentos={documentos} readOnly />
         </TabsContent>
 
         <TabsContent value="dependentes" className="pt-4">
-          <DependentesTab colaboradorId={c.id} dependentes={dependentes} />
+          <DependentesTab colaboradorId={c.id} dependentes={dependentes} readOnly />
         </TabsContent>
 
         <TabsContent value="ferias" className="pt-4">
-          <FeriasTab colaboradorId={c.id} ferias={ferias} />
+          <FeriasTab colaboradorId={c.id} ferias={ferias} readOnly />
         </TabsContent>
 
         <TabsContent value="aso" className="pt-4">
-          <AsoTab colaboradorId={c.id} aso={aso} />
+          <AsoTab colaboradorId={c.id} aso={aso} readOnly />
         </TabsContent>
 
         <TabsContent value="treinamentos" className="pt-4">
-          <TreinamentosTab colaboradorId={c.id} treinamentos={treinamentos} catalogo={catalogoTreinamentos} />
+          <TreinamentosTab colaboradorId={c.id} treinamentos={treinamentos} catalogo={catalogoTreinamentos} readOnly />
         </TabsContent>
 
         <TabsContent value="avaliacoes" className="pt-4">
-          <AvaliacoesTab colaboradorId={c.id} avaliacoes={avaliacoes} />
+          <AvaliacoesTab colaboradorId={c.id} avaliacoes={avaliacoes} readOnly />
         </TabsContent>
 
         <TabsContent value="ocorrencias" className="pt-4">
-          <OcorrenciasTab colaboradorId={c.id} ocorrencias={ocorrencias} />
+          <OcorrenciasTab colaboradorId={c.id} ocorrencias={ocorrencias} readOnly />
         </TabsContent>
 
         <TabsContent value="comentarios" className="pt-4">
-          <ComentariosTab colaboradorId={c.id} comentarios={comentarios} />
+          <ComentariosTab colaboradorId={c.id} comentarios={comentarios} readOnly />
         </TabsContent>
 
         <TabsContent value="historico" className="pt-4">

@@ -33,9 +33,11 @@ const FORM_INICIAL = { tipo: "observacao" as OcorrenciaTipo, descricao: "", data
 export function OcorrenciasTab({
   colaboradorId,
   ocorrencias,
+  readOnly = false,
 }: {
   colaboradorId: string;
   ocorrencias: ColaboradorOcorrencia[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -72,12 +74,14 @@ export function OcorrenciasTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={() => setOpen(true)}>
-          <Plus className="size-4" />
-          Registrar ocorrência
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            Registrar ocorrência
+          </Button>
+        </div>
+      )}
 
       {ocorrencias.length === 0 ? (
         <Card>
@@ -102,9 +106,11 @@ export function OcorrenciasTab({
                     </div>
                     <p className="text-sm mt-1.5 whitespace-pre-wrap break-words">{o.descricao}</p>
                   </div>
-                  <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(o)} aria-label="Excluir">
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  {!readOnly && (
+                    <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(o)} aria-label="Excluir">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
