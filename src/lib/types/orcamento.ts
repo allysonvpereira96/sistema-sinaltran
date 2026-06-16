@@ -82,6 +82,9 @@ export type OrcamentoDetalhe = OrcamentoRow & {
     endereco: string | null;
     cidade: string | null;
     estado: string | null;
+    telefone: string | null;
+    email: string | null;
+    responsavel_padrao: string | null;
   } | null;
   itens: OrcamentoItemRow[];
 };

@@ -9,6 +9,7 @@ import {
   User,
   Building2,
   HardHat,
+  FileDown,
 } from "lucide-react";
 import {
   Card,
@@ -105,6 +106,15 @@ export default async function OrcamentoDetalhePage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href={`/comercial/orcamentos/${orcamento.id}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+          >
+            <FileDown className="size-4" />
+            Gerar PDF
+          </a>
           <Link
             href={`/comercial/orcamentos/${orcamento.id}/editar`}
             className={cn(buttonVariants({ variant: "outline" }), "gap-2")}

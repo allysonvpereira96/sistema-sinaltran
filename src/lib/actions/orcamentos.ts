@@ -131,7 +131,7 @@ export async function getOrcamento(id: string): Promise<OrcamentoDetalhe | null>
     .select(
       `*,
        cliente:clientes(id, razao_social, nome_fantasia, cnpj_cpf, responsavel),
-       empresa:empresas(id, nome, razao_social, cnpj, endereco, cidade, estado),
+       empresa:empresas(id, nome, razao_social, cnpj, endereco, cidade, estado, telefone, email, responsavel_padrao),
        itens:orcamento_itens(*)`,
     )
     .eq("id", id)
