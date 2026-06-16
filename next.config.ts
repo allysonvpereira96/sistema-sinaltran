@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    // PDFs de ficha (escaneados) podem passar do limite padrão de 1MB
+    serverActions: { bodySizeLimit: "10mb" },
+  },
 };
 
 export default nextConfig;

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Upload, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -30,7 +30,17 @@ import {
   type ColaboradorInput,
   type ObraResumo,
 } from "@/lib/actions/colaboradores";
+import { extrairFichaEmpregado } from "@/lib/actions/ficha";
 import { cn } from "@/lib/utils";
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const statusValues = ["ativo", "afastado", "ferias", "desligado"] as const;
 const generoValues = ["masculino", "feminino", "outro", "nao_informado"] as const;
@@ -133,10 +143,14 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
   const router = useRouter();
   const isEdit = mode === "edit";
 
+  const fichaRef = useRef<HTMLInputElement>(null);
+  const [importando, setImportando] = useState(false);
+
   const {
     register,
     handleSubmit,
     reset,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<ColaboradorFormValues>({
     resolver: zodResolver(colaboradorSchema),
@@ -184,6 +198,47 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
     if (initialData) reset(colaboradorToValues(initialData));
   }, [initialData, reset]);
 
+  async function handleFicha(file: File) {
+    setImportando(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await extrairFichaEmpregado(base64, file.type);
+      if (!res.ok) {
+        toast.error("Não foi possível ler a ficha", { description: res.error });
+        return;
+      }
+      const d = res.data;
+      const atual = getValues();
+      const generosOk = generoValues as readonly string[];
+      reset({
+        ...atual,
+        nome_completo: d.nome_completo || atual.nome_completo,
+        cpf: d.cpf || atual.cpf,
+        rg: d.rg || atual.rg,
+        data_nascimento: d.data_nascimento || atual.data_nascimento,
+        pis: d.pis || atual.pis,
+        cargo: d.cargo || atual.cargo,
+        data_admissao: d.data_admissao || atual.data_admissao,
+        email: d.email || atual.email,
+        telefone: d.telefone || atual.telefone,
+        endereco: d.endereco || atual.endereco,
+        cidade: d.cidade || atual.cidade,
+        estado: d.estado || atual.estado,
+        cep: d.cep || atual.cep,
+        genero: d.genero && generosOk.includes(d.genero) ? (d.genero as ColaboradorFormValues["genero"]) : atual.genero,
+        banco: d.banco || atual.banco,
+        agencia: d.agencia || atual.agencia,
+        conta: d.conta || atual.conta,
+      });
+      toast.success("Ficha importada — confira e ajuste os campos antes de salvar.");
+    } catch {
+      toast.error("Falha ao ler o arquivo.");
+    } finally {
+      setImportando(false);
+      if (fichaRef.current) fichaRef.current.value = "";
+    }
+  }
+
   const onSubmit: SubmitHandler<ColaboradorFormValues> = async (values) => {
     const input: ColaboradorInput = {
       ...values,
@@ -217,7 +272,7 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
         >
           <ArrowLeft className="size-4" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
             {isEdit ? "Editar colaborador" : "Novo colaborador"}
           </h1>
@@ -227,6 +282,27 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
               : "Cadastre um novo colaborador. Após salvar, será possível anexar documentos, dependentes e registrar férias."}
           </p>
         </div>
+        {!isEdit && (
+          <>
+            <input
+              ref={fichaRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleFicha(e.target.files[0])}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={importando}
+              onClick={() => fichaRef.current?.click()}
+            >
+              {importando ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+              {importando ? "Lendo ficha…" : "Importar ficha (PDF)"}
+            </Button>
+          </>
+        )}
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
