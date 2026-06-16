@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { onlyDigits, isValidCnpj } from "@/lib/cnpj";
@@ -82,6 +83,56 @@ export async function searchClientes(
     return [];
   }
   return (data ?? []) as ClienteRow[];
+}
+
+/**
+ * Lista todos os clientes para a tela de cadastro.
+ * - Supabase (produção): pagina em blocos de 1000 (limite do PostgREST) até
+ *   esgotar, ordenado por razão social.
+ * - Fallback dev: devolve os mocks mapeados para o formato `ClienteRow`.
+ */
+export async function listClientes(): Promise<ClienteRow[]> {
+  if (!hasSupabase()) {
+    return MOCK_CLIENTES.map((c) => ({
+      id: c.id,
+      razao_social: c.razao_social,
+      nome_fantasia: c.nome_fantasia,
+      cnpj_cpf: c.cnpj_cpf,
+      tipo_pessoa: c.tipo_pessoa,
+      email: null,
+      telefone: c.telefone,
+      responsavel: c.responsavel,
+      endereco: null,
+      cidade: c.cidade,
+      estado: c.estado,
+      cep: null,
+      observacoes: null,
+      ativo: c.ativo,
+      created_at: "",
+      updated_at: "",
+    }));
+  }
+
+  const supabase = await createClient();
+  const PAGE = 1000;
+  const all: ClienteRow[] = [];
+
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("*")
+      .order("razao_social", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error("[listClientes]", error.message);
+      break;
+    }
+    const rows = (data ?? []) as ClienteRow[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+
+  return all;
 }
 
 /**
@@ -306,5 +357,90 @@ export async function createCliente(input: {
     console.error("[createCliente]", error.message);
     return { ok: false, error: error.message };
   }
+  revalidatePath("/cadastros/clientes");
   return { ok: true, cliente: data as ClienteRow };
+}
+
+/**
+ * Atualiza um cliente existente.
+ */
+export async function updateCliente(
+  id: string,
+  input: {
+    razao_social: string;
+    nome_fantasia?: string | null;
+    cnpj_cpf?: string | null;
+    tipo_pessoa?: "juridica" | "fisica" | "publico";
+    email?: string | null;
+    telefone?: string | null;
+    responsavel?: string | null;
+    endereco?: string | null;
+    cidade?: string | null;
+    estado?: string | null;
+    cep?: string | null;
+    observacoes?: string | null;
+    ativo?: boolean;
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.razao_social?.trim()) {
+    return { ok: false, error: "Razão social é obrigatória." };
+  }
+  if (!hasSupabase()) return { ok: true };
+
+  const cnpjDigits = onlyDigits(input.cnpj_cpf ?? "");
+
+  // Evita colidir o CNPJ com outro cliente.
+  if (cnpjDigits) {
+    const existente = await getClienteByCnpj(cnpjDigits);
+    if (existente && existente.id !== id) {
+      return { ok: false, error: "Outro cliente já usa este CNPJ/CPF." };
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("clientes")
+    .update({
+      razao_social: input.razao_social.trim(),
+      nome_fantasia: input.nome_fantasia || null,
+      cnpj_cpf: cnpjDigits || null,
+      tipo_pessoa:
+        input.tipo_pessoa ?? (cnpjDigits.length === 11 ? "fisica" : "juridica"),
+      email: input.email || null,
+      telefone: input.telefone || null,
+      responsavel: input.responsavel || null,
+      endereco: input.endereco || null,
+      cidade: input.cidade || null,
+      estado: input.estado || null,
+      cep: input.cep || null,
+      observacoes: input.observacoes || null,
+      ...(input.ativo === undefined ? {} : { ativo: input.ativo }),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("[updateCliente]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/cadastros/clientes");
+  revalidatePath(`/cadastros/clientes/${id}/editar`);
+  return { ok: true };
+}
+
+/**
+ * Inativa / reativa um cliente (soft delete — preserva histórico de obras).
+ */
+export async function setClienteAtivo(
+  id: string,
+  ativo: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("clientes").update({ ativo }).eq("id", id);
+  if (error) {
+    console.error("[setClienteAtivo]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/cadastros/clientes");
+  return { ok: true };
 }

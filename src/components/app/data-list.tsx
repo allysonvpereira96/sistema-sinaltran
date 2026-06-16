@@ -29,7 +29,8 @@ export type DataListColumn<T> = {
 };
 
 export type DataListAction<T> = {
-  label: string;
+  /** Texto fixo ou função do item (para rótulos condicionais, ex.: Inativar/Reativar). */
+  label: ReactNode | ((item: T) => ReactNode);
   onClick: (item: T) => void;
   destructive?: boolean;
 };
@@ -158,13 +159,13 @@ export function DataList<T>({
                           }
                         />
                         <DropdownMenuContent align="end">
-                          {actions.map((a) => (
+                          {actions.map((a, i) => (
                             <DropdownMenuItem
-                              key={a.label}
+                              key={i}
                               onClick={() => a.onClick(item)}
                               variant={a.destructive ? "destructive" : "default"}
                             >
-                              {a.label}
+                              {typeof a.label === "function" ? a.label(item) : a.label}
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
