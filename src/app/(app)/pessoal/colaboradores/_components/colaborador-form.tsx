@@ -76,6 +76,10 @@ const colaboradorSchema = z.object({
   emergencia_parentesco: z.string().optional().or(z.literal("")),
   emergencia_telefone: z.string().optional().or(z.literal("")),
   observacoes: z.string().optional().or(z.literal("")),
+  termo_uso_imagem: z.boolean(),
+  termo_uso_imagem_data: z.string().optional().or(z.literal("")),
+  manual_conduta: z.boolean(),
+  manual_conduta_data: z.string().optional().or(z.literal("")),
 });
 
 export type ColaboradorFormValues = z.infer<typeof colaboradorSchema>;
@@ -118,6 +122,10 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     emergencia_parentesco: c.emergencia_parentesco ?? "",
     emergencia_telefone: c.emergencia_telefone ?? "",
     observacoes: c.observacoes ?? "",
+    termo_uso_imagem: c.termo_uso_imagem ?? false,
+    termo_uso_imagem_data: c.termo_uso_imagem_data ?? "",
+    manual_conduta: c.manual_conduta ?? false,
+    manual_conduta_data: c.manual_conduta_data ?? "",
   };
 }
 
@@ -165,6 +173,10 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
           emergencia_parentesco: "",
           emergencia_telefone: "",
           observacoes: "",
+          termo_uso_imagem: false,
+          termo_uso_imagem_data: "",
+          manual_conduta: false,
+          manual_conduta_data: "",
         },
   });
 
@@ -380,6 +392,33 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
             <Field label="Telefone" error={errors.emergencia_telefone?.message}>
               <Input {...register("emergencia_telefone")} placeholder="(54) 99999-9999" />
             </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Termos</CardTitle>
+            <CardDescription>Autorizações e ciência do colaborador</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input type="checkbox" className="size-4 rounded border-input" {...register("termo_uso_imagem")} />
+                Termo de uso de imagem
+              </label>
+              <Field label="Data de assinatura" error={errors.termo_uso_imagem_data?.message}>
+                <Input type="date" {...register("termo_uso_imagem_data")} />
+              </Field>
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input type="checkbox" className="size-4 rounded border-input" {...register("manual_conduta")} />
+                Manual de conduta (ciência)
+              </label>
+              <Field label="Data de ciência" error={errors.manual_conduta_data?.message}>
+                <Input type="date" {...register("manual_conduta_data")} />
+              </Field>
+            </div>
           </CardContent>
         </Card>
 

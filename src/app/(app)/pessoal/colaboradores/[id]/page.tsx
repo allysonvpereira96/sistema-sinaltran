@@ -36,12 +36,18 @@ import {
   listDependentes,
   listFerias,
   listHistorico,
+  listComentarios,
+  listOcorrencias,
+  listAvaliacoes,
 } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DocumentosTab } from "../_components/documentos-tab";
 import { DependentesTab } from "../_components/dependentes-tab";
 import { FeriasTab } from "../_components/ferias-tab";
+import { ComentariosTab } from "../_components/comentarios-tab";
+import { OcorrenciasTab } from "../_components/ocorrencias-tab";
+import { AvaliacoesTab } from "../_components/avaliacoes-tab";
 
 export default async function ColaboradorDetalhePage({
   params,
@@ -52,13 +58,17 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [obras, documentos, dependentes, ferias, historico] = await Promise.all([
-    listObrasResumo(),
-    listDocumentos(id),
-    listDependentes(id),
-    listFerias(id),
-    listHistorico(id),
-  ]);
+  const [obras, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes] =
+    await Promise.all([
+      listObrasResumo(),
+      listDocumentos(id),
+      listDependentes(id),
+      listFerias(id),
+      listHistorico(id),
+      listComentarios(id),
+      listOcorrencias(id),
+      listAvaliacoes(id),
+    ]);
 
   const obra = c.obra_id ? obras.find((o) => o.id === c.obra_id) : null;
   const statusTone = COLABORADOR_STATUS_TONE[c.status];
@@ -111,11 +121,14 @@ export default async function ColaboradorDetalhePage({
       </div>
 
       <Tabs defaultValue="resumo">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
           <TabsTrigger value="ferias">Férias</TabsTrigger>
+          <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
+          <TabsTrigger value="ocorrencias">Ocorrências</TabsTrigger>
+          <TabsTrigger value="comentarios">Comentários</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
@@ -195,6 +208,18 @@ export default async function ColaboradorDetalhePage({
 
         <TabsContent value="ferias" className="pt-4">
           <FeriasTab colaboradorId={c.id} ferias={ferias} />
+        </TabsContent>
+
+        <TabsContent value="avaliacoes" className="pt-4">
+          <AvaliacoesTab colaboradorId={c.id} avaliacoes={avaliacoes} />
+        </TabsContent>
+
+        <TabsContent value="ocorrencias" className="pt-4">
+          <OcorrenciasTab colaboradorId={c.id} ocorrencias={ocorrencias} />
+        </TabsContent>
+
+        <TabsContent value="comentarios" className="pt-4">
+          <ComentariosTab colaboradorId={c.id} comentarios={comentarios} />
         </TabsContent>
 
         <TabsContent value="historico" className="pt-4">
