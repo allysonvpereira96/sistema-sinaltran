@@ -99,6 +99,7 @@ with (security_invoker = true) as
   where t.vencimento is not null
 
   union all
+  -- Limite concessivo = fim do período aquisitivo + 12 meses (regra CLT).
   select
     'Férias'::text,
     f.id,
@@ -106,8 +107,8 @@ with (security_invoker = true) as
     c.nome_completo,
     c.setor,
     'Limite concessivo'::text,
-    f.periodo_aquisitivo_fim,
-    (f.periodo_aquisitivo_fim - current_date)
+    ((f.periodo_aquisitivo_fim + interval '12 months')::date),
+    (((f.periodo_aquisitivo_fim + interval '12 months')::date) - current_date)
   from public.colaborador_ferias f
   join public.colaboradores c on c.id = f.colaborador_id
   where f.periodo_aquisitivo_fim is not null
