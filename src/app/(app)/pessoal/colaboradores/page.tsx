@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Users,
@@ -16,7 +18,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -46,6 +48,7 @@ const FILTROS_STATUS: { value: FiltroStatus; label: string }[] = [
 ];
 
 export default function ColaboradoresPage() {
+  const router = useRouter();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("todos");
   const [obraId, setObraId] = useState<string>("todas");
@@ -92,10 +95,13 @@ export default function ColaboradoresPage() {
         title="Colaboradores"
         description="Cadastro completo da equipe — função, documentos, remuneração e alocação por obra."
         actions={
-          <Button className="gap-2" onClick={() => handleNotImplemented("Novo colaborador")}>
+          <Link
+            href="/pessoal/colaboradores/novo"
+            className={cn(buttonVariants({ size: "default" }), "gap-2")}
+          >
             <Plus className="size-4" />
             Novo colaborador
-          </Button>
+          </Link>
         }
       />
 
@@ -248,7 +254,7 @@ export default function ColaboradoresPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            onClick={() => handleNotImplemented("Ver detalhes")}
+                            onClick={() => router.push(`/pessoal/colaboradores/${c.id}`)}
                             aria-label="Ver detalhes"
                           >
                             <Eye className="size-3.5" />
@@ -256,7 +262,7 @@ export default function ColaboradoresPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            onClick={() => handleNotImplemented("Editar colaborador")}
+                            onClick={() => router.push(`/pessoal/colaboradores/${c.id}/editar`)}
                             aria-label="Editar"
                           >
                             <Pencil className="size-3.5" />

@@ -341,3 +341,110 @@ export const COLABORADORES: Colaborador[] = [
     created_at: "2018-01-15T08:00:00Z",
   },
 ];
+
+// ── Tabelas-filhas (espelham as tabelas do módulo RH original) ───────────────
+
+export type DocumentoTipo =
+  | "rg"
+  | "cpf"
+  | "ctps"
+  | "comprovante_residencia"
+  | "aso"
+  | "contrato"
+  | "outro";
+
+export type ColaboradorDocumento = {
+  id: string;
+  colaborador_id: string;
+  tipo: DocumentoTipo;
+  nome: string;
+  arquivo_url: string | null;
+  validade: string | null;
+  created_at: string;
+};
+
+export const DOCUMENTO_TIPO_LABEL: Record<DocumentoTipo, string> = {
+  rg: "RG",
+  cpf: "CPF",
+  ctps: "CTPS",
+  comprovante_residencia: "Comprovante de residência",
+  aso: "ASO (atestado ocupacional)",
+  contrato: "Contrato de trabalho",
+  outro: "Outro",
+};
+
+export const COLABORADOR_DOCUMENTOS: ColaboradorDocumento[] = [
+  { id: "doc-1", colaborador_id: "col-1", tipo: "contrato", nome: "Contrato de trabalho assinado", arquivo_url: null, validade: null, created_at: "2021-02-01T09:00:00Z" },
+  { id: "doc-2", colaborador_id: "col-1", tipo: "aso", nome: "ASO admissional", arquivo_url: null, validade: "2026-02-01", created_at: "2021-02-01T09:10:00Z" },
+  { id: "doc-3", colaborador_id: "col-1", tipo: "rg", nome: "RG (frente e verso)", arquivo_url: null, validade: null, created_at: "2021-02-01T09:15:00Z" },
+  { id: "doc-4", colaborador_id: "col-2", tipo: "aso", nome: "ASO periódico", arquivo_url: null, validade: "2025-08-15", created_at: "2024-08-15T10:00:00Z" },
+  { id: "doc-5", colaborador_id: "col-8", tipo: "contrato", nome: "Contrato de trabalho", arquivo_url: null, validade: null, created_at: "2018-01-15T09:00:00Z" },
+];
+
+export type ColaboradorDependente = {
+  id: string;
+  colaborador_id: string;
+  nome: string;
+  parentesco: string;
+  data_nascimento: string | null;
+  cpf: string | null;
+};
+
+export const COLABORADOR_DEPENDENTES: ColaboradorDependente[] = [
+  { id: "dep-1", colaborador_id: "col-1", nome: "Lucas Campos", parentesco: "Filho", data_nascimento: "2012-05-20", cpf: null },
+  { id: "dep-2", colaborador_id: "col-1", nome: "Manuela Campos", parentesco: "Filha", data_nascimento: "2015-09-02", cpf: null },
+  { id: "dep-3", colaborador_id: "col-4", nome: "Sofia Rocha", parentesco: "Filha", data_nascimento: "2018-11-11", cpf: null },
+  { id: "dep-4", colaborador_id: "col-8", nome: "Pedro Tonet", parentesco: "Filho", data_nascimento: "2009-03-30", cpf: null },
+];
+
+export type FeriasStatus = "agendada" | "em_gozo" | "concluida";
+
+export type ColaboradorFerias = {
+  id: string;
+  colaborador_id: string;
+  periodo_aquisitivo_inicio: string;
+  periodo_aquisitivo_fim: string;
+  data_inicio: string;
+  data_fim: string;
+  dias: number;
+  status: FeriasStatus;
+};
+
+export const FERIAS_STATUS_LABEL: Record<FeriasStatus, string> = {
+  agendada: "Agendada",
+  em_gozo: "Em gozo",
+  concluida: "Concluída",
+};
+
+export const COLABORADOR_FERIAS: ColaboradorFerias[] = [
+  { id: "fer-1", colaborador_id: "col-3", periodo_aquisitivo_inicio: "2024-01-09", periodo_aquisitivo_fim: "2025-01-08", data_inicio: "2026-06-02", data_fim: "2026-07-01", dias: 30, status: "em_gozo" },
+  { id: "fer-2", colaborador_id: "col-1", periodo_aquisitivo_inicio: "2023-02-01", periodo_aquisitivo_fim: "2024-01-31", data_inicio: "2024-07-15", data_fim: "2024-08-13", dias: 30, status: "concluida" },
+  { id: "fer-3", colaborador_id: "col-2", periodo_aquisitivo_inicio: "2024-08-15", periodo_aquisitivo_fim: "2025-08-14", data_inicio: "2026-09-01", data_fim: "2026-09-30", dias: 30, status: "agendada" },
+];
+
+export type HistoricoTipo = "admissao" | "promocao" | "alteracao_salarial" | "transferencia" | "afastamento" | "desligamento";
+
+export type ColaboradorHistorico = {
+  id: string;
+  colaborador_id: string;
+  tipo: HistoricoTipo;
+  descricao: string;
+  data: string;
+};
+
+export const HISTORICO_TIPO_LABEL: Record<HistoricoTipo, string> = {
+  admissao: "Admissão",
+  promocao: "Promoção",
+  alteracao_salarial: "Alteração salarial",
+  transferencia: "Transferência",
+  afastamento: "Afastamento",
+  desligamento: "Desligamento",
+};
+
+export const COLABORADOR_HISTORICO: ColaboradorHistorico[] = [
+  { id: "his-1", colaborador_id: "col-1", tipo: "admissao", descricao: "Admitido como Pintor viário", data: "2021-02-01" },
+  { id: "his-2", colaborador_id: "col-1", tipo: "promocao", descricao: "Promovido a Encarregado de obra", data: "2023-03-01" },
+  { id: "his-3", colaborador_id: "col-1", tipo: "alteracao_salarial", descricao: "Reajuste para R$ 5.200,00", data: "2025-05-01" },
+  { id: "his-4", colaborador_id: "col-4", tipo: "afastamento", descricao: "Afastamento INSS (acidente de trajeto)", data: "2026-05-20" },
+  { id: "his-5", colaborador_id: "col-6", tipo: "desligamento", descricao: "Desligamento a pedido", data: "2026-04-30" },
+];
