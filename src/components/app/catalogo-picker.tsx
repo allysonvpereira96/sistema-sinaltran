@@ -129,7 +129,7 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
       )}
 
       {open ? (
-        <div className="absolute z-40 mt-1 w-full min-w-[320px] rounded-md border bg-popover shadow-lg overflow-hidden">
+        <div className="absolute z-40 mt-1 w-full min-w-[440px] max-w-[680px] rounded-md border bg-popover shadow-lg overflow-hidden">
           <ul className="max-h-72 overflow-y-auto py-1 text-xs">
             <li>
               <button
@@ -153,14 +153,17 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
               <li key={s.id}>
                 <button
                   type="button"
+                  title={`${s.codigo} · ${s.descricao}`}
                   onClick={() => pick(`srv:${s.id}`)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-muted flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 hover:bg-muted flex items-start gap-2"
                 >
-                  <Wrench className="size-3.5 shrink-0 text-sky-600" />
-                  <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                  <Wrench className="size-3.5 shrink-0 text-sky-600 mt-0.5" />
+                  <span className="font-mono text-[10px] text-muted-foreground shrink-0 mt-0.5">
                     {s.codigo}
                   </span>
-                  <span className="flex-1 truncate">{s.descricao}</span>
+                  <span className="flex-1 whitespace-normal break-words leading-snug">
+                    {s.descricao}
+                  </span>
                 </button>
               </li>
             ))}
@@ -177,16 +180,19 @@ export function CatalogoPicker({ servicos, materiais, value, onChange }: Props) 
               <li key={m.id}>
                 <button
                   type="button"
+                  title={`${m.codigo ? `${m.codigo} · ` : ""}${m.descricao}`}
                   onClick={() => pick(`mat:${m.id}`)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-muted flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 hover:bg-muted flex items-start gap-2"
                 >
-                  <Package className="size-3.5 shrink-0 text-amber-600" />
+                  <Package className="size-3.5 shrink-0 text-amber-600 mt-0.5" />
                   {m.codigo ? (
-                    <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                    <span className="font-mono text-[10px] text-muted-foreground shrink-0 mt-0.5">
                       {m.codigo}
                     </span>
                   ) : null}
-                  <span className="flex-1 truncate">{m.descricao}</span>
+                  <span className="flex-1 whitespace-normal break-words leading-snug">
+                    {m.descricao}
+                  </span>
                 </button>
               </li>
             ))}
