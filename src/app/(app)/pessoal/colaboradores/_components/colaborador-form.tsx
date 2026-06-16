@@ -19,11 +19,23 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   COLABORADOR_STATUS_LABEL,
   type Colaborador,
   type ColaboradorStatus,
+  type ColaboradorDocumento,
+  type ColaboradorDependente,
+  type ColaboradorFerias,
+  type ColaboradorAvaliacao,
+  type ColaboradorOcorrencia,
+  type ColaboradorComentario,
 } from "@/lib/mocks/colaboradores";
+import type {
+  ColaboradorAso,
+  ColaboradorTreinamento,
+  TreinamentoCatalogo,
+} from "@/lib/types/rh";
 import {
   createColaborador,
   updateColaborador,
@@ -32,6 +44,14 @@ import {
 } from "@/lib/actions/colaboradores";
 import { extrairFichaEmpregado } from "@/lib/actions/ficha";
 import { cn } from "@/lib/utils";
+import { DocumentosTab } from "./documentos-tab";
+import { DependentesTab } from "./dependentes-tab";
+import { FeriasTab } from "./ferias-tab";
+import { AsoTab } from "./aso-tab";
+import { TreinamentosTab } from "./treinamentos-tab";
+import { AvaliacoesTab } from "./avaliacoes-tab";
+import { OcorrenciasTab } from "./ocorrencias-tab";
+import { ComentariosTab } from "./comentarios-tab";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -98,6 +118,16 @@ type ColaboradorFormProps = {
   mode: "create" | "edit";
   initialData?: Colaborador;
   obras: ObraResumo[];
+  // Dados operacionais (apenas no modo edição) para as abas-filhas
+  documentos?: ColaboradorDocumento[];
+  dependentes?: ColaboradorDependente[];
+  ferias?: ColaboradorFerias[];
+  aso?: ColaboradorAso[];
+  treinamentos?: ColaboradorTreinamento[];
+  catalogoTreinamentos?: TreinamentoCatalogo[];
+  avaliacoes?: ColaboradorAvaliacao[];
+  ocorrencias?: ColaboradorOcorrencia[];
+  comentarios?: ColaboradorComentario[];
 };
 
 function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
@@ -139,7 +169,20 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
   };
 }
 
-export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormProps) {
+export function ColaboradorForm({
+  mode,
+  initialData,
+  obras,
+  documentos = [],
+  dependentes = [],
+  ferias = [],
+  aso = [],
+  treinamentos = [],
+  catalogoTreinamentos = [],
+  avaliacoes = [],
+  ocorrencias = [],
+  comentarios = [],
+}: ColaboradorFormProps) {
   const router = useRouter();
   const isEdit = mode === "edit";
 
@@ -262,6 +305,9 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
     router.refresh();
   };
 
+  const salvar = handleSubmit(onSubmit);
+  const cid = initialData?.id ?? "";
+
   return (
     <div className="p-6 lg:p-8 max-w-[1100px] mx-auto space-y-6">
       <header className="flex items-center gap-4">
@@ -276,11 +322,7 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
             {isEdit ? "Editar colaborador" : "Novo colaborador"}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {isEdit
-              ? "Atualize os dados cadastrais do colaborador."
-              : "Cadastre um novo colaborador. Após salvar, será possível anexar documentos, dependentes e registrar férias."}
-          </p>
+          <p className="text-sm text-muted-foreground">Preencha os dados do colaborador.</p>
         </div>
         {!isEdit && (
           <>
@@ -303,220 +345,280 @@ export function ColaboradorForm({ mode, initialData, obras }: ColaboradorFormPro
             </Button>
           </>
         )}
+        <Button type="button" disabled={isSubmitting} className="gap-2" onClick={salvar}>
+          <Save className="size-4" />
+          {isSubmitting ? "Salvando…" : "Salvar"}
+        </Button>
       </header>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Dados pessoais</CardTitle>
-            <CardDescription>Identificação e documentos</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nome completo *" error={errors.nome_completo?.message} className="sm:col-span-2">
-              <Input {...register("nome_completo")} placeholder="Nome completo do colaborador" />
-            </Field>
-            <Field label="CPF" error={errors.cpf?.message}>
-              <Input {...register("cpf")} placeholder="Somente números" />
-            </Field>
-            <Field label="RG" error={errors.rg?.message}>
-              <Input {...register("rg")} placeholder="RG" />
-            </Field>
-            <Field label="Data de nascimento" error={errors.data_nascimento?.message}>
-              <Input type="date" {...register("data_nascimento")} />
-            </Field>
-            <Field label="Gênero" error={errors.genero?.message}>
-              <NativeSelect {...register("genero")}>
-                <option value="">Selecione…</option>
-                {generoValues.map((g) => (
-                  <option key={g} value={g}>
-                    {GENERO_LABEL[g]}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="PIS/PASEP" error={errors.pis?.message}>
-              <Input {...register("pis")} placeholder="PIS" />
-            </Field>
-            <Field label="CNH" error={errors.cnh?.message}>
-              <Input {...register("cnh")} placeholder="Número da CNH" />
-            </Field>
-            <Field label="Validade da CNH" error={errors.cnh_validade?.message}>
-              <Input type="date" {...register("cnh_validade")} />
-            </Field>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="pessoais">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="pessoais">Dados Pessoais</TabsTrigger>
+          <TabsTrigger value="endereco">Endereço</TabsTrigger>
+          <TabsTrigger value="profissionais">Profissionais</TabsTrigger>
+          <TabsTrigger value="bancarios">Bancários</TabsTrigger>
+          <TabsTrigger value="emergencia">Emergência</TabsTrigger>
+          <TabsTrigger value="termos">Termos</TabsTrigger>
+          {isEdit && (
+            <>
+              <TabsTrigger value="documentos">Documentos</TabsTrigger>
+              <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
+              <TabsTrigger value="ferias">Férias</TabsTrigger>
+              <TabsTrigger value="aso">ASO</TabsTrigger>
+              <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
+              <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
+              <TabsTrigger value="ocorrencias">Ocorrências</TabsTrigger>
+              <TabsTrigger value="comentarios">Comentários</TabsTrigger>
+            </>
+          )}
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Contato</CardTitle>
-            <CardDescription>Telefone, e-mail e endereço</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Telefone" error={errors.telefone?.message}>
-              <Input {...register("telefone")} placeholder="(54) 99999-9999" />
-            </Field>
-            <Field label="E-mail" error={errors.email?.message}>
-              <Input {...register("email")} placeholder="email@exemplo.com" />
-            </Field>
-            <Field label="Endereço" error={errors.endereco?.message} className="sm:col-span-2">
-              <Input {...register("endereco")} placeholder="Rua, número, bairro" />
-            </Field>
-            <Field label="Cidade" error={errors.cidade?.message}>
-              <Input {...register("cidade")} placeholder="Caxias do Sul" />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Estado" error={errors.estado?.message}>
-                <Input {...register("estado")} placeholder="RS" maxLength={2} />
+        {/* ── Dados Pessoais ── */}
+        <TabsContent value="pessoais" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dados Pessoais</CardTitle>
+              <CardDescription>Identificação, documentos e contato</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field label="Nome completo *" error={errors.nome_completo?.message} className="sm:col-span-2">
+                <Input {...register("nome_completo")} placeholder="Nome completo do colaborador" />
               </Field>
-              <Field label="CEP" error={errors.cep?.message}>
-                <Input {...register("cep")} placeholder="00000-000" />
+              <Field label="CPF" error={errors.cpf?.message}>
+                <Input {...register("cpf")} placeholder="Somente números" />
               </Field>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Dados profissionais</CardTitle>
-            <CardDescription>Cargo, alocação e situação</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Matrícula" error={errors.matricula?.message}>
-              <Input {...register("matricula")} placeholder="Ex.: 0042" />
-            </Field>
-            <Field label="Cargo *" error={errors.cargo?.message}>
-              <Input {...register("cargo")} placeholder="Ex.: Pintor viário" />
-            </Field>
-            <Field label="Obra (alocação)" error={errors.obra_id?.message}>
-              <NativeSelect {...register("obra_id")}>
-                <option value="">Sem alocação</option>
-                {obras.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.nome}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Status" error={errors.status?.message}>
-              <NativeSelect {...register("status")}>
-                {statusValues.map((s) => (
-                  <option key={s} value={s}>
-                    {COLABORADOR_STATUS_LABEL[s as ColaboradorStatus]}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Data de admissão *" error={errors.data_admissao?.message}>
-              <Input type="date" {...register("data_admissao")} />
-            </Field>
-            <Field label="Data de desligamento" error={errors.data_desligamento?.message}>
-              <Input type="date" {...register("data_desligamento")} />
-            </Field>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Remuneração e dados bancários</CardTitle>
-            <CardDescription>Salário base, ajuda de custo e conta</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Remuneração base" error={errors.remuneracao_base?.message}>
-              <Input
-                type="number"
-                step="0.01"
-                {...register("remuneracao_base", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
-                placeholder="0,00"
-              />
-            </Field>
-            <Field label="Ajuda de custo" error={errors.ajuda_custo?.message}>
-              <Input
-                type="number"
-                step="0.01"
-                {...register("ajuda_custo", { valueAsNumber: true })}
-                placeholder="0,00"
-              />
-            </Field>
-            <Field label="Banco" error={errors.banco?.message}>
-              <Input {...register("banco")} placeholder="Ex.: Banrisul" />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Agência" error={errors.agencia?.message}>
-                <Input {...register("agencia")} placeholder="0000" />
+              <Field label="RG" error={errors.rg?.message}>
+                <Input {...register("rg")} placeholder="RG" />
               </Field>
-              <Field label="Conta" error={errors.conta?.message}>
-                <Input {...register("conta")} placeholder="00000-0" />
+              <Field label="Data de nascimento" error={errors.data_nascimento?.message}>
+                <Input type="date" {...register("data_nascimento")} />
               </Field>
-            </div>
-            <Field label="Chave PIX" error={errors.chave_pix?.message} className="sm:col-span-2">
-              <Input {...register("chave_pix")} placeholder="CPF, e-mail, telefone ou aleatória" />
-            </Field>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Contato de emergência</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
-            <Field label="Nome" error={errors.emergencia_nome?.message}>
-              <Input {...register("emergencia_nome")} placeholder="Nome do contato" />
-            </Field>
-            <Field label="Parentesco" error={errors.emergencia_parentesco?.message}>
-              <Input {...register("emergencia_parentesco")} placeholder="Ex.: Esposa" />
-            </Field>
-            <Field label="Telefone" error={errors.emergencia_telefone?.message}>
-              <Input {...register("emergencia_telefone")} placeholder="(54) 99999-9999" />
-            </Field>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Termos</CardTitle>
-            <CardDescription>Autorizações e ciência do colaborador</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" className="size-4 rounded border-input" {...register("termo_uso_imagem")} />
-                Termo de uso de imagem
-              </label>
-              <Field label="Data de assinatura" error={errors.termo_uso_imagem_data?.message}>
-                <Input type="date" {...register("termo_uso_imagem_data")} />
+              <Field label="Gênero" error={errors.genero?.message}>
+                <NativeSelect {...register("genero")}>
+                  <option value="">Selecione…</option>
+                  {generoValues.map((g) => (
+                    <option key={g} value={g}>
+                      {GENERO_LABEL[g]}
+                    </option>
+                  ))}
+                </NativeSelect>
               </Field>
-            </div>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" className="size-4 rounded border-input" {...register("manual_conduta")} />
-                Manual de conduta (ciência)
-              </label>
-              <Field label="Data de ciência" error={errors.manual_conduta_data?.message}>
-                <Input type="date" {...register("manual_conduta_data")} />
+              <Field label="PIS/PASEP" error={errors.pis?.message}>
+                <Input {...register("pis")} placeholder="PIS" />
               </Field>
-            </div>
-          </CardContent>
-        </Card>
+              <Field label="CNH" error={errors.cnh?.message}>
+                <Input {...register("cnh")} placeholder="Número da CNH" />
+              </Field>
+              <Field label="Validade da CNH" error={errors.cnh_validade?.message}>
+                <Input type="date" {...register("cnh_validade")} />
+              </Field>
+              <Field label="Telefone" error={errors.telefone?.message}>
+                <Input {...register("telefone")} placeholder="(54) 99999-9999" />
+              </Field>
+              <Field label="E-mail" error={errors.email?.message}>
+                <Input {...register("email")} placeholder="email@exemplo.com" />
+              </Field>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Observações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea rows={4} {...register("observacoes")} placeholder="Informações relevantes sobre o colaborador" />
-          </CardContent>
-        </Card>
+        {/* ── Endereço ── */}
+        <TabsContent value="endereco" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Endereço</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field label="Endereço" error={errors.endereco?.message} className="sm:col-span-2">
+                <Input {...register("endereco")} placeholder="Rua, número, bairro" />
+              </Field>
+              <Field label="Cidade" error={errors.cidade?.message}>
+                <Input {...register("cidade")} placeholder="Caxias do Sul" />
+              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Estado" error={errors.estado?.message}>
+                  <Input {...register("estado")} placeholder="RS" maxLength={2} />
+                </Field>
+                <Field label="CEP" error={errors.cep?.message}>
+                  <Input {...register("cep")} placeholder="00000-000" />
+                </Field>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <div className="flex items-center justify-end gap-3">
-          <Link href="/pessoal/colaboradores" className={cn(buttonVariants({ variant: "outline" }))}>
-            Cancelar
-          </Link>
-          <Button type="submit" disabled={isSubmitting} className="gap-2">
-            <Save className="size-4" />
-            {isSubmitting ? "Salvando…" : isEdit ? "Salvar alterações" : "Cadastrar colaborador"}
-          </Button>
-        </div>
-      </form>
+        {/* ── Profissionais ── */}
+        <TabsContent value="profissionais" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dados Profissionais</CardTitle>
+              <CardDescription>Cargo, alocação, situação e remuneração</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field label="Matrícula" error={errors.matricula?.message}>
+                <Input {...register("matricula")} placeholder="Ex.: 0042" />
+              </Field>
+              <Field label="Cargo *" error={errors.cargo?.message}>
+                <Input {...register("cargo")} placeholder="Ex.: Pintor viário" />
+              </Field>
+              <Field label="Obra (alocação)" error={errors.obra_id?.message}>
+                <NativeSelect {...register("obra_id")}>
+                  <option value="">Sem alocação</option>
+                  {obras.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nome}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field label="Status" error={errors.status?.message}>
+                <NativeSelect {...register("status")}>
+                  {statusValues.map((s) => (
+                    <option key={s} value={s}>
+                      {COLABORADOR_STATUS_LABEL[s as ColaboradorStatus]}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field label="Data de admissão *" error={errors.data_admissao?.message}>
+                <Input type="date" {...register("data_admissao")} />
+              </Field>
+              <Field label="Data de desligamento" error={errors.data_desligamento?.message}>
+                <Input type="date" {...register("data_desligamento")} />
+              </Field>
+              <Field label="Remuneração base" error={errors.remuneracao_base?.message}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register("remuneracao_base", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+                  placeholder="0,00"
+                />
+              </Field>
+              <Field label="Ajuda de custo" error={errors.ajuda_custo?.message}>
+                <Input type="number" step="0.01" {...register("ajuda_custo", { valueAsNumber: true })} placeholder="0,00" />
+              </Field>
+              <Field label="Observações" error={errors.observacoes?.message} className="sm:col-span-2">
+                <Textarea rows={3} {...register("observacoes")} placeholder="Informações relevantes sobre o colaborador" />
+              </Field>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Bancários ── */}
+        <TabsContent value="bancarios" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dados Bancários</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field label="Banco" error={errors.banco?.message}>
+                <Input {...register("banco")} placeholder="Ex.: Banrisul" />
+              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Agência" error={errors.agencia?.message}>
+                  <Input {...register("agencia")} placeholder="0000" />
+                </Field>
+                <Field label="Conta" error={errors.conta?.message}>
+                  <Input {...register("conta")} placeholder="00000-0" />
+                </Field>
+              </div>
+              <Field label="Chave PIX" error={errors.chave_pix?.message} className="sm:col-span-2">
+                <Input {...register("chave_pix")} placeholder="CPF, e-mail, telefone ou aleatória" />
+              </Field>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Emergência ── */}
+        <TabsContent value="emergencia" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Contato de Emergência</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-3">
+              <Field label="Nome" error={errors.emergencia_nome?.message}>
+                <Input {...register("emergencia_nome")} placeholder="Nome do contato" />
+              </Field>
+              <Field label="Parentesco" error={errors.emergencia_parentesco?.message}>
+                <Input {...register("emergencia_parentesco")} placeholder="Ex.: Esposa" />
+              </Field>
+              <Field label="Telefone" error={errors.emergencia_telefone?.message}>
+                <Input {...register("emergencia_telefone")} placeholder="(54) 99999-9999" />
+              </Field>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Termos ── */}
+        <TabsContent value="termos" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Termos</CardTitle>
+              <CardDescription>Autorizações e ciência do colaborador</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" className="size-4 rounded border-input" {...register("termo_uso_imagem")} />
+                  Termo de uso de imagem
+                </label>
+                <Field label="Data de assinatura" error={errors.termo_uso_imagem_data?.message}>
+                  <Input type="date" {...register("termo_uso_imagem_data")} />
+                </Field>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" className="size-4 rounded border-input" {...register("manual_conduta")} />
+                  Manual de conduta (ciência)
+                </label>
+                <Field label="Data de ciência" error={errors.manual_conduta_data?.message}>
+                  <Input type="date" {...register("manual_conduta_data")} />
+                </Field>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Abas operacionais (somente edição) ── */}
+        {isEdit && (
+          <>
+            <TabsContent value="documentos" className="pt-4">
+              <DocumentosTab colaboradorId={cid} documentos={documentos} />
+            </TabsContent>
+            <TabsContent value="dependentes" className="pt-4">
+              <DependentesTab colaboradorId={cid} dependentes={dependentes} />
+            </TabsContent>
+            <TabsContent value="ferias" className="pt-4">
+              <FeriasTab colaboradorId={cid} ferias={ferias} />
+            </TabsContent>
+            <TabsContent value="aso" className="pt-4">
+              <AsoTab colaboradorId={cid} aso={aso} />
+            </TabsContent>
+            <TabsContent value="treinamentos" className="pt-4">
+              <TreinamentosTab colaboradorId={cid} treinamentos={treinamentos} catalogo={catalogoTreinamentos} />
+            </TabsContent>
+            <TabsContent value="avaliacoes" className="pt-4">
+              <AvaliacoesTab colaboradorId={cid} avaliacoes={avaliacoes} />
+            </TabsContent>
+            <TabsContent value="ocorrencias" className="pt-4">
+              <OcorrenciasTab colaboradorId={cid} ocorrencias={ocorrencias} />
+            </TabsContent>
+            <TabsContent value="comentarios" className="pt-4">
+              <ComentariosTab colaboradorId={cid} comentarios={comentarios} />
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
+
+      <div className="flex items-center justify-end gap-3">
+        <Link href="/pessoal/colaboradores" className={cn(buttonVariants({ variant: "outline" }))}>
+          Cancelar
+        </Link>
+        <Button type="button" disabled={isSubmitting} className="gap-2" onClick={salvar}>
+          <Save className="size-4" />
+          {isSubmitting ? "Salvando…" : isEdit ? "Salvar alterações" : "Cadastrar colaborador"}
+        </Button>
+      </div>
     </div>
   );
 }
