@@ -93,6 +93,24 @@ const UNIDADE_ITEM: Record<string, string> = {
   global: "vb",
 };
 
+/** Unidades oferecidas no seletor de cada item do orçamento. */
+const UNIDADES_ITEM_OPCOES = [
+  "UN",
+  "m²",
+  "m",
+  "m³",
+  "kg",
+  "L",
+  "par",
+  "cento",
+  "diária",
+  "h",
+  "vb",
+  "cx",
+  "balde",
+  "tambor",
+];
+
 function detalheToValues(o: OrcamentoDetalhe): OrcamentoFormValues {
   return {
     numero: o.numero,
@@ -604,11 +622,28 @@ export function OrcamentoForm({
                         ) : null}
                       </td>
                       <td className="py-2 px-2 align-top">
-                        <Input
-                          {...register(`itens.${index}.unidade_medida` as const)}
-                          className="h-9 text-xs"
-                          maxLength={6}
-                        />
+                        {(() => {
+                          const atual =
+                            watchedItens?.[index]?.unidade_medida ?? "";
+                          const opcoes =
+                            atual && !UNIDADES_ITEM_OPCOES.includes(atual)
+                              ? [atual, ...UNIDADES_ITEM_OPCOES]
+                              : UNIDADES_ITEM_OPCOES;
+                          return (
+                            <select
+                              {...register(
+                                `itens.${index}.unidade_medida` as const,
+                              )}
+                              className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+                            >
+                              {opcoes.map((u) => (
+                                <option key={u} value={u}>
+                                  {u}
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </td>
                       <td className="py-2 px-2 align-top">
                         <Input
