@@ -31,6 +31,31 @@ function clean<T extends Record<string, unknown>>(obj: T): T {
   return out;
 }
 
+export type ServicoResumo = {
+  id: string;
+  codigo: string;
+  descricao: string;
+  descricao_completa: string | null;
+  unidade_padrao: string | null;
+  preco_unitario: number;
+};
+
+/** Serviços ativos (campos essenciais) para o seletor de itens do orçamento. */
+export async function listServicosResumo(): Promise<ServicoResumo[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("id, codigo, descricao, descricao_completa, unidade_padrao, preco_unitario")
+    .eq("ativo", true)
+    .order("codigo", { ascending: true });
+  if (error) {
+    console.error("[listServicosResumo]", error.message);
+    return [];
+  }
+  return (data ?? []) as ServicoResumo[];
+}
+
 export async function listServicos(): Promise<ServicoRow[]> {
   if (!hasSupabase()) return [];
   const supabase = await createClient();

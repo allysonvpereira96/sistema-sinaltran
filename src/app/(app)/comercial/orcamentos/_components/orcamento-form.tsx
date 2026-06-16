@@ -33,6 +33,7 @@ import {
   type EmpresaResumo,
   type MaterialResumo,
 } from "@/lib/actions/orcamentos";
+import type { ServicoResumo } from "@/lib/actions/servicos";
 import {
   ORCAMENTO_STATUS_LABEL,
   type OrcamentoDetalhe,
@@ -80,6 +81,16 @@ const orcamentoSchema = z.object({
 
 export type OrcamentoFormValues = z.infer<typeof orcamentoSchema>;
 
+/** Converte a unidade padrão do serviço para o rótulo curto usado no item. */
+const UNIDADE_ITEM: Record<string, string> = {
+  m2: "m²",
+  metro: "m",
+  unidade: "UN",
+  diaria: "diária",
+  hora: "h",
+  global: "vb",
+};
+
 function detalheToValues(o: OrcamentoDetalhe): OrcamentoFormValues {
   return {
     numero: o.numero,
@@ -115,12 +126,14 @@ export function OrcamentoForm({
   initialData,
   empresas,
   materiais,
+  servicos,
   numeroSugerido,
 }: {
   mode: "create" | "edit";
   initialData?: OrcamentoDetalhe;
   empresas: EmpresaResumo[];
   materiais: MaterialResumo[];
+  servicos: ServicoResumo[];
   numeroSugerido?: string;
 }) {
   const router = useRouter();
@@ -222,6 +235,40 @@ export function OrcamentoForm({
     });
     return [...set];
   }, [watchedItens]);
+
+  // Ao escolher um item do catálogo (serviço ou material), preenche os campos.
+  function aplicarCatalogo(index: number, valor: string) {
+    if (valor.startsWith("srv:")) {
+      const s = servicos.find((x) => x.id === valor.slice(4));
+      if (!s) return;
+      setValue(`itens.${index}.material_id`, null);
+      setValue(`itens.${index}.descricao`, s.descricao_completa || s.descricao, {
+        shouldValidate: true,
+      });
+      if (s.unidade_padrao) {
+        setValue(
+          `itens.${index}.unidade_medida`,
+          UNIDADE_ITEM[s.unidade_padrao] ?? s.unidade_padrao,
+        );
+      }
+      if (s.preco_unitario > 0) {
+        setValue(`itens.${index}.valor_unit_mao_obra`, s.preco_unitario);
+      }
+    } else if (valor.startsWith("mat:")) {
+      const m = materiais.find((x) => x.id === valor.slice(4));
+      if (!m) return;
+      setValue(`itens.${index}.material_id`, m.id);
+      setValue(`itens.${index}.descricao`, m.descricao, { shouldValidate: true });
+      if (m.unidade_medida) {
+        setValue(`itens.${index}.unidade_medida`, m.unidade_medida);
+      }
+      if (m.valor_referencia && m.valor_referencia > 0) {
+        setValue(`itens.${index}.valor_unit_material`, m.valor_referencia);
+      }
+    } else {
+      setValue(`itens.${index}.material_id`, null);
+    }
+  }
 
   const onSubmit: SubmitHandler<OrcamentoFormValues> = async (values) => {
     const input: OrcamentoInput = {
@@ -517,17 +564,39 @@ export function OrcamentoForm({
                           placeholder="Seção (ex.: SINALIZAÇÃO HORIZONTAL)"
                           className="h-8 w-full rounded-md border border-input bg-background px-2 text-[11px] uppercase tracking-wider font-semibold text-foreground/80"
                         />
+                        <input
+                          type="hidden"
+                          {...register(`itens.${index}.material_id` as const)}
+                        />
                         <select
                           className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
-                          {...register(`itens.${index}.material_id` as const)}
+                          defaultValue=""
+                          onChange={(e) => {
+                            aplicarCatalogo(index, e.target.value);
+                          }}
                         >
-                          <option value="">Material avulso (sem catálogo)</option>
-                          {materiais.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.codigo ? `${m.codigo} · ` : ""}
-                              {m.descricao.slice(0, 48)}
-                            </option>
-                          ))}
+                          <option value="">
+                            Catálogo: item avulso (preencher manual)
+                          </option>
+                          {servicos.length > 0 ? (
+                            <optgroup label="Serviços">
+                              {servicos.map((s) => (
+                                <option key={s.id} value={`srv:${s.id}`}>
+                                  {s.codigo} · {s.descricao.slice(0, 44)}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ) : null}
+                          {materiais.length > 0 ? (
+                            <optgroup label="Materiais">
+                              {materiais.map((m) => (
+                                <option key={m.id} value={`mat:${m.id}`}>
+                                  {m.codigo ? `${m.codigo} · ` : ""}
+                                  {m.descricao.slice(0, 44)}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ) : null}
                         </select>
                         <Input
                           {...register(`itens.${index}.descricao` as const)}

@@ -25,6 +25,8 @@ export type MaterialResumo = {
   id: string;
   codigo: string | null;
   descricao: string;
+  unidade_medida: string | null;
+  valor_referencia: number | null;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -61,12 +63,14 @@ export async function listMateriaisResumo(): Promise<MaterialResumo[]> {
       id: m.id,
       codigo: m.codigo,
       descricao: m.descricao,
+      unidade_medida: m.unidade_medida,
+      valor_referencia: m.valor_referencia,
     }));
   }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("materiais")
-    .select("id, codigo, descricao")
+    .select("id, codigo, descricao, unidade_medida, valor_referencia")
     .eq("ativo", true)
     .order("descricao", { ascending: true });
   if (error) {
