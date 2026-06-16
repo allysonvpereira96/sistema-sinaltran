@@ -80,3 +80,28 @@ export const ASO_PERIODICIDADES = [
   { meses: 12, label: "Anual" },
   { meses: 24, label: "Bienal" },
 ] as const;
+
+/**
+ * Catálogo de treinamentos/NRs com validade padrão SUGERIDA (em meses).
+ * A validade é editável no cadastro — periodicidades reais variam por NR,
+ * classe de risco e política da empresa. `null` = sem validade/reciclagem fixa.
+ */
+export type TreinamentoCatalogoItem = { nome: string; validade_meses: number | null };
+
+export const TREINAMENTOS_CATALOGO: TreinamentoCatalogoItem[] = [
+  { nome: "NR-06 — EPI", validade_meses: null },
+  { nome: "NR-10 — Segurança em instalações elétricas", validade_meses: 24 },
+  { nome: "NR-11 — Movimentação de materiais", validade_meses: 12 },
+  { nome: "NR-12 — Máquinas e equipamentos", validade_meses: 24 },
+  { nome: "NR-17 — Ergonomia", validade_meses: 24 },
+  { nome: "NR-18 — Construção civil", validade_meses: 12 },
+  { nome: "NR-20 — Inflamáveis e combustíveis", validade_meses: 12 },
+  { nome: "NR-23 — Proteção contra incêndios", validade_meses: 12 },
+  { nome: "NR-33 — Espaços confinados", validade_meses: 12 },
+  { nome: "NR-35 — Trabalho em altura", validade_meses: 24 },
+  { nome: "Direção defensiva", validade_meses: 12 },
+  { nome: "Sinalização e segurança viária", validade_meses: 12 },
+  { nome: "Primeiros socorros", validade_meses: 12 },
+  { nome: "Brigada de incêndio", validade_meses: 12 },
+  { nome: "CIPA", validade_meses: 12 },
+];

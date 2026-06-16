@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ColaboradorTreinamento } from "@/lib/types/rh";
+import { TREINAMENTOS_CATALOGO, type ColaboradorTreinamento } from "@/lib/types/rh";
 import { createTreinamento, deleteTreinamento } from "@/lib/actions/colaboradores";
 import { formatDateBR } from "@/lib/format";
 import { classificarVencimento, diasAteVencimento, prazoLabel, VENC_LABEL, VENC_TONE } from "@/lib/vencimentos";
@@ -50,6 +50,30 @@ export function TreinamentosTab({
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState(FORM_INICIAL);
+  const [sel, setSel] = useState(""); // valor do select do catálogo
+  const [custom, setCustom] = useState(false); // "Outro" — digitar livremente
+
+  function reset() {
+    setForm(FORM_INICIAL);
+    setSel("");
+    setCustom(false);
+  }
+
+  function handleSelectCatalogo(value: string) {
+    setSel(value);
+    if (value === "__outro__") {
+      setCustom(true);
+      setForm((f) => ({ ...f, treinamento: "" }));
+      return;
+    }
+    setCustom(false);
+    const item = TREINAMENTOS_CATALOGO.find((i) => i.nome === value);
+    setForm((f) => ({
+      ...f,
+      treinamento: item ? item.nome : "",
+      validade_meses: item?.validade_meses != null ? String(item.validade_meses) : "",
+    }));
+  }
 
   async function handleAdd() {
     if (!form.treinamento.trim()) {
@@ -72,7 +96,7 @@ export function TreinamentosTab({
     setSaving(false);
     if (res.ok) {
       toast.success("Treinamento registrado");
-      setForm(FORM_INICIAL);
+      reset();
       setOpen(false);
       router.refresh();
     } else {
@@ -168,16 +192,36 @@ export function TreinamentosTab({
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar treinamento</DialogTitle>
-            <DialogDescription>Deixe a validade vazia para treinamentos sem vencimento.</DialogDescription>
+            <DialogDescription>Escolha da lista (a validade já vem sugerida) ou use “Outro” para digitar.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Treinamento / NR *</Label>
-              <Input value={form.treinamento} onChange={(e) => setForm({ ...form, treinamento: e.target.value })} placeholder="Ex.: NR-35 — Trabalho em altura" />
+              <select
+                value={sel}
+                onChange={(e) => handleSelectCatalogo(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Selecione…</option>
+                {TREINAMENTOS_CATALOGO.map((i) => (
+                  <option key={i.nome} value={i.nome}>
+                    {i.nome}{i.validade_meses != null ? ` · ${i.validade_meses}m` : " · sem validade"}
+                  </option>
+                ))}
+                <option value="__outro__">Outro (digitar)…</option>
+              </select>
+              {custom ? (
+                <Input
+                  className="mt-2"
+                  value={form.treinamento}
+                  onChange={(e) => setForm({ ...form, treinamento: e.target.value })}
+                  placeholder="Ex.: Treinamento interno de operação"
+                />
+              ) : null}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -199,7 +243,7 @@ export function TreinamentosTab({
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setOpen(false); reset(); }}>Cancelar</Button>
             <Button disabled={saving} onClick={handleAdd}>{saving ? "Salvando…" : "Registrar"}</Button>
           </div>
         </DialogContent>
