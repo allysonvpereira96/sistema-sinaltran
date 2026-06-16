@@ -39,12 +39,16 @@ import {
   listComentarios,
   listOcorrencias,
   listAvaliacoes,
+  listAso,
+  listTreinamentos,
 } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DocumentosTab } from "../_components/documentos-tab";
 import { DependentesTab } from "../_components/dependentes-tab";
 import { FeriasTab } from "../_components/ferias-tab";
+import { AsoTab } from "../_components/aso-tab";
+import { TreinamentosTab } from "../_components/treinamentos-tab";
 import { ComentariosTab } from "../_components/comentarios-tab";
 import { OcorrenciasTab } from "../_components/ocorrencias-tab";
 import { AvaliacoesTab } from "../_components/avaliacoes-tab";
@@ -58,7 +62,7 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [obras, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes] =
+  const [obras, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos] =
     await Promise.all([
       listObrasResumo(),
       listDocumentos(id),
@@ -68,6 +72,8 @@ export default async function ColaboradorDetalhePage({
       listComentarios(id),
       listOcorrencias(id),
       listAvaliacoes(id),
+      listAso(id),
+      listTreinamentos(id),
     ]);
 
   const obra = c.obra_id ? obras.find((o) => o.id === c.obra_id) : null;
@@ -126,6 +132,8 @@ export default async function ColaboradorDetalhePage({
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="dependentes">Dependentes</TabsTrigger>
           <TabsTrigger value="ferias">Férias</TabsTrigger>
+          <TabsTrigger value="aso">ASO</TabsTrigger>
+          <TabsTrigger value="treinamentos">Treinamentos</TabsTrigger>
           <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
           <TabsTrigger value="ocorrencias">Ocorrências</TabsTrigger>
           <TabsTrigger value="comentarios">Comentários</TabsTrigger>
@@ -208,6 +216,14 @@ export default async function ColaboradorDetalhePage({
 
         <TabsContent value="ferias" className="pt-4">
           <FeriasTab colaboradorId={c.id} ferias={ferias} />
+        </TabsContent>
+
+        <TabsContent value="aso" className="pt-4">
+          <AsoTab colaboradorId={c.id} aso={aso} />
+        </TabsContent>
+
+        <TabsContent value="treinamentos" className="pt-4">
+          <TreinamentosTab colaboradorId={c.id} treinamentos={treinamentos} />
         </TabsContent>
 
         <TabsContent value="avaliacoes" className="pt-4">

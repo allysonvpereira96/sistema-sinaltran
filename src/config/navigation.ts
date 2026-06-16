@@ -17,6 +17,7 @@ import {
   Truck,
   Boxes,
   Wrench,
+  CalendarClock,
 } from "lucide-react";
 
 export type NavItem = {
@@ -71,6 +72,7 @@ export const navigation: NavSection[] = [
     title: "Departamento Pessoal",
     items: [
       { label: "Colaboradores", href: "/pessoal/colaboradores", icon: Users },
+      { label: "Vencimentos", href: "/pessoal/vencimentos", icon: CalendarClock },
     ],
   },
   {

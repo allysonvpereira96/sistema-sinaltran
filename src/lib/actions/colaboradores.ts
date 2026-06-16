@@ -21,6 +21,12 @@ import {
   type ColaboradorOcorrencia,
   type ColaboradorAvaliacao,
 } from "@/lib/mocks/colaboradores";
+import type {
+  ColaboradorAso,
+  ColaboradorTreinamento,
+  ColaboradorExperiencia,
+  VencimentoRow,
+} from "@/lib/types/rh";
 
 const TABLE = "colaboradores";
 const BUCKET = "colaborador-documentos";
@@ -581,4 +587,155 @@ export async function deleteAvaliacao(
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
   return { ok: true };
+}
+
+// ── ASO (exames ocupacionais) ─────────────────────────────────────────────────
+
+export async function listAso(colaboradorId: string): Promise<ColaboradorAso[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_aso")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("data_realizacao", { ascending: false, nullsFirst: false });
+  if (error) {
+    console.error("[listAso]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorAso[];
+}
+
+export async function createAso(input: {
+  colaborador_id: string;
+  tipo_exame: string;
+  data_realizacao: string;
+  periodicidade_meses: number;
+  resultado?: string | null;
+  responsavel?: string | null;
+  observacoes?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.data_realizacao) return { ok: false, error: "Informe a data de realização." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("colaborador_aso").insert(
+    clean({
+      ...input,
+      periodicidade_meses: input.periodicidade_meses || 12,
+      created_by: user?.id ?? null,
+    }),
+  );
+  if (error) {
+    console.error("[createAso]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
+export async function deleteAso(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_aso").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
+// ── Treinamentos (NRs, cursos) ────────────────────────────────────────────────
+
+export async function listTreinamentos(colaboradorId: string): Promise<ColaboradorTreinamento[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_treinamentos")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("data_realizacao", { ascending: false, nullsFirst: false });
+  if (error) {
+    console.error("[listTreinamentos]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorTreinamento[];
+}
+
+export async function createTreinamento(input: {
+  colaborador_id: string;
+  treinamento: string;
+  data_realizacao: string;
+  validade_meses?: number | null;
+  fornecedor_instrutor?: string | null;
+  observacoes?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.treinamento?.trim()) return { ok: false, error: "Informe o treinamento/NR." };
+  if (!input.data_realizacao) return { ok: false, error: "Informe a data de realização." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("colaborador_treinamentos").insert(
+    clean({ ...input, created_by: user?.id ?? null }),
+  );
+  if (error) {
+    console.error("[createTreinamento]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
+export async function deleteTreinamento(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_treinamentos").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
+// ── Experiência (somente leitura por enquanto) ────────────────────────────────
+
+export async function listExperiencia(colaboradorId: string): Promise<ColaboradorExperiencia[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_experiencia")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[listExperiencia]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorExperiencia[];
+}
+
+// ── Painel de vencimentos (view unificada) ────────────────────────────────────
+
+export async function listVencimentos(): Promise<VencimentoRow[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vw_colaborador_vencimentos")
+    .select("*")
+    .order("dias_para_vencer", { ascending: true, nullsFirst: false });
+  if (error) {
+    console.error("[listVencimentos]", error.message);
+    return [];
+  }
+  return (data ?? []) as VencimentoRow[];
 }

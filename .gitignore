@@ -43,3 +43,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Planilhas de dados (contêm PII) — não versionar
+*.xlsx
