@@ -187,6 +187,40 @@ export async function listDependentes(colaboradorId: string): Promise<Colaborado
   return (data ?? []) as ColaboradorDependente[];
 }
 
+export async function createDependente(input: {
+  colaborador_id: string;
+  nome: string;
+  parentesco?: string | null;
+  data_nascimento?: string | null;
+  cpf?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.nome?.trim()) return { ok: false, error: "Nome é obrigatório." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_dependentes").insert(clean(input));
+  if (error) {
+    console.error("[createDependente]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  return { ok: true };
+}
+
+export async function deleteDependente(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_dependentes").delete().eq("id", id);
+  if (error) {
+    console.error("[deleteDependente]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
 export async function listFerias(colaboradorId: string): Promise<ColaboradorFerias[]> {
   if (!hasSupabase()) return COLABORADOR_FERIAS.filter((f) => f.colaborador_id === colaboradorId);
   const supabase = await createClient();
@@ -200,6 +234,44 @@ export async function listFerias(colaboradorId: string): Promise<ColaboradorFeri
     return [];
   }
   return (data ?? []) as ColaboradorFerias[];
+}
+
+export async function createFerias(input: {
+  colaborador_id: string;
+  periodo_aquisitivo_inicio?: string | null;
+  periodo_aquisitivo_fim?: string | null;
+  data_inicio: string;
+  data_fim: string;
+  dias: number;
+  status: ColaboradorFerias["status"];
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.data_inicio || !input.data_fim) {
+    return { ok: false, error: "Datas de início e fim são obrigatórias." };
+  }
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_ferias").insert(clean(input));
+  if (error) {
+    console.error("[createFerias]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  return { ok: true };
+}
+
+export async function deleteFerias(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_ferias").delete().eq("id", id);
+  if (error) {
+    console.error("[deleteFerias]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
 }
 
 export async function listHistorico(colaboradorId: string): Promise<ColaboradorHistorico[]> {

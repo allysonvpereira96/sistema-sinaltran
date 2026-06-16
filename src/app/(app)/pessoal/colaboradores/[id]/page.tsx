@@ -12,7 +12,6 @@ import {
   HeartPulse,
   FileText,
   Users,
-  Plane,
   History,
 } from "lucide-react";
 import {
@@ -26,17 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   COLABORADOR_STATUS_LABEL,
   COLABORADOR_STATUS_TONE,
-  FERIAS_STATUS_LABEL,
   HISTORICO_TIPO_LABEL,
 } from "@/lib/mocks/colaboradores";
 import {
@@ -50,6 +40,8 @@ import {
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DocumentosTab } from "../_components/documentos-tab";
+import { DependentesTab } from "../_components/dependentes-tab";
+import { FeriasTab } from "../_components/ferias-tab";
 
 export default async function ColaboradorDetalhePage({
   params,
@@ -198,73 +190,11 @@ export default async function ColaboradorDetalhePage({
         </TabsContent>
 
         <TabsContent value="dependentes" className="pt-4">
-          <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              {dependentes.length === 0 ? (
-                <EmptyState icon={Users} text="Nenhum dependente cadastrado." />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Parentesco</TableHead>
-                      <TableHead>Nascimento</TableHead>
-                      <TableHead>CPF</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dependentes.map((d) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="font-medium">{d.nome}</TableCell>
-                        <TableCell className="text-sm">{d.parentesco ?? "—"}</TableCell>
-                        <TableCell className="text-sm">{formatDateBR(d.data_nascimento)}</TableCell>
-                        <TableCell className="text-sm">{d.cpf ?? "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <DependentesTab colaboradorId={c.id} dependentes={dependentes} />
         </TabsContent>
 
         <TabsContent value="ferias" className="pt-4">
-          <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              {ferias.length === 0 ? (
-                <EmptyState icon={Plane} text="Nenhum período de férias registrado." />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Período aquisitivo</TableHead>
-                      <TableHead>Gozo</TableHead>
-                      <TableHead className="text-right">Dias</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ferias.map((f) => (
-                      <TableRow key={f.id}>
-                        <TableCell className="text-sm">
-                          {formatDateBR(f.periodo_aquisitivo_inicio)} → {formatDateBR(f.periodo_aquisitivo_fim)}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDateBR(f.data_inicio)} → {formatDateBR(f.data_fim)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm">{f.dias}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                            {FERIAS_STATUS_LABEL[f.status]}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <FeriasTab colaboradorId={c.id} ferias={ferias} />
         </TabsContent>
 
         <TabsContent value="historico" className="pt-4">
