@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import {
   TIPOS_DOCUMENTO,
+  TIPOS_DOCUMENTO_GRUPOS,
   documentoTipoLabel,
   type ColaboradorDocumento,
 } from "@/lib/mocks/colaboradores";
@@ -120,10 +121,14 @@ export function DocumentosTab({
               onChange={(e) => setTipo(e.target.value)}
               className="mt-1.5 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
-              {TIPOS_DOCUMENTO.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
+              {TIPOS_DOCUMENTO_GRUPOS.map((g) => (
+                <optgroup key={g} label={g}>
+                  {TIPOS_DOCUMENTO.filter((t) => t.grupo === g).map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>

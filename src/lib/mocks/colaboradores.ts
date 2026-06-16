@@ -363,22 +363,66 @@ export type ColaboradorDocumento = {
   data_upload: string;
 };
 
-export const TIPOS_DOCUMENTO: { value: string; label: string }[] = [
-  { value: "doc_admissionais", label: "Doc. Admissionais" },
-  { value: "doc_pessoais", label: "Doc. Pessoais" },
-  { value: "doc_demissionais", label: "Doc. Demissionais" },
-  { value: "contratos", label: "Contratos" },
-  { value: "aso", label: "ASO" },
-  { value: "atestado", label: "Atestado Médico" },
-  { value: "ferias", label: "Férias" },
-  { value: "advertencia", label: "Advertência" },
-  { value: "contra_cheque", label: "Contra-cheque" },
-  { value: "outros", label: "Outros" },
+export const TIPOS_DOCUMENTO: { value: string; label: string; grupo: string }[] = [
+  // Pessoais
+  { value: "rg", label: "RG", grupo: "Pessoais" },
+  { value: "cpf", label: "CPF", grupo: "Pessoais" },
+  { value: "ctps", label: "CTPS", grupo: "Pessoais" },
+  { value: "cnh", label: "CNH", grupo: "Pessoais" },
+  { value: "titulo_eleitor", label: "Título de eleitor", grupo: "Pessoais" },
+  { value: "certificado_reservista", label: "Certificado de reservista", grupo: "Pessoais" },
+  { value: "comprovante_residencia", label: "Comprovante de residência", grupo: "Pessoais" },
+  { value: "comprovante_escolaridade", label: "Comprovante de escolaridade", grupo: "Pessoais" },
+  { value: "certidao_nascimento_filhos", label: "Certidão de nasc. (filhos)", grupo: "Pessoais" },
+  { value: "foto_3x4", label: "Foto 3x4", grupo: "Pessoais" },
+  // Admissão / contrato
+  { value: "contrato_trabalho", label: "Contrato de trabalho", grupo: "Admissão e contrato" },
+  { value: "ficha_registro", label: "Ficha de registro", grupo: "Admissão e contrato" },
+  // Saúde ocupacional
+  { value: "aso_admissional", label: "ASO admissional", grupo: "Saúde ocupacional" },
+  { value: "aso_periodico", label: "ASO periódico", grupo: "Saúde ocupacional" },
+  { value: "aso_demissional", label: "ASO demissional", grupo: "Saúde ocupacional" },
+  { value: "atestado", label: "Atestado médico", grupo: "Saúde ocupacional" },
+  // Folha
+  { value: "contra_cheque", label: "Contracheque", grupo: "Folha de pagamento" },
+  { value: "recibo_ferias", label: "Recibo de férias", grupo: "Folha de pagamento" },
+  // Disciplinar
+  { value: "advertencia", label: "Advertência", grupo: "Disciplinar" },
+  { value: "suspensao", label: "Suspensão", grupo: "Disciplinar" },
+  // Termos
+  { value: "termo_uso_imagem", label: "Termo de uso de imagem", grupo: "Termos" },
+  { value: "manual_conduta", label: "Manual de conduta", grupo: "Termos" },
+  // Desligamento / outros
+  { value: "oficio_pensao", label: "Ofício de pensão", grupo: "Outros" },
+  { value: "desligamento", label: "Desligamento", grupo: "Outros" },
+  { value: "outros", label: "Outros", grupo: "Outros" },
 ];
 
-const _DOC_LABEL: Record<string, string> = Object.fromEntries(
-  TIPOS_DOCUMENTO.map((t) => [t.value, t.label]),
-);
+/** Ordem dos grupos para o select agrupado (optgroup). */
+export const TIPOS_DOCUMENTO_GRUPOS: string[] = [
+  "Pessoais",
+  "Admissão e contrato",
+  "Saúde ocupacional",
+  "Folha de pagamento",
+  "Disciplinar",
+  "Termos",
+  "Outros",
+];
+
+// Rótulos legados (categorias antigas) — mantém exibição correta de docs já gravados.
+const _DOC_LABEL_LEGADO: Record<string, string> = {
+  doc_admissionais: "Doc. admissionais",
+  doc_pessoais: "Doc. pessoais",
+  doc_demissionais: "Doc. demissionais",
+  contratos: "Contratos",
+  aso: "ASO",
+  ferias: "Férias",
+};
+
+const _DOC_LABEL: Record<string, string> = {
+  ..._DOC_LABEL_LEGADO,
+  ...Object.fromEntries(TIPOS_DOCUMENTO.map((t) => [t.value, t.label])),
+};
 export function documentoTipoLabel(tipo: string): string {
   return _DOC_LABEL[tipo] ?? tipo;
 }
