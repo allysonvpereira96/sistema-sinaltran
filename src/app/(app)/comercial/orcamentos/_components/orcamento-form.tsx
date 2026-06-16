@@ -559,93 +559,84 @@ export function OrcamentoForm({
               ))}
             </datalist>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b">
-                    <th className="text-left font-semibold py-2 pr-2 w-12">#</th>
-                    <th className="text-left font-semibold py-2 px-2 min-w-[260px]">
-                      Descrição
-                    </th>
-                    <th className="text-left font-semibold py-2 px-2 w-20">Un.</th>
-                    <th className="text-right font-semibold py-2 px-2 w-24">Qtd.</th>
-                    <th className="text-right font-semibold py-2 px-2 w-32">
-                      MO unit.
-                    </th>
-                    <th className="text-right font-semibold py-2 px-2 w-32">
-                      Mat. unit.
-                    </th>
-                    <th className="text-right font-semibold py-2 px-2 w-32">
-                      Subtotal
-                    </th>
-                    <th className="w-10" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {fields.map((field, index) => (
-                    <tr key={field.id} className="border-b last:border-b-0">
-                      <td className="py-2 pr-2 text-xs font-mono text-muted-foreground align-top pt-4">
+            <div className="space-y-3">
+              {fields.map((field, index) => {
+                const atualUn = watchedItens?.[index]?.unidade_medida ?? "";
+                const opcoesUn =
+                  atualUn && !UNIDADES_ITEM_OPCOES.includes(atualUn)
+                    ? [atualUn, ...UNIDADES_ITEM_OPCOES]
+                    : UNIDADES_ITEM_OPCOES;
+                return (
+                  <div
+                    key={field.id}
+                    className="rounded-lg border bg-card/40 p-3 space-y-2.5"
+                  >
+                    {/* Cabeçalho do item: número + seção + remover */}
+                    <div className="flex items-center gap-2">
+                      <span className="size-6 shrink-0 grid place-items-center rounded-md bg-muted text-[11px] font-mono font-semibold text-muted-foreground">
                         {index + 1}
-                      </td>
-                      <td className="py-2 px-2 align-top space-y-1.5">
-                        <input
-                          {...register(`itens.${index}.secao` as const)}
-                          list="secoes-sugeridas"
-                          placeholder="Seção (ex.: SINALIZAÇÃO HORIZONTAL)"
-                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-[11px] uppercase tracking-wider font-semibold text-foreground/80"
-                        />
-                        <input
-                          type="hidden"
-                          {...register(`itens.${index}.material_id` as const)}
-                        />
-                        <CatalogoPicker
-                          servicos={servicos}
-                          materiais={materiais}
-                          value={
-                            watchedItens?.[index]?.servico_id
-                              ? `srv:${watchedItens[index]?.servico_id}`
-                              : watchedItens?.[index]?.material_id
-                                ? `mat:${watchedItens[index]?.material_id}`
-                                : ""
-                          }
-                          onChange={(v) => aplicarCatalogo(index, v)}
-                        />
-                        <Input
-                          {...register(`itens.${index}.descricao` as const)}
-                          placeholder="Descrição completa do item"
-                          className="h-9"
-                        />
-                        {errors.itens?.[index]?.descricao ? (
-                          <p className="text-[10px] text-rose-600">
-                            {errors.itens[index]?.descricao?.message}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="py-2 px-2 align-top">
-                        {(() => {
-                          const atual =
-                            watchedItens?.[index]?.unidade_medida ?? "";
-                          const opcoes =
-                            atual && !UNIDADES_ITEM_OPCOES.includes(atual)
-                              ? [atual, ...UNIDADES_ITEM_OPCOES]
-                              : UNIDADES_ITEM_OPCOES;
-                          return (
-                            <select
-                              {...register(
-                                `itens.${index}.unidade_medida` as const,
-                              )}
-                              className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
-                            >
-                              {opcoes.map((u) => (
-                                <option key={u} value={u}>
-                                  {u}
-                                </option>
-                              ))}
-                            </select>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-2 px-2 align-top">
+                      </span>
+                      <input
+                        {...register(`itens.${index}.secao` as const)}
+                        list="secoes-sugeridas"
+                        placeholder="Seção (ex.: SINALIZAÇÃO HORIZONTAL)"
+                        className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-[11px] uppercase tracking-wider font-semibold text-foreground/80"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => remove(index)}
+                        disabled={fields.length === 1}
+                        aria-label="Remover item"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+
+                    {/* Catálogo + descrição */}
+                    <input
+                      type="hidden"
+                      {...register(`itens.${index}.material_id` as const)}
+                    />
+                    <CatalogoPicker
+                      servicos={servicos}
+                      materiais={materiais}
+                      value={
+                        watchedItens?.[index]?.servico_id
+                          ? `srv:${watchedItens[index]?.servico_id}`
+                          : watchedItens?.[index]?.material_id
+                            ? `mat:${watchedItens[index]?.material_id}`
+                            : ""
+                      }
+                      onChange={(v) => aplicarCatalogo(index, v)}
+                    />
+                    <Input
+                      {...register(`itens.${index}.descricao` as const)}
+                      placeholder="Descrição completa do item"
+                      className="h-9"
+                    />
+                    {errors.itens?.[index]?.descricao ? (
+                      <p className="text-[10px] text-rose-600">
+                        {errors.itens[index]?.descricao?.message}
+                      </p>
+                    ) : null}
+
+                    {/* Valores */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                      <ItemCampo label="Un.">
+                        <select
+                          {...register(`itens.${index}.unidade_medida` as const)}
+                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          {opcoesUn.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      </ItemCampo>
+                      <ItemCampo label="Qtd.">
                         <Input
                           type="number"
                           step="0.001"
@@ -654,8 +645,8 @@ export function OrcamentoForm({
                           })}
                           className="h-9 text-right tabular-nums"
                         />
-                      </td>
-                      <td className="py-2 px-2 align-top">
+                      </ItemCampo>
+                      <ItemCampo label="MO unit. (R$)">
                         <Input
                           type="number"
                           step="0.01"
@@ -665,8 +656,8 @@ export function OrcamentoForm({
                           )}
                           className="h-9 text-right tabular-nums"
                         />
-                      </td>
-                      <td className="py-2 px-2 align-top">
+                      </ItemCampo>
+                      <ItemCampo label="Mat. unit. (R$)">
                         <Input
                           type="number"
                           step="0.01"
@@ -676,56 +667,37 @@ export function OrcamentoForm({
                           )}
                           className="h-9 text-right tabular-nums"
                         />
-                      </td>
-                      <td className="py-2 px-2 align-top">
-                        <div className="h-9 grid place-items-end font-semibold tabular-nums text-sm">
+                      </ItemCampo>
+                      <ItemCampo label="Subtotal" className="col-span-2 sm:col-span-1">
+                        <div className="h-9 px-3 rounded-md border bg-muted/40 flex items-center justify-end font-semibold tabular-nums text-sm">
                           {formatBRL(subtotais[index]?.total ?? 0)}
                         </div>
-                      </td>
-                      <td className="py-2 align-top">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => remove(index)}
-                          disabled={fields.length === 1}
-                          aria-label="Remover item"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-foreground/10">
-                    <td colSpan={4} />
-                    <td className="py-2 px-2 text-right text-xs uppercase tracking-wider text-muted-foreground">
-                      Total MO
-                    </td>
-                    <td className="py-2 px-2 text-right text-xs uppercase tracking-wider text-muted-foreground">
-                      Total Mat.
-                    </td>
-                    <td className="py-2 px-2 text-right text-xs uppercase tracking-wider text-muted-foreground">
-                      Total Geral
-                    </td>
-                    <td />
-                  </tr>
-                  <tr>
-                    <td colSpan={4} />
-                    <td className="py-2 px-2 text-right font-semibold tabular-nums">
-                      {formatBRL(totaisGerais.mao_obra)}
-                    </td>
-                    <td className="py-2 px-2 text-right font-semibold tabular-nums">
-                      {formatBRL(totaisGerais.material)}
-                    </td>
-                    <td className="py-2 px-2 text-right text-lg font-bold tabular-nums">
-                      {formatBRL(totaisGerais.total)}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
+                      </ItemCampo>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Totais gerais */}
+            <div className="mt-4 flex flex-col items-end gap-1 border-t-2 border-foreground/10 pt-3">
+              <div className="flex flex-wrap justify-end gap-x-8 gap-y-1 text-sm">
+                <span className="text-muted-foreground">
+                  Total MO:{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatBRL(totaisGerais.mao_obra)}
+                  </span>
+                </span>
+                <span className="text-muted-foreground">
+                  Total Mat.:{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatBRL(totaisGerais.material)}
+                  </span>
+                </span>
+              </div>
+              <div className="text-lg font-bold tabular-nums">
+                Total Geral: {formatBRL(totaisGerais.total)}
+              </div>
             </div>
             {errors.itens && typeof errors.itens.message === "string" ? (
               <p className="text-xs text-rose-600 mt-3">{errors.itens.message}</p>
@@ -787,6 +759,25 @@ function Field({
       {error ? (
         <p className="text-xs text-rose-600 font-medium">{error}</p>
       ) : null}
+    </div>
+  );
+}
+
+function ItemCampo({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("space-y-1", className)}>
+      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+        {label}
+      </Label>
+      {children}
     </div>
   );
 }
