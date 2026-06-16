@@ -270,6 +270,9 @@ export function OrcamentoForm({
       if (m.valor_referencia && m.valor_referencia > 0) {
         setValue(`itens.${index}.valor_unit_material`, m.valor_referencia);
       }
+      if (m.valor_mao_obra && m.valor_mao_obra > 0) {
+        setValue(`itens.${index}.valor_unit_mao_obra`, m.valor_mao_obra);
+      }
     } else {
       setValue(`itens.${index}.material_id`, null);
       setValue(`itens.${index}.servico_id`, null);
