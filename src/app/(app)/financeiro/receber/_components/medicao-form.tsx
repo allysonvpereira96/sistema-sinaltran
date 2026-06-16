@@ -19,8 +19,18 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { OBRAS, calcularSaldo } from "@/lib/mocks/obras";
-import { MEDICOES, type Medicao, type MedicaoStatus } from "@/lib/mocks/medicoes";
+import {
+  createMedicao,
+  updateMedicao,
+  proximoNumeroMedicao,
+  type MedicaoInput,
+} from "@/lib/actions/medicoes";
+import {
+  MEDICAO_STATUS_LABEL,
+  type MedicaoDetalhe,
+  type MedicaoStatus,
+} from "@/lib/types/medicao";
+import { calcularSaldo, type ObraListRow } from "@/lib/types/obra";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -38,34 +48,21 @@ const medicaoSchema = z
     data_inicio: z.string().min(1, "Data de início é obrigatória"),
     data_fim: z.string().min(1, "Data de fim é obrigatória"),
     valor_total: z.number().min(0, "Valor deve ser positivo"),
-    percentual_executado: z
-      .number()
-      .min(0, "Mínimo 0%")
-      .max(100, "Máximo 100%"),
+    percentual_executado: z.number().min(0, "Mínimo 0%").max(100, "Máximo 100%"),
     status: z.enum(medicaoStatusValues),
     data_envio: z.string().optional().or(z.literal("")),
     data_aprovacao: z.string().optional().or(z.literal("")),
     data_previsao_recebimento: z.string().optional().or(z.literal("")),
     observacoes: z.string().optional().or(z.literal("")),
   })
-  .refine(
-    (v) => new Date(v.data_fim) >= new Date(v.data_inicio),
-    {
-      path: ["data_fim"],
-      message: "Data fim deve ser posterior ao início",
-    },
-  );
+  .refine((v) => v.data_fim >= v.data_inicio, {
+    path: ["data_fim"],
+    message: "Data fim deve ser posterior ao início",
+  });
 
 export type MedicaoFormValues = z.infer<typeof medicaoSchema>;
 
-const STATUS_LABEL: Record<MedicaoStatus, string> = {
-  rascunho: "Rascunho",
-  enviada: "Enviada",
-  aprovada: "Aprovada",
-  rejeitada: "Rejeitada",
-};
-
-function medicaoToValues(m: Medicao): MedicaoFormValues {
+function medicaoToValues(m: MedicaoDetalhe): MedicaoFormValues {
   return {
     obra_id: m.obra_id,
     numero: m.numero,
@@ -81,18 +78,14 @@ function medicaoToValues(m: Medicao): MedicaoFormValues {
   };
 }
 
-function proximoNumero(obraId: string) {
-  if (!obraId) return 1;
-  const ultimas = MEDICOES.filter((m) => m.obra_id === obraId).map((m) => m.numero);
-  return ultimas.length ? Math.max(...ultimas) + 1 : 1;
-}
-
 export function MedicaoForm({
   mode,
   initialData,
+  obras,
 }: {
   mode: "create" | "edit";
-  initialData?: Medicao;
+  initialData?: MedicaoDetalhe;
+  obras: ObraListRow[];
 }) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -132,29 +125,62 @@ export function MedicaoForm({
   const watchedPercentual = useWatch({ control, name: "percentual_executado" }) ?? 0;
 
   const obraSelecionada = useMemo(
-    () => OBRAS.find((o) => o.id === watchedObraId),
-    [watchedObraId],
+    () => obras.find((o) => o.id === watchedObraId),
+    [obras, watchedObraId],
   );
-
   const saldoObra = useMemo(
-    () => (obraSelecionada ? calcularSaldo(obraSelecionada) : null),
+    () =>
+      obraSelecionada
+        ? calcularSaldo(obraSelecionada.valor_total, obraSelecionada.valor_medido)
+        : null,
     [obraSelecionada],
   );
 
-  // Auto-preencher número da medição ao trocar obra (apenas em create)
+  // Auto-preenche o número ao escolher a obra (apenas em create).
   useEffect(() => {
-    if (!isEdit && watchedObraId) {
-      setValue("numero", proximoNumero(watchedObraId));
-    }
+    if (isEdit || !watchedObraId) return;
+    let cancelado = false;
+    proximoNumeroMedicao(watchedObraId).then((n) => {
+      if (!cancelado) setValue("numero", n);
+    });
+    return () => {
+      cancelado = true;
+    };
   }, [watchedObraId, isEdit, setValue]);
 
-  const onSubmit: SubmitHandler<MedicaoFormValues> = async () => {
-    await new Promise((r) => setTimeout(r, 400));
-    toast.success(isEdit ? "Medição atualizada" : "Medição criada", {
-      description:
-        "Os dados serão persistidos no Supabase assim que a conexão estiver configurada.",
-    });
-    router.push("/financeiro/receber");
+  const onSubmit: SubmitHandler<MedicaoFormValues> = async (values) => {
+    const input: MedicaoInput = {
+      obra_id: values.obra_id,
+      numero: values.numero,
+      data_inicio: values.data_inicio,
+      data_fim: values.data_fim,
+      valor_total: values.valor_total,
+      percentual_executado: values.percentual_executado,
+      status: values.status,
+      data_envio: values.data_envio || null,
+      data_aprovacao: values.data_aprovacao || null,
+      data_previsao_recebimento: values.data_previsao_recebimento || null,
+      observacoes: values.observacoes || null,
+    };
+
+    const res =
+      isEdit && initialData
+        ? await updateMedicao(initialData.id, input)
+        : await createMedicao(input);
+
+    if (!res.ok) {
+      toast.error("Erro ao salvar", { description: res.error });
+      return;
+    }
+    toast.success(isEdit ? "Medição atualizada" : "Medição criada");
+    const destino =
+      isEdit && initialData
+        ? `/financeiro/receber/${initialData.id}`
+        : "id" in res
+          ? `/financeiro/receber/${res.id}`
+          : "/financeiro/receber";
+    router.push(destino);
+    router.refresh();
   };
 
   return (
@@ -174,7 +200,7 @@ export function MedicaoForm({
           <p className="text-sm text-muted-foreground">
             {isEdit
               ? "Atualize o boletim de medição."
-              : "Registre um boletim de medição vinculado a uma obra. Ao ser aprovada, gera uma conta a receber."}
+              : "Registre um boletim de medição vinculado a uma obra. Ao ser aprovada, vira uma conta a receber."}
           </p>
         </div>
       </header>
@@ -189,7 +215,7 @@ export function MedicaoForm({
             <Field label="Obra *" error={errors.obra_id?.message}>
               <NativeSelect {...register("obra_id")} disabled={isEdit}>
                 <option value="">Selecione…</option>
-                {OBRAS.map((o) => (
+                {obras.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.numero} — {o.nome}
                   </option>
@@ -197,17 +223,16 @@ export function MedicaoForm({
               </NativeSelect>
             </Field>
             <Field label="Número da medição *" error={errors.numero?.message}>
-              <Input
-                type="number"
-                step={1}
-                {...register("numero", { valueAsNumber: true })}
-              />
+              <Input type="number" step={1} {...register("numero", { valueAsNumber: true })} />
             </Field>
           </CardContent>
           {obraSelecionada && saldoObra ? (
             <CardContent className="border-t pt-4">
               <div className="grid gap-4 sm:grid-cols-3 text-xs">
-                <SaldoRow label="Valor contratado" value={formatBRL(obraSelecionada.valor_total)} />
+                <SaldoRow
+                  label="Valor contratado"
+                  value={formatBRL(obraSelecionada.valor_total)}
+                />
                 <SaldoRow
                   label="Já medido"
                   value={`${formatBRL(obraSelecionada.valor_medido)} (${saldoObra.percentual_executado.toFixed(1)}%)`}
@@ -251,10 +276,7 @@ export function MedicaoForm({
                 {...register("valor_total", { valueAsNumber: true })}
               />
             </Field>
-            <Field
-              label="% Executado *"
-              error={errors.percentual_executado?.message}
-            >
+            <Field label="% Executado *" error={errors.percentual_executado?.message}>
               <Input
                 type="number"
                 step="0.1"
@@ -289,7 +311,7 @@ export function MedicaoForm({
               <NativeSelect {...register("status")}>
                 {medicaoStatusValues.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+                    {MEDICAO_STATUS_LABEL[s as MedicaoStatus]}
                   </option>
                 ))}
               </NativeSelect>
@@ -331,11 +353,7 @@ export function MedicaoForm({
           </Link>
           <Button type="submit" disabled={isSubmitting} className="gap-2">
             <Save className="size-4" />
-            {isSubmitting
-              ? "Salvando…"
-              : isEdit
-                ? "Salvar alterações"
-                : "Criar medição"}
+            {isSubmitting ? "Salvando…" : isEdit ? "Salvar alterações" : "Criar medição"}
           </Button>
         </div>
       </form>
@@ -360,9 +378,7 @@ function Field({
         {label}
       </Label>
       {children}
-      {error ? (
-        <p className="text-xs text-rose-600 font-medium">{error}</p>
-      ) : null}
+      {error ? <p className="text-xs text-rose-600 font-medium">{error}</p> : null}
     </div>
   );
 }
@@ -386,9 +402,7 @@ function SaldoRow({
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
         {label}
       </div>
-      <div className={cn("text-sm font-semibold mt-1 tabular-nums", highlight && "text-primary-foreground/90")}>
-        {value}
-      </div>
+      <div className="text-sm font-semibold mt-1 tabular-nums">{value}</div>
     </div>
   );
 }

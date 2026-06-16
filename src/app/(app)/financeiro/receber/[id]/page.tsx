@@ -19,16 +19,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { buttonVariants } from "@/components/ui/button";
+import { getMedicao } from "@/lib/actions/medicoes";
 import {
-  MEDICOES,
   MEDICAO_STATUS_LABEL,
   MEDICAO_STATUS_TONE,
-  getMedicoesPorObra,
-} from "@/lib/mocks/medicoes";
-import { OBRAS, calcularSaldo } from "@/lib/mocks/obras";
-import { CLIENTES } from "@/lib/mocks/cadastros";
+} from "@/lib/types/medicao";
+import { calcularSaldo } from "@/lib/types/obra";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ReceberButton } from "./_components/receber-button";
+
+export const dynamic = "force-dynamic";
 
 export default async function MedicaoDetalhePage({
   params,
@@ -36,16 +37,16 @@ export default async function MedicaoDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const medicao = MEDICOES.find((m) => m.id === id);
+  const medicao = await getMedicao(id);
   if (!medicao) notFound();
 
-  const obra = OBRAS.find((o) => o.id === medicao.obra_id);
-  const cliente = obra ? CLIENTES.find((c) => c.id === obra.cliente_id) : undefined;
+  const obra = medicao.obra;
+  const cliente = obra?.cliente;
   const tone = MEDICAO_STATUS_TONE[medicao.status];
-  const saldoObra = obra ? calcularSaldo(obra) : null;
-  const outrasMedicoes = obra
-    ? getMedicoesPorObra(obra.id).filter((m) => m.id !== medicao.id)
-    : [];
+  const saldoObra = obra
+    ? calcularSaldo(obra.valor_total, medicao.obra_valor_medido)
+    : null;
+  const recebida = !!medicao.data_recebimento;
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
@@ -67,6 +68,11 @@ export default async function MedicaoDetalhePage({
                 <span className={cn("size-1.5 rounded-full", tone.dot)} />
                 {MEDICAO_STATUS_LABEL[medicao.status]}
               </Badge>
+              {recebida ? (
+                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
+                  Recebida em {formatDateBR(medicao.data_recebimento)}
+                </Badge>
+              ) : null}
               <span className="text-xs font-mono text-muted-foreground">
                 Medição nº {String(medicao.numero).padStart(2, "0")}
               </span>
@@ -76,10 +82,7 @@ export default async function MedicaoDetalhePage({
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {obra ? (
-                <Link
-                  href={`/obras/${obra.id}`}
-                  className="font-mono hover:underline"
-                >
+                <Link href={`/obras/${obra.id}`} className="font-mono hover:underline">
                   {obra.numero}
                 </Link>
               ) : null}
@@ -88,9 +91,12 @@ export default async function MedicaoDetalhePage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {medicao.status === "aprovada" ? (
+            <ReceberButton medicaoId={medicao.id} recebida={recebida} />
+          ) : null}
           <Link
             href={`/financeiro/receber/${medicao.id}/editar`}
-            className={cn(buttonVariants({}), "gap-2")}
+            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
           >
             <Pencil className="size-4" />
             Editar
@@ -121,12 +127,18 @@ export default async function MedicaoDetalhePage({
           }
         />
         <KpiCard
-          label="Prev. recebimento"
-          value={formatDateBR(medicao.data_previsao_recebimento) || "—"}
+          label={recebida ? "Recebido em" : "Prev. recebimento"}
+          value={
+            recebida
+              ? formatDateBR(medicao.data_recebimento) || "—"
+              : formatDateBR(medicao.data_previsao_recebimento) || "—"
+          }
           detail={
-            medicao.data_previsao_recebimento
-              ? "Data esperada de pagamento"
-              : "Sem previsão"
+            recebida
+              ? "Baixa registrada"
+              : medicao.data_previsao_recebimento
+                ? "Data esperada de pagamento"
+                : "Sem previsão"
           }
         />
       </div>
@@ -135,31 +147,13 @@ export default async function MedicaoDetalhePage({
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Resumo da medição</CardTitle>
-            <CardDescription>
-              Dados principais e detalhamento de período
-            </CardDescription>
+            <CardDescription>Dados principais e detalhamento de período</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-            <InfoRow
-              icon={CalendarRange}
-              label="Data de envio"
-              value={formatDateBR(medicao.data_envio) || "—"}
-            />
-            <InfoRow
-              icon={CalendarRange}
-              label="Data de aprovação"
-              value={formatDateBR(medicao.data_aprovacao) || "—"}
-            />
-            <InfoRow
-              icon={TrendingUp}
-              label="% Executado no período"
-              value={`${medicao.percentual_executado.toFixed(1)}%`}
-            />
-            <InfoRow
-              icon={CalendarRange}
-              label="Criada em"
-              value={formatDateBR(medicao.created_at)}
-            />
+            <InfoRow icon={CalendarRange} label="Data de envio" value={formatDateBR(medicao.data_envio) || "—"} />
+            <InfoRow icon={CalendarRange} label="Data de aprovação" value={formatDateBR(medicao.data_aprovacao) || "—"} />
+            <InfoRow icon={TrendingUp} label="% Executado no período" value={`${medicao.percentual_executado.toFixed(1)}%`} />
+            <InfoRow icon={CalendarRange} label="Criada em" value={formatDateBR(medicao.created_at)} />
             {medicao.observacoes ? (
               <div className="sm:col-span-2">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1">
@@ -180,7 +174,7 @@ export default async function MedicaoDetalhePage({
             <CardContent className="space-y-4">
               <InfoRow icon={HardHat} label="Número" value={obra.numero} />
               <InfoRow icon={Building2} label="Cliente" value={cliente?.razao_social ?? "—"} />
-              <InfoRow icon={User} label="Responsável" value={obra.responsavel} />
+              <InfoRow icon={User} label="Responsável" value={obra.responsavel ?? "—"} />
 
               <div className="pt-2 border-t space-y-2">
                 <div className="flex items-center justify-between text-xs">
@@ -192,12 +186,12 @@ export default async function MedicaoDetalhePage({
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Medido</span>
                   <span className="font-semibold tabular-nums">
-                    {formatBRL(obra.valor_medido)}
+                    {formatBRL(medicao.obra_valor_medido)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Saldo</span>
-                  <span className="font-semibold tabular-nums text-primary-foreground/90">
+                  <span className="font-semibold tabular-nums">
                     {formatBRL(saldoObra.saldo_restante)}
                   </span>
                 </div>
@@ -209,10 +203,7 @@ export default async function MedicaoDetalhePage({
 
               <Link
                 href={`/obras/${obra.id}`}
-                className={cn(
-                  buttonVariants({ size: "sm", variant: "outline" }),
-                  "w-full",
-                )}
+                className={cn(buttonVariants({ size: "sm", variant: "outline" }), "w-full")}
               >
                 Abrir obra
               </Link>
@@ -221,11 +212,11 @@ export default async function MedicaoDetalhePage({
         ) : null}
       </div>
 
-      {outrasMedicoes.length > 0 ? (
+      {medicao.outras.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Outras medições desta obra</CardTitle>
-            <CardDescription>Histórico de boletins anteriores</CardDescription>
+            <CardDescription>Histórico de boletins</CardDescription>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
@@ -240,7 +231,7 @@ export default async function MedicaoDetalhePage({
                 </tr>
               </thead>
               <tbody>
-                {outrasMedicoes.map((m) => {
+                {medicao.outras.map((m) => {
                   const tn = MEDICAO_STATUS_TONE[m.status];
                   return (
                     <tr key={m.id} className="border-b last:border-b-0">
@@ -260,10 +251,7 @@ export default async function MedicaoDetalhePage({
                         {formatDateBR(m.data_aprovacao)}
                       </td>
                       <td className="py-2 px-4">
-                        <Badge
-                          variant="secondary"
-                          className={cn("gap-1.5 text-xs", tn.bg, tn.text)}
-                        >
+                        <Badge variant="secondary" className={cn("gap-1.5 text-xs", tn.bg, tn.text)}>
                           <span className={cn("size-1.5 rounded-full", tn.dot)} />
                           {MEDICAO_STATUS_LABEL[m.status]}
                         </Badge>

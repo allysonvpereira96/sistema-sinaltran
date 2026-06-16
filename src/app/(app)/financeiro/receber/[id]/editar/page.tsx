@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { MEDICOES } from "@/lib/mocks/medicoes";
+import { getMedicao, listObrasParaMedicao } from "@/lib/actions/medicoes";
 import { MedicaoForm } from "../../_components/medicao-form";
 
 export default async function EditarMedicaoPage({
@@ -8,7 +8,10 @@ export default async function EditarMedicaoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const medicao = MEDICOES.find((m) => m.id === id);
+  const [medicao, obras] = await Promise.all([
+    getMedicao(id),
+    listObrasParaMedicao(),
+  ]);
   if (!medicao) notFound();
-  return <MedicaoForm mode="edit" initialData={medicao} />;
+  return <MedicaoForm mode="edit" initialData={medicao} obras={obras} />;
 }

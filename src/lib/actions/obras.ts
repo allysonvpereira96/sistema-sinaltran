@@ -54,7 +54,8 @@ async function medidoPorObra(
   const { data, error } = await supabase
     .from("medicoes")
     .select("obra_id, valor_total")
-    .in("obra_id", obraIds);
+    .in("obra_id", obraIds)
+    .neq("status", "rejeitada");
   if (error) {
     console.error("[medidoPorObra]", error.message);
     return mapa;
