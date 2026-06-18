@@ -45,6 +45,7 @@ import {
 } from "@/lib/actions/colaboradores";
 import { extrairFichaEmpregado } from "@/lib/actions/ficha";
 import { cn } from "@/lib/utils";
+import { AtualizarFichaDialog } from "./atualizar-ficha-dialog";
 import { DocumentosTab } from "./documentos-tab";
 import { DependentesTab } from "./dependentes-tab";
 import { FeriasTab } from "./ferias-tab";
@@ -454,6 +455,9 @@ export function ColaboradorForm({
               {importando ? "Lendo ficha…" : "Importar ficha (PDF)"}
             </Button>
           </>
+        )}
+        {isEdit && initialData && (
+          <AtualizarFichaDialog colaborador={initialData} dependentesAtuais={dependentes} />
         )}
         <Button type="button" disabled={isSubmitting} className="gap-2" onClick={salvar}>
           <Save className="size-4" />
