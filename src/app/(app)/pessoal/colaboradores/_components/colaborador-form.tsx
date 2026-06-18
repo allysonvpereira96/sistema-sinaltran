@@ -678,7 +678,7 @@ export function ColaboradorForm({
                   placeholder="0,00"
                 />
               </Field>
-              <Field label="Ajuda de custo" error={errors.ajuda_custo?.message}>
+              <Field label="Auxílio Mobilidade" error={errors.ajuda_custo?.message}>
                 <Input type="number" step="0.01" {...register("ajuda_custo", { valueAsNumber: true })} placeholder="0,00" />
               </Field>
               <Field label="CBO" error={errors.cbo?.message}>

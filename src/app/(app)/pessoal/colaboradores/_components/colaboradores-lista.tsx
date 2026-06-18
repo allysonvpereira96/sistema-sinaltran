@@ -36,6 +36,7 @@ import {
 import type { CentroCustoResumo } from "@/lib/actions/colaboradores";
 import { deleteColaborador } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
+import { custoMensalColaborador } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 
 type FiltroStatus = "todos" | ColaboradorStatus;
@@ -87,7 +88,7 @@ export function ColaboradoresLista({
     const afastados = colaboradores.filter((c) => c.status === "afastado").length;
     const folhaAtivos = colaboradores
       .filter((c) => c.status === "ativo")
-      .reduce((acc, c) => acc + (c.remuneracao_base ?? 0) + (c.ajuda_custo ?? 0), 0);
+      .reduce((acc, c) => acc + custoMensalColaborador(c), 0);
     return { total: colaboradores.length, ativos, ferias, afastados, folhaAtivos };
   }, [colaboradores]);
 
@@ -119,7 +120,7 @@ export function ColaboradoresLista({
         <KpiCard label="Ativos" value={String(counts.ativos)} detail={`${counts.total} colaboradores cadastrados`} icon={Users} tone="success" />
         <KpiCard label="Em férias" value={String(counts.ferias)} detail="No período atual" icon={Plane} tone="info" />
         <KpiCard label="Afastados" value={String(counts.afastados)} detail="INSS / atestado" icon={HeartPulse} tone="alert" />
-        <KpiCard label="Folha base (ativos)" value={formatBRL(counts.folhaAtivos)} detail="Remuneração + ajuda de custo" icon={Wallet} tone="ok" />
+        <KpiCard label="Custo mensal (ativos)" value={formatBRL(counts.folhaAtivos)} detail="Remuneração + auxílio mobilidade + insalubridade" icon={Wallet} tone="ok" />
       </div>
 
       <Card>

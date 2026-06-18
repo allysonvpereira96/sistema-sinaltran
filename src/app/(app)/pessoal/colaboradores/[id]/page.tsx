@@ -44,6 +44,7 @@ import {
   listTreinamentosCatalogo,
 } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
+import { custoMensalColaborador, valorInsalubridade } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { AtualizarFichaDialog } from "../_components/atualizar-ficha-dialog";
 import { DocumentosTab } from "../_components/documentos-tab";
@@ -123,7 +124,7 @@ export default async function ColaboradorDetalhePage({
         <KpiCard
           label="Remuneração base"
           value={c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"}
-          detail={(c.ajuda_custo ?? 0) > 0 ? `+ ${formatBRL(c.ajuda_custo ?? 0)} ajuda de custo` : "Sem ajuda de custo"}
+          detail={(c.ajuda_custo ?? 0) > 0 ? `+ ${formatBRL(c.ajuda_custo ?? 0)} auxílio mobilidade` : "Sem auxílio mobilidade"}
           icon={Wallet}
         />
         <KpiCard label="Dependentes" value={String(dependentes.length)} detail="Cadastrados" icon={Users} />
@@ -204,7 +205,11 @@ export default async function ColaboradorDetalhePage({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <KeyVal label="Salário base" value={c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"} />
-                  <KeyVal label="Ajuda de custo" value={formatBRL(c.ajuda_custo ?? 0)} />
+                  <KeyVal label="Auxílio mobilidade" value={formatBRL(c.ajuda_custo ?? 0)} />
+                  <KeyVal label="Insalubridade" value={formatBRL(valorInsalubridade(c.insalubridade_pct))} />
+                  <div className="border-t pt-3">
+                    <KeyVal label="Custo mensal" value={formatBRL(custoMensalColaborador(c))} />
+                  </div>
                   <KeyVal label="Banco" value={c.banco ?? "—"} />
                   <KeyVal label="Agência / Conta" value={c.agencia || c.conta ? `${c.agencia ?? "—"} / ${c.conta ?? "—"}` : "—"} />
                   <KeyVal label="Chave PIX" value={c.chave_pix ?? "—"} />
