@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { LogOut } from "lucide-react";
 import { navigation } from "@/config/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import type { CurrentProfile } from "@/lib/types/usuario";
 
 function isActive(currentPath: string, itemHref: string) {
   if (itemHref === "/dashboard") return currentPath === "/dashboard";
@@ -25,8 +35,42 @@ function isActive(currentPath: string, itemHref: string) {
   return currentPath === itemHref || currentPath.startsWith(`${itemHref}/`);
 }
 
-export function AppSidebar() {
+function iniciais(nome: string) {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+export function AppSidebar({ profile }: { profile: CurrentProfile | null }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const isAdmin = profile?.role === "admin";
+
+  // Filtra seções/itens conforme acesso. Admin vê tudo; seções sem `key`
+  // (Operação/Dashboard) são sempre visíveis.
+  const sections = useMemo(() => {
+    const modulos = profile?.modulos ?? [];
+    return navigation
+      .filter((section) => {
+        if (!section.key) return true;
+        if (isAdmin) return true;
+        return modulos.includes(section.key);
+      })
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !item.adminOnly || isAdmin),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [isAdmin, profile?.modulos]);
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="hidden lg:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
@@ -47,7 +91,7 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {navigation.map((section) => (
+        {sections.map((section) => (
           <div key={section.title}>
             <div className="px-3 mb-2 text-[10px] tracking-[0.18em] uppercase font-bold text-sidebar-foreground/45">
               {section.title}
@@ -90,20 +134,37 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      <div className="px-4 py-4 border-t border-sidebar-border flex items-center gap-3">
-        <Avatar className="size-9">
-          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-            S
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 leading-tight min-w-0">
-          <div className="text-sm font-semibold text-white truncate">
-            Sinaltran
-          </div>
-          <div className="text-[11px] text-sidebar-foreground/55">
-            Sistema interno
-          </div>
-        </div>
+      <div className="px-3 py-3 border-t border-sidebar-border">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-sidebar-accent transition-colors"
+              />
+            }
+          >
+            <Avatar className="size-9">
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                {profile ? iniciais(profile.nome) : "S"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 leading-tight min-w-0">
+              <div className="text-sm font-semibold text-white truncate">
+                {profile?.nome ?? "Sinaltran"}
+              </div>
+              <div className="text-[11px] text-sidebar-foreground/55 truncate">
+                {profile?.email ?? "Sistema interno"}
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+              <LogOut className="size-4" />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );

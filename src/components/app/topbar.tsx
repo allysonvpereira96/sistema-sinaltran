@@ -3,7 +3,9 @@
 import { usePathname } from "next/navigation";
 import { Bell, Search } from "lucide-react";
 import { navigation } from "@/config/navigation";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./theme-toggle";
+import type { CurrentProfile } from "@/lib/types/usuario";
 
 function findCrumbs(pathname: string) {
   for (const section of navigation) {
@@ -19,7 +21,7 @@ function findCrumbs(pathname: string) {
   return { section: "Operação", page: "" };
 }
 
-export function AppTopbar() {
+export function AppTopbar({ profile }: { profile?: CurrentProfile | null }) {
   const pathname = usePathname();
   const crumbs = findCrumbs(pathname);
 
@@ -44,6 +46,11 @@ export function AppTopbar() {
               className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70 text-foreground"
             />
           </div>
+          {profile?.role === "admin" ? (
+            <Badge variant="secondary" className="hidden sm:inline-flex">
+              Master
+            </Badge>
+          ) : null}
           <ThemeToggle />
           <button
             type="button"
