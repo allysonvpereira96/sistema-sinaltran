@@ -19,21 +19,27 @@ export default async function VencimentosPage() {
     listFeriasEmRisco(),
   ]);
 
-  // Períodos aquisitivos com prazo de dobra viram linhas do tipo "Férias (dobra)"
-  // mescladas com os outros vencimentos (ASO/treinamentos/etc) para que a tela
-  // mostre tudo num só lugar.
-  const feriasRows: VencimentoRow[] = ferias.map((f) => ({
-    tipo: "Férias (dobra)",
-    registro_id: f.registro_id,
-    colaborador_id: f.colaborador_id,
-    colaborador: f.colaborador,
-    setor: f.setor,
-    descricao: `Aquisitivo ${formatPeriodo(f.aquisitivo_inicio, f.aquisitivo_fim)} · ${Number(
-      f.dias_direito,
-    ).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} dias`,
-    vencimento: f.prazo_dobro,
-    dias_para_vencer: f.dias_para_dobra,
-  }));
+  // Períodos aquisitivos viram linhas do tipo "Férias" (último dia para iniciar
+  // o gozo sem gerar dobra) mescladas com os outros vencimentos. Quando o prazo
+  // foi calculado pelo sistema (não vem do relatório oficial), marcamos com
+  // "(calc.)" para o RH saber.
+  const feriasRows: VencimentoRow[] = ferias
+    .filter((f) => f.prazo_inicio_gozo != null)
+    .map((f) => ({
+      tipo: "Férias",
+      registro_id: f.registro_id,
+      colaborador_id: f.colaborador_id,
+      colaborador: f.colaborador,
+      setor: f.setor,
+      descricao: `Iniciar gozo · aquisitivo ${formatPeriodo(
+        f.aquisitivo_inicio,
+        f.aquisitivo_fim,
+      )} · ${Number(f.dias_direito).toLocaleString("pt-BR", {
+        maximumFractionDigits: 2,
+      })} dias${f.prazo_oficial ? "" : " (calc.)"}`,
+      vencimento: f.prazo_inicio_gozo,
+      dias_para_vencer: f.dias_para_dobra,
+    }));
 
   const rows = [...rowsBase, ...feriasRows];
 

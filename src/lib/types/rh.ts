@@ -91,9 +91,36 @@ export type FeriasRiscoRow = {
   dias_direito: number;
   concessivo_inicio: string | null;
   concessivo_fim: string | null;
-  prazo_dobro: string;
-  dias_para_dobra: number;
+  /** Prazo oficial do relatório da contabilidade (quando informado). */
+  prazo_dobro: string | null;
+  /**
+   * Último dia para iniciar o gozo sem gerar dobra. Usa `prazo_dobro` quando
+   * existe; caso contrário, calcula como `concessivo_fim - (ceil(dias) - 1)`.
+   */
+  prazo_inicio_gozo: string | null;
+  /** true se `prazo_inicio_gozo` veio do PDF; false se foi calculado. */
+  prazo_oficial: boolean;
+  dias_para_dobra: number | null;
 };
+
+/**
+ * Calcula o último dia para iniciar o gozo de férias sem gerar pagamento em
+ * dobro. Mesma fórmula usada na view `vw_ferias_risco_dobra` — mantemos uma
+ * versão JS para a aba do colaborador (que lê direto da tabela, sem view).
+ */
+export function calcularPrazoInicioGozo(
+  concessivoFim: string | null,
+  diasDireito: number | null,
+  prazoOficial?: string | null,
+): string | null {
+  if (prazoOficial) return prazoOficial;
+  if (!concessivoFim || !diasDireito || diasDireito <= 0) return null;
+  const [y, m, d] = concessivoFim.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dias = Math.ceil(diasDireito);
+  dt.setUTCDate(dt.getUTCDate() - (dias - 1));
+  return dt.toISOString().slice(0, 10);
+}
 
 export const ASO_TIPO_LABEL: Record<AsoTipoExame, string> = {
   admissional: "Admissional",

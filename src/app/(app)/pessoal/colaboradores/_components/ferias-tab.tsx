@@ -36,6 +36,7 @@ import {
   type ColaboradorFerias,
 } from "@/lib/mocks/colaboradores";
 import type { ColaboradorPeriodoAquisitivo } from "@/lib/types/rh";
+import { calcularPrazoInicioGozo } from "@/lib/types/rh";
 import {
   createFerias,
   deleteFerias,
@@ -244,14 +245,21 @@ export function FeriasTab({
                     <TableHead>Período aquisitivo</TableHead>
                     <TableHead>Período concessivo</TableHead>
                     <TableHead className="text-right">Dias</TableHead>
-                    <TableHead>Prazo p/ dobra</TableHead>
+                    <TableHead>Último dia p/ iniciar gozo</TableHead>
                     {!readOnly && <TableHead className="w-24 text-right">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {periodos.map((p) => {
-                    const diasRest = p.prazo_dobro
-                      ? diasAteHoje(p.prazo_dobro)
+                    // Usa o prazo do PDF da contabilidade; se não tem, calcula
+                    const prazoInicio = calcularPrazoInicioGozo(
+                      p.concessivo_fim,
+                      p.dias_direito,
+                      p.prazo_dobro,
+                    );
+                    const oficial = !!p.prazo_dobro;
+                    const diasRest = prazoInicio
+                      ? diasAteHoje(prazoInicio)
                       : null;
                     const tone =
                       diasRest == null
@@ -281,8 +289,8 @@ export function FeriasTab({
                           })}
                         </TableCell>
                         <TableCell>
-                          {p.prazo_dobro ? (
-                            <div className="flex items-center gap-2">
+                          {prazoInicio ? (
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge
                                 variant="secondary"
                                 className={cn(
@@ -300,13 +308,21 @@ export function FeriasTab({
                                 {tone === "vencido" || tone === "urgente" ? (
                                   <AlertTriangle className="size-3" />
                                 ) : null}
-                                {formatDateBR(p.prazo_dobro)}
+                                {formatDateBR(prazoInicio)}
                               </Badge>
                               {diasRest != null && (
                                 <span className="text-xs text-muted-foreground">
                                   {diasRest < 0
                                     ? `${Math.abs(diasRest)}d atrasado`
                                     : `em ${diasRest}d`}
+                                </span>
+                              )}
+                              {!oficial && (
+                                <span
+                                  className="text-[10px] uppercase tracking-wider text-muted-foreground"
+                                  title="Data calculada pelo sistema: concessivo - dias de direito + 1"
+                                >
+                                  calculado
                                 </span>
                               )}
                             </div>
