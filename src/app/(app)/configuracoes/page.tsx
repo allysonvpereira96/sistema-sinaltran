@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserCog, Building2, Plug, ShieldCheck } from "lucide-react";
+import { UserCog, Building2, Plug, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,13 @@ const cards: ConfigCard[] = [
       "Cadastre usuários, defina quem é master e selecione os módulos de cada um.",
     icon: UserCog,
     href: "/configuracoes/usuarios",
+  },
+  {
+    title: "Parâmetros",
+    description:
+      "Valores configuráveis do sistema, como o salário mínimo usado no cálculo da insalubridade.",
+    icon: SlidersHorizontal,
+    href: "/configuracoes/parametros",
   },
   {
     title: "Dados da empresa",

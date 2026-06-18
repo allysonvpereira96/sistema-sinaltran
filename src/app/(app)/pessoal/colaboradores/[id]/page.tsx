@@ -43,6 +43,7 @@ import {
   listTreinamentos,
   listTreinamentosCatalogo,
 } from "@/lib/actions/colaboradores";
+import { getSalarioMinimo } from "@/lib/actions/parametros";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { custoMensalColaborador, valorInsalubridade } from "@/lib/rh";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,7 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [centrosCusto, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos] =
+  const [centrosCusto, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo] =
     await Promise.all([
       listCentrosCusto(),
       listDocumentos(id),
@@ -78,6 +79,7 @@ export default async function ColaboradorDetalhePage({
       listAso(id),
       listTreinamentos(id),
       listTreinamentosCatalogo(),
+      getSalarioMinimo(),
     ]);
 
   const centro = c.centro_custo_id ? centrosCusto.find((cc) => cc.id === c.centro_custo_id) : null;
@@ -206,9 +208,9 @@ export default async function ColaboradorDetalhePage({
                 <CardContent className="space-y-3">
                   <KeyVal label="Salário base" value={c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"} />
                   <KeyVal label="Auxílio mobilidade" value={formatBRL(c.ajuda_custo ?? 0)} />
-                  <KeyVal label="Insalubridade" value={formatBRL(valorInsalubridade(c.insalubridade_pct))} />
+                  <KeyVal label="Insalubridade" value={formatBRL(valorInsalubridade(c.insalubridade_pct, salarioMinimo))} />
                   <div className="border-t pt-3">
-                    <KeyVal label="Custo mensal" value={formatBRL(custoMensalColaborador(c))} />
+                    <KeyVal label="Custo mensal" value={formatBRL(custoMensalColaborador(c, salarioMinimo))} />
                   </div>
                   <KeyVal label="Banco" value={c.banco ?? "—"} />
                   <KeyVal label="Agência / Conta" value={c.agencia || c.conta ? `${c.agencia ?? "—"} / ${c.conta ?? "—"}` : "—"} />

@@ -52,9 +52,11 @@ const FILTROS_STATUS: { value: FiltroStatus; label: string }[] = [
 export function ColaboradoresLista({
   colaboradores,
   centrosCusto,
+  salarioMinimo,
 }: {
   colaboradores: Colaborador[];
   centrosCusto: CentroCustoResumo[];
+  salarioMinimo: number;
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
@@ -88,9 +90,9 @@ export function ColaboradoresLista({
     const afastados = colaboradores.filter((c) => c.status === "afastado").length;
     const folhaAtivos = colaboradores
       .filter((c) => c.status === "ativo")
-      .reduce((acc, c) => acc + custoMensalColaborador(c), 0);
+      .reduce((acc, c) => acc + custoMensalColaborador(c, salarioMinimo), 0);
     return { total: colaboradores.length, ativos, ferias, afastados, folhaAtivos };
-  }, [colaboradores]);
+  }, [colaboradores, salarioMinimo]);
 
   async function handleDelete(c: Colaborador) {
     if (!confirm(`Excluir o colaborador "${c.nome_completo}"? Esta ação não pode ser desfeita.`)) return;
