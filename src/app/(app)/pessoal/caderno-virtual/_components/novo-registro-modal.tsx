@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createOcorrenciaCaderno } from "@/lib/actions/caderno-virtual";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
   OCORRENCIA_TIPO_LABEL,
   tipoTemPeriodo,
@@ -25,6 +26,10 @@ import {
 } from "@/lib/mocks/colaboradores";
 import type { ColaboradorResumo } from "@/lib/actions/caderno-virtual";
 import { cn } from "@/lib/utils";
+
+const BUCKET = "colaborador-documentos";
+/** Tamanho máximo individual do anexo. */
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 const TIPOS = Object.entries(OCORRENCIA_TIPO_LABEL) as [OcorrenciaTipo, string][];
 
@@ -108,17 +113,48 @@ export function NovoRegistroModal({
       }
     }
 
-    const fd = new FormData();
-    fd.append("colaborador_id", colaboradorId);
-    fd.append("tipo", tipo);
-    fd.append("descricao", descricao.trim());
-    fd.append("observacoes", observacoes.trim());
-    fd.append("data", data);
-    if (temPeriodo) fd.append("dias_atestado", String(Math.floor(Number(dias))));
-    if (anexo) fd.append("anexo", anexo);
+    if (anexo && anexo.size > MAX_FILE_BYTES) {
+      toast.error("Anexo muito grande", {
+        description: `O arquivo "${anexo.name}" excede ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB.`,
+      });
+      return;
+    }
 
     startTransition(async () => {
-      const res = await createOcorrenciaCaderno(fd);
+      // 1) Se há anexo, faz upload direto no Storage (sem passar pelo Server Action)
+      let anexoUrl: string | null = null;
+      let anexoNome: string | null = null;
+      if (anexo) {
+        const supabase = createBrowserClient();
+        const safeName = anexo.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${colaboradorId}/ocorrencia-${tipo}/${Date.now()}_${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(path, anexo, {
+            contentType: anexo.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (upErr) {
+          toast.error("Falha no upload do anexo", { description: upErr.message });
+          return;
+        }
+        anexoUrl = path;
+        anexoNome = anexo.name;
+      }
+
+      // 2) Registra a ocorrência (server action — agora payload é só JSON)
+      const res = await createOcorrenciaCaderno({
+        colaborador_id: colaboradorId,
+        tipo,
+        descricao: descricao.trim(),
+        observacoes: observacoes.trim() || null,
+        data,
+        dias_atestado: temPeriodo
+          ? Math.floor(Number(dias)) || null
+          : null,
+        anexo_url: anexoUrl,
+        anexo_nome: anexoNome,
+      });
       if (!res.ok) {
         toast.error("Erro ao registrar", { description: res.error });
         return;

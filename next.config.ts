@@ -5,8 +5,10 @@ const nextConfig: NextConfig = {
   // não devem ser empacotados pelo bundler — carregar do node_modules em runtime.
   serverExternalPackages: ["@react-pdf/renderer"],
   experimental: {
-    // PDFs de ficha (escaneados) podem passar do limite padrão de 1MB
-    serverActions: { bodySizeLimit: "10mb" },
+    // Server Actions que recebem arquivo (createOcorrenciaCaderno, ficha PDF…)
+    // PDFs escaneados podem chegar facilmente a 10–15 MB. Upload em lote de
+    // documentos do colaborador NÃO usa Server Action — vai direto ao Storage.
+    serverActions: { bodySizeLimit: "25mb" },
   },
 };
 

@@ -253,28 +253,43 @@ export async function listColaboradoresParaCaderno(
 }
 
 /* ===========================================================================
- * Criação de ocorrência via Caderno Virtual — aceita FormData (com File) para
- * permitir upload do anexo (atestado médico, termo de advertência, etc.).
+ * Criação de ocorrência via Caderno Virtual.
+ *
+ * Padrão: o cliente faz upload do arquivo direto pro Supabase Storage via
+ * supabase-js (browser client) e depois chama esta action passando apenas o
+ * `anexo_url` (path). Evita o limite de body do Server Action (25 MB no
+ * next.config) e mensagens genéricas "unexpected response" em arquivos grandes.
  * ======================================================================== */
 
+export type CreateOcorrenciaInput = {
+  colaborador_id: string;
+  tipo: OcorrenciaTipo;
+  descricao: string;
+  observacoes?: string | null;
+  data: string;
+  dias_atestado?: number | null;
+  /** Path do arquivo já enviado pelo cliente ao bucket. */
+  anexo_url?: string | null;
+  /** Nome original do arquivo (pra exibir). */
+  anexo_nome?: string | null;
+};
+
 export async function createOcorrenciaCaderno(
-  formData: FormData,
+  input: CreateOcorrenciaInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const colaboradorId = String(formData.get("colaborador_id") ?? "");
-  const tipo = String(formData.get("tipo") ?? "observacao") as OcorrenciaTipo;
-  const descricao = String(formData.get("descricao") ?? "").trim();
-  const observacoes = String(formData.get("observacoes") ?? "").trim();
-  const data = String(formData.get("data") ?? "");
-  const diasRaw = formData.get("dias_atestado");
-  const file = formData.get("anexo");
+  const colaboradorId = input.colaborador_id;
+  const tipo = input.tipo;
+  const descricao = (input.descricao ?? "").trim();
+  const observacoes = (input.observacoes ?? "").trim();
+  const data = input.data;
 
   if (!colaboradorId) return { ok: false, error: "Selecione um colaborador." };
   if (!descricao) return { ok: false, error: "Descrição é obrigatória." };
   if (!data) return { ok: false, error: "Data é obrigatória." };
 
   let dias: number | null = null;
-  if (tipoTemPeriodo(tipo) && diasRaw != null && String(diasRaw).trim() !== "") {
-    const n = Number(diasRaw);
+  if (tipoTemPeriodo(tipo) && input.dias_atestado != null) {
+    const n = Number(input.dias_atestado);
     if (!Number.isFinite(n) || n < 1) {
       return { ok: false, error: "Dias deve ser maior que zero." };
     }
@@ -289,23 +304,6 @@ export async function createOcorrenciaCaderno(
     data: { user },
   } = await supabase.auth.getUser();
 
-  // -- Upload do anexo (opcional)
-  let anexoPath: string | null = null;
-  let anexoNome: string | null = null;
-  if (file instanceof File && file.size > 0) {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${colaboradorId}/ocorrencia-${tipo}/${Date.now()}_${safeName}`;
-    const { error: upErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, file);
-    if (upErr) {
-      console.error("[createOcorrenciaCaderno] upload", upErr.message);
-      return { ok: false, error: `Falha no upload: ${upErr.message}` };
-    }
-    anexoPath = path;
-    anexoNome = file.name;
-  }
-
   const { error } = await supabase.from("colaborador_ocorrencias").insert({
     colaborador_id: colaboradorId,
     tipo,
@@ -314,14 +312,17 @@ export async function createOcorrenciaCaderno(
     data,
     dias_atestado: dias,
     data_fim: dataFim,
-    anexo_url: anexoPath,
-    anexo_nome: anexoNome,
+    anexo_url: input.anexo_url || null,
+    anexo_nome: input.anexo_nome || null,
     created_by: user?.id ?? null,
   });
 
   if (error) {
     console.error("[createOcorrenciaCaderno] insert", error.message);
-    if (anexoPath) await supabase.storage.from(BUCKET).remove([anexoPath]);
+    // Se o registro falhou, limpa o arquivo do bucket pra não ficar lixo
+    if (input.anexo_url) {
+      await supabase.storage.from(BUCKET).remove([input.anexo_url]);
+    }
     return { ok: false, error: error.message };
   }
 

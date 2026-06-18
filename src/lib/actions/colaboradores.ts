@@ -416,17 +416,23 @@ export async function listDocumentos(colaboradorId: string): Promise<Colaborador
   return (data ?? []) as ColaboradorDocumento[];
 }
 
-export async function uploadDocumento(
-  formData: FormData,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const colaboradorId = String(formData.get("colaborador_id") ?? "");
-  const tipo = String(formData.get("tipo") ?? "outros");
-  const diasAtestadoRaw = formData.get("dias_atestado");
-  const descricaoRaw = String(formData.get("descricao") ?? "").trim();
-  const file = formData.get("file");
-
-  if (!colaboradorId) return { ok: false, error: "Colaborador não informado." };
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Selecione um arquivo." };
+/**
+ * Registra um documento no DB cujo arquivo JÁ foi enviado para o Storage pelo
+ * browser (upload direto via supabase-js client). Evita o limite de body
+ * dos Server Actions do Next.js e elimina serialização desnecessária quando
+ * vários arquivos são enviados em lote.
+ *
+ * Em caso de falha de DB, o arquivo é removido do bucket pra não deixar lixo.
+ */
+export async function registrarDocumento(input: {
+  colaborador_id: string;
+  tipo: string;
+  descricao: string;
+  arquivo_url: string;
+  dias_atestado?: number | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.colaborador_id) return { ok: false, error: "Colaborador não informado." };
+  if (!input.arquivo_url) return { ok: false, error: "Arquivo não informado." };
 
   if (!hasSupabase()) return { ok: true };
 
@@ -435,30 +441,28 @@ export async function uploadDocumento(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${colaboradorId}/${tipo}/${Date.now()}_${safeName}`;
+  const dias =
+    input.tipo === "atestado" && input.dias_atestado && input.dias_atestado > 0
+      ? input.dias_atestado
+      : null;
 
-  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file);
-  if (upErr) {
-    console.error("[uploadDocumento] storage", upErr.message);
-    return { ok: false, error: upErr.message };
-  }
-
-  const dias = diasAtestadoRaw ? Number(diasAtestadoRaw) : null;
-  const { error: dbErr } = await supabase.from("colaborador_documentos").insert({
-    colaborador_id: colaboradorId,
-    tipo,
-    descricao: descricaoRaw || file.name,
-    arquivo_url: path,
-    dias_atestado: tipo === "atestado" && dias ? dias : null,
+  const { error } = await supabase.from("colaborador_documentos").insert({
+    colaborador_id: input.colaborador_id,
+    tipo: input.tipo,
+    descricao: input.descricao || "(sem nome)",
+    arquivo_url: input.arquivo_url,
+    dias_atestado: dias,
     uploaded_by: user?.id ?? null,
   });
-  if (dbErr) {
-    console.error("[uploadDocumento] db", dbErr.message);
-    await supabase.storage.from(BUCKET).remove([path]);
-    return { ok: false, error: dbErr.message };
+
+  if (error) {
+    console.error("[registrarDocumento]", error.message);
+    // Limpa o arquivo do Storage pra não ficar lixo
+    await supabase.storage.from(BUCKET).remove([input.arquivo_url]);
+    return { ok: false, error: error.message };
   }
-  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
   return { ok: true };
 }
 
