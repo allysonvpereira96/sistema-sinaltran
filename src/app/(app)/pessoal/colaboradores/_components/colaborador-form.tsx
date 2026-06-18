@@ -44,6 +44,7 @@ import {
   type ColaboradorInput,
   type CentroCustoResumo,
 } from "@/lib/actions/colaboradores";
+import type { EmpresaResumo } from "@/lib/actions/orcamentos";
 import { extrairFichaEmpregado } from "@/lib/actions/ficha";
 import { cn } from "@/lib/utils";
 import { AtualizarFichaDialog } from "./atualizar-ficha-dialog";
@@ -92,6 +93,7 @@ const colaboradorSchema = z.object({
   estado: z.string().optional().or(z.literal("")),
   cep: z.string().optional().or(z.literal("")),
   cargo: z.string().min(1, "Cargo é obrigatório"),
+  empresa_id: z.string().optional().or(z.literal("")),
   centro_custo_id: z.string().optional().or(z.literal("")),
   status: z.enum(statusValues),
   data_admissao: z.string().min(1, "Data de admissão é obrigatória"),
@@ -143,6 +145,7 @@ type ColaboradorFormProps = {
   mode: "create" | "edit";
   initialData?: Colaborador;
   centrosCusto: CentroCustoResumo[];
+  empresas: EmpresaResumo[];
   // Dados operacionais (apenas no modo edição) para as abas-filhas
   documentos?: ColaboradorDocumento[];
   dependentes?: ColaboradorDependente[];
@@ -174,6 +177,7 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     estado: c.estado ?? "",
     cep: c.cep ?? "",
     cargo: c.cargo,
+    empresa_id: c.empresa_id ?? "",
     centro_custo_id: c.centro_custo_id ?? "",
     status: c.status,
     data_admissao: c.data_admissao,
@@ -218,6 +222,7 @@ export function ColaboradorForm({
   mode,
   initialData,
   centrosCusto,
+  empresas,
   documentos = [],
   dependentes = [],
   ferias = [],
@@ -231,6 +236,9 @@ export function ColaboradorForm({
 }: ColaboradorFormProps) {
   const router = useRouter();
   const isEdit = mode === "edit";
+  // empresa padrão ao cadastrar: Sinaltran (ou a primeira disponível)
+  const empresaPadrao =
+    empresas.find((e) => e.nome === "Sinaltran")?.id ?? empresas[0]?.id ?? "";
 
   const fichaRef = useRef<HTMLInputElement>(null);
   const [importando, setImportando] = useState(false);
@@ -264,6 +272,7 @@ export function ColaboradorForm({
           estado: "RS",
           cep: "",
           cargo: "",
+          empresa_id: empresaPadrao,
           centro_custo_id: "",
           status: "ativo",
           data_admissao: "",
@@ -396,6 +405,7 @@ export function ColaboradorForm({
     const input: ColaboradorInput = {
       ...values,
       genero: values.genero || null,
+      empresa_id: values.empresa_id || null,
       centro_custo_id: values.centro_custo_id || null,
       remuneracao_base: values.remuneracao_base ?? null,
       ajuda_custo: values.ajuda_custo ?? 0,
@@ -635,6 +645,16 @@ export function ColaboradorForm({
               </Field>
               <Field label="Cargo *" error={errors.cargo?.message}>
                 <Input {...register("cargo")} placeholder="Ex.: Pintor viário" />
+              </Field>
+              <Field label="Empresa" error={errors.empresa_id?.message}>
+                <NativeSelect {...register("empresa_id")}>
+                  <option value="">Selecione…</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nome}
+                    </option>
+                  ))}
+                </NativeSelect>
               </Field>
               <Field label="Centro de custo" error={errors.centro_custo_id?.message}>
                 <NativeSelect {...register("centro_custo_id")}>

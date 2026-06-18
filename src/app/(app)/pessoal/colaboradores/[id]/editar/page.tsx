@@ -13,6 +13,7 @@ import {
   listOcorrencias,
   listComentarios,
 } from "@/lib/actions/colaboradores";
+import { listEmpresas } from "@/lib/actions/orcamentos";
 import { ColaboradorForm } from "../../_components/colaborador-form";
 
 export default async function EditarColaboradorPage({
@@ -24,9 +25,10 @@ export default async function EditarColaboradorPage({
   const colaborador = await getColaboradorById(id);
   if (!colaborador) notFound();
 
-  const [centrosCusto, documentos, dependentes, ferias, periodosAq, aso, treinamentos, catalogoTreinamentos, avaliacoes, ocorrencias, comentarios] =
+  const [centrosCusto, empresas, documentos, dependentes, ferias, periodosAq, aso, treinamentos, catalogoTreinamentos, avaliacoes, ocorrencias, comentarios] =
     await Promise.all([
       listCentrosCusto(),
+      listEmpresas(),
       listDocumentos(id),
       listDependentes(id),
       listFerias(id),
@@ -44,6 +46,7 @@ export default async function EditarColaboradorPage({
       mode="edit"
       initialData={colaborador}
       centrosCusto={centrosCusto}
+      empresas={empresas}
       documentos={documentos}
       dependentes={dependentes}
       ferias={ferias}
