@@ -6,7 +6,7 @@
  * pedimos saída JSON estruturada (responseSchema).
  *
  * Requer a variável de ambiente GEMINI_API_KEY (ou GOOGLE_GENERATIVE_AI_API_KEY).
- * Modelo configurável via GEMINI_MODEL (default: gemini-2.0-flash).
+ * Modelo configurável via GEMINI_MODEL (default: gemini-2.5-flash).
  */
 
 export type FichaExtraida = {
@@ -97,7 +97,7 @@ export async function extrairFichaEmpregado(
   }
   if (!base64) return { ok: false, error: "Arquivo vazio." };
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const requestBody = JSON.stringify({
     contents: [
@@ -167,7 +167,22 @@ export async function extrairFichaEmpregado(
         return { ok: false, error: "Gemini temporariamente indisponível. Tente novamente em instantes." };
       }
 
-      return { ok: false, error: `Gemini retornou ${res.status}.` };
+      // motivo real que o Gemini devolve no corpo (ex.: modelo inexistente)
+      let motivo = "";
+      try {
+        motivo = (JSON.parse(txt) as { error?: { message?: string } }).error?.message ?? "";
+      } catch {
+        /* corpo não-JSON */
+      }
+
+      if (res.status === 404) {
+        return {
+          ok: false,
+          error: `Modelo "${model}" não encontrado para esta chave. Ajuste a env GEMINI_MODEL (ex.: gemini-2.5-flash).${motivo ? ` Gemini: ${motivo}` : ""}`,
+        };
+      }
+
+      return { ok: false, error: `Gemini retornou ${res.status}.${motivo ? ` ${motivo}` : ""}` };
     } catch (e) {
       console.error("[extrairFichaEmpregado]", (e as Error).message);
       if (attempt === MAX_ATTEMPTS) return { ok: false, error: "Falha ao processar a ficha." };
