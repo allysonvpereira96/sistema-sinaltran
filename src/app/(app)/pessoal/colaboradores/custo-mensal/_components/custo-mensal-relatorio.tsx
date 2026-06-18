@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -71,6 +71,35 @@ export function CustoMensalRelatorio({
     [linhas],
   );
 
+  function exportarExcel() {
+    const sep = ";";
+    const num = (n: number) => n.toFixed(2).replace(".", ",");
+    const esc = (s: string) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const head = [
+      "Colaborador", "Matrícula", "Centro de custo",
+      "Remuneração", "Aux. mobilidade", "Gratificações", "Insalubridade", "Total",
+    ];
+    const corpo = linhas.map((l) =>
+      [
+        esc(l.c.nome_completo), esc(l.c.matricula ?? ""), esc(l.centro),
+        num(l.base), num(l.mobilidade), num(l.gratificacoes), num(l.insalubridade), num(l.total),
+      ].join(sep),
+    );
+    const rodape = [
+      esc(`TOTAL (${linhas.length})`), "", "",
+      num(totais.base), num(totais.mobilidade), num(totais.gratificacoes), num(totais.insalubridade), num(totais.total),
+    ].join(sep);
+    const csv = "﻿" + [head.join(sep), ...corpo, rodape].join("\r\n");
+    const ymd = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `custo-mensal-${ymd}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
       <div className="flex items-center gap-3 print:hidden">
@@ -101,6 +130,10 @@ export function CustoMensalRelatorio({
             Nome
           </button>
         </div>
+        <Button variant="outline" className="gap-2" onClick={exportarExcel}>
+          <FileSpreadsheet className="size-4" />
+          Exportar Excel
+        </Button>
         <Button className="gap-2" onClick={() => window.print()}>
           <Printer className="size-4" />
           Imprimir / PDF
