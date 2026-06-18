@@ -39,6 +39,7 @@ import type {
 import {
   createColaborador,
   updateColaborador,
+  createDependente,
   type ColaboradorInput,
   type CentroCustoResumo,
 } from "@/lib/actions/colaboradores";
@@ -110,6 +111,26 @@ const colaboradorSchema = z.object({
   termo_uso_imagem_data: z.string().optional().or(z.literal("")),
   manual_conduta: z.boolean(),
   manual_conduta_data: z.string().optional().or(z.literal("")),
+  // Ficha de registro — filiação / dados civis
+  nome_pai: z.string().optional().or(z.literal("")),
+  nome_mae: z.string().optional().or(z.literal("")),
+  estado_civil: z.string().optional().or(z.literal("")),
+  naturalidade: z.string().optional().or(z.literal("")),
+  naturalidade_uf: z.string().optional().or(z.literal("")),
+  nacionalidade: z.string().optional().or(z.literal("")),
+  raca_cor: z.string().optional().or(z.literal("")),
+  grau_instrucao: z.string().optional().or(z.literal("")),
+  // Ficha de registro — documentos trabalhistas
+  ctps_numero: z.string().optional().or(z.literal("")),
+  ctps_serie: z.string().optional().or(z.literal("")),
+  titulo_eleitor: z.string().optional().or(z.literal("")),
+  cbo: z.string().optional().or(z.literal("")),
+  matricula_esocial: z.string().optional().or(z.literal("")),
+  // Ficha de registro — contratuais
+  insalubridade_pct: z.number().min(0).optional(),
+  periculosidade_pct: z.number().min(0).optional(),
+  sindicato: z.string().optional().or(z.literal("")),
+  horario_trabalho: z.string().optional().or(z.literal("")),
 });
 
 export type ColaboradorFormValues = z.infer<typeof colaboradorSchema>;
@@ -166,6 +187,23 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     termo_uso_imagem_data: c.termo_uso_imagem_data ?? "",
     manual_conduta: c.manual_conduta ?? false,
     manual_conduta_data: c.manual_conduta_data ?? "",
+    nome_pai: c.nome_pai ?? "",
+    nome_mae: c.nome_mae ?? "",
+    estado_civil: c.estado_civil ?? "",
+    naturalidade: c.naturalidade ?? "",
+    naturalidade_uf: c.naturalidade_uf ?? "",
+    nacionalidade: c.nacionalidade ?? "",
+    raca_cor: c.raca_cor ?? "",
+    grau_instrucao: c.grau_instrucao ?? "",
+    ctps_numero: c.ctps_numero ?? "",
+    ctps_serie: c.ctps_serie ?? "",
+    titulo_eleitor: c.titulo_eleitor ?? "",
+    cbo: c.cbo ?? "",
+    matricula_esocial: c.matricula_esocial ?? "",
+    insalubridade_pct: c.insalubridade_pct ?? undefined,
+    periculosidade_pct: c.periculosidade_pct ?? undefined,
+    sindicato: c.sindicato ?? "",
+    horario_trabalho: c.horario_trabalho ?? "",
   };
 }
 
@@ -234,8 +272,30 @@ export function ColaboradorForm({
           termo_uso_imagem_data: "",
           manual_conduta: false,
           manual_conduta_data: "",
+          nome_pai: "",
+          nome_mae: "",
+          estado_civil: "",
+          naturalidade: "",
+          naturalidade_uf: "",
+          nacionalidade: "",
+          raca_cor: "",
+          grau_instrucao: "",
+          ctps_numero: "",
+          ctps_serie: "",
+          titulo_eleitor: "",
+          cbo: "",
+          matricula_esocial: "",
+          insalubridade_pct: undefined,
+          periculosidade_pct: undefined,
+          sindicato: "",
+          horario_trabalho: "",
         },
   });
+
+  // dependentes extraídos da ficha (modo create) para salvar após criar o colaborador
+  const [fichaDependentes, setFichaDependentes] = useState<
+    { nome: string; parentesco?: string | null; data_nascimento?: string | null }[]
+  >([]);
 
   useEffect(() => {
     if (initialData) reset(colaboradorToValues(initialData));
@@ -256,6 +316,8 @@ export function ColaboradorForm({
       reset({
         ...atual,
         nome_completo: d.nome_completo || atual.nome_completo,
+        matricula: d.matricula || atual.matricula,
+        remuneracao_base: d.remuneracao_base ?? atual.remuneracao_base,
         cpf: d.cpf || atual.cpf,
         rg: d.rg || atual.rg,
         data_nascimento: d.data_nascimento || atual.data_nascimento,
@@ -272,8 +334,35 @@ export function ColaboradorForm({
         banco: d.banco || atual.banco,
         agencia: d.agencia || atual.agencia,
         conta: d.conta || atual.conta,
+        nome_pai: d.nome_pai || atual.nome_pai,
+        nome_mae: d.nome_mae || atual.nome_mae,
+        estado_civil: d.estado_civil || atual.estado_civil,
+        naturalidade: d.naturalidade || atual.naturalidade,
+        naturalidade_uf: d.naturalidade_uf || atual.naturalidade_uf,
+        nacionalidade: d.nacionalidade || atual.nacionalidade,
+        raca_cor: d.raca_cor || atual.raca_cor,
+        grau_instrucao: d.grau_instrucao || atual.grau_instrucao,
+        ctps_numero: d.ctps_numero || atual.ctps_numero,
+        ctps_serie: d.ctps_serie || atual.ctps_serie,
+        titulo_eleitor: d.titulo_eleitor || atual.titulo_eleitor,
+        cbo: d.cbo || atual.cbo,
+        matricula_esocial: d.matricula_esocial || atual.matricula_esocial,
+        insalubridade_pct: d.insalubridade_pct ?? atual.insalubridade_pct,
+        periculosidade_pct: d.periculosidade_pct ?? atual.periculosidade_pct,
+        sindicato: d.sindicato || atual.sindicato,
+        horario_trabalho: d.horario_trabalho || atual.horario_trabalho,
       });
-      toast.success("Ficha importada — confira e ajuste os campos antes de salvar.");
+
+      // dependentes só podem ser gravados após criar o colaborador (modo create)
+      const deps = (d.dependentes ?? []).filter((dep) => dep?.nome?.trim());
+      if (!isEdit && deps.length) {
+        setFichaDependentes(deps);
+        toast.success(
+          `Ficha importada — confira os campos. ${deps.length} dependente(s) serão salvos ao cadastrar.`,
+        );
+      } else {
+        toast.success("Ficha importada — confira e ajuste os campos antes de salvar.");
+      }
     } catch {
       toast.error("Falha ao ler o arquivo.");
     } finally {
@@ -291,15 +380,36 @@ export function ColaboradorForm({
       ajuda_custo: values.ajuda_custo ?? 0,
     };
 
-    const res =
-      isEdit && initialData
-        ? await updateColaborador(initialData.id, input)
-        : await createColaborador(input);
+    let novoId: string | null = null;
+    let res: { ok: true } | { ok: false; error: string };
+    if (isEdit && initialData) {
+      res = await updateColaborador(initialData.id, input);
+    } else {
+      const created = await createColaborador(input);
+      res = created;
+      if (created.ok) novoId = created.id;
+    }
 
     if (!res.ok) {
       toast.error("Erro ao salvar", { description: res.error });
       return;
     }
+
+    // grava os dependentes extraídos da ficha no colaborador recém-criado
+    if (novoId && fichaDependentes.length) {
+      const cid = novoId;
+      await Promise.all(
+        fichaDependentes.map((dep) =>
+          createDependente({
+            colaborador_id: cid,
+            nome: dep.nome,
+            parentesco: dep.parentesco ?? null,
+            data_nascimento: dep.data_nascimento ?? null,
+          }),
+        ),
+      );
+    }
+
     toast.success(isEdit ? "Colaborador atualizado" : "Colaborador cadastrado");
     router.push("/pessoal/colaboradores");
     router.refresh();
@@ -418,6 +528,43 @@ export function ColaboradorForm({
               <Field label="E-mail" error={errors.email?.message}>
                 <Input {...register("email")} placeholder="email@exemplo.com" />
               </Field>
+
+              <Field label="Estado civil" error={errors.estado_civil?.message}>
+                <Input {...register("estado_civil")} placeholder="Ex.: Casado" />
+              </Field>
+              <Field label="Nacionalidade" error={errors.nacionalidade?.message}>
+                <Input {...register("nacionalidade")} placeholder="Ex.: Brasileira" />
+              </Field>
+              <Field label="Naturalidade (cidade)" error={errors.naturalidade?.message}>
+                <Input {...register("naturalidade")} placeholder="Cidade de nascimento" />
+              </Field>
+              <Field label="UF da naturalidade" error={errors.naturalidade_uf?.message}>
+                <Input {...register("naturalidade_uf")} placeholder="RS" maxLength={2} />
+              </Field>
+              <Field label="Raça/cor" error={errors.raca_cor?.message}>
+                <Input {...register("raca_cor")} placeholder="Ex.: Branco" />
+              </Field>
+              <Field label="Grau de instrução" error={errors.grau_instrucao?.message}>
+                <Input {...register("grau_instrucao")} placeholder="Ex.: Ensino médio completo" />
+              </Field>
+              <Field label="Nome do pai" error={errors.nome_pai?.message}>
+                <Input {...register("nome_pai")} placeholder="Nome do pai" />
+              </Field>
+              <Field label="Nome da mãe" error={errors.nome_mae?.message}>
+                <Input {...register("nome_mae")} placeholder="Nome da mãe" />
+              </Field>
+              <Field label="CTPS — número" error={errors.ctps_numero?.message}>
+                <Input {...register("ctps_numero")} placeholder="Número da CTPS" />
+              </Field>
+              <Field label="CTPS — série" error={errors.ctps_serie?.message}>
+                <Input {...register("ctps_serie")} placeholder="Série" />
+              </Field>
+              <Field label="Título de eleitor" error={errors.titulo_eleitor?.message}>
+                <Input {...register("titulo_eleitor")} placeholder="Título de eleitor" />
+              </Field>
+              <Field label="Matrícula eSocial" error={errors.matricula_esocial?.message}>
+                <Input {...register("matricula_esocial")} placeholder="Matrícula eSocial" />
+              </Field>
             </CardContent>
           </Card>
         </TabsContent>
@@ -496,6 +643,31 @@ export function ColaboradorForm({
               </Field>
               <Field label="Ajuda de custo" error={errors.ajuda_custo?.message}>
                 <Input type="number" step="0.01" {...register("ajuda_custo", { valueAsNumber: true })} placeholder="0,00" />
+              </Field>
+              <Field label="CBO" error={errors.cbo?.message}>
+                <Input {...register("cbo")} placeholder="Ex.: 9922-25" />
+              </Field>
+              <Field label="Sindicato" error={errors.sindicato?.message}>
+                <Input {...register("sindicato")} placeholder="Sindicato da categoria" />
+              </Field>
+              <Field label="Insalubridade (%)" error={errors.insalubridade_pct?.message}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register("insalubridade_pct", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="Periculosidade (%)" error={errors.periculosidade_pct?.message}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register("periculosidade_pct", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="Horário de trabalho" error={errors.horario_trabalho?.message} className="sm:col-span-2">
+                <Input {...register("horario_trabalho")} placeholder="Ex.: Seg a Sex 07:30-12:00 / 13:00-17:18" />
               </Field>
               <Field label="Observações" error={errors.observacoes?.message} className="sm:col-span-2">
                 <Textarea rows={3} {...register("observacoes")} placeholder="Informações relevantes sobre o colaborador" />

@@ -168,6 +168,24 @@ export default async function ColaboradorDetalhePage({
                   label="CNH"
                   value={c.cnh ? `${c.cnh}${c.cnh_validade ? ` (val. ${formatDateBR(c.cnh_validade)})` : ""}` : "—"}
                 />
+                <InfoRow icon={Users} label="Nome do pai" value={c.nome_pai ?? "—"} />
+                <InfoRow icon={Users} label="Nome da mãe" value={c.nome_mae ?? "—"} />
+                <InfoRow icon={FileText} label="Estado civil" value={c.estado_civil ?? "—"} />
+                <InfoRow
+                  icon={MapPin}
+                  label="Naturalidade"
+                  value={c.naturalidade ? `${c.naturalidade}${c.naturalidade_uf ? `/${c.naturalidade_uf}` : ""}` : "—"}
+                />
+                <InfoRow icon={MapPin} label="Nacionalidade" value={c.nacionalidade ?? "—"} />
+                <InfoRow icon={FileText} label="Raça/cor" value={c.raca_cor ?? "—"} />
+                <InfoRow icon={FileText} label="Grau de instrução" value={c.grau_instrucao ?? "—"} />
+                <InfoRow
+                  icon={FileText}
+                  label="CTPS"
+                  value={c.ctps_numero ? `${c.ctps_numero}${c.ctps_serie ? ` · série ${c.ctps_serie}` : ""}` : "—"}
+                />
+                <InfoRow icon={FileText} label="Título de eleitor" value={c.titulo_eleitor ?? "—"} />
+                <InfoRow icon={FileText} label="Matrícula eSocial" value={c.matricula_esocial ?? "—"} />
                 {c.observacoes ? (
                   <div className="sm:col-span-2">
                     <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1">Observações</div>
@@ -188,6 +206,19 @@ export default async function ColaboradorDetalhePage({
                   <KeyVal label="Banco" value={c.banco ?? "—"} />
                   <KeyVal label="Agência / Conta" value={c.agencia || c.conta ? `${c.agencia ?? "—"} / ${c.conta ?? "—"}` : "—"} />
                   <KeyVal label="Chave PIX" value={c.chave_pix ?? "—"} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dados contratuais</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <KeyVal label="CBO" value={c.cbo ?? "—"} />
+                  <KeyVal label="Insalubridade" value={`${c.insalubridade_pct ?? 0}%`} />
+                  <KeyVal label="Periculosidade" value={`${c.periculosidade_pct ?? 0}%`} />
+                  <KeyVal label="Sindicato" value={c.sindicato ?? "—"} />
+                  <KeyVal label="Horário" value={c.horario_trabalho ?? "—"} />
                 </CardContent>
               </Card>
 

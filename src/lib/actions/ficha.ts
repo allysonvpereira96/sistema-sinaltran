@@ -11,6 +11,7 @@
 
 export type FichaExtraida = {
   nome_completo?: string | null;
+  matricula?: string | null;
   cpf?: string | null;
   rg?: string | null;
   data_nascimento?: string | null;
@@ -27,6 +28,29 @@ export type FichaExtraida = {
   banco?: string | null;
   agencia?: string | null;
   conta?: string | null;
+  remuneracao_base?: number | null;
+  // Filiação / dados civis
+  nome_pai?: string | null;
+  nome_mae?: string | null;
+  estado_civil?: string | null;
+  naturalidade?: string | null;
+  naturalidade_uf?: string | null;
+  nacionalidade?: string | null;
+  raca_cor?: string | null;
+  grau_instrucao?: string | null;
+  // Documentos trabalhistas
+  ctps_numero?: string | null;
+  ctps_serie?: string | null;
+  titulo_eleitor?: string | null;
+  cbo?: string | null;
+  matricula_esocial?: string | null;
+  // Contratuais
+  insalubridade_pct?: number | null;
+  periculosidade_pct?: number | null;
+  sindicato?: string | null;
+  horario_trabalho?: string | null;
+  // Dependentes / beneficiários
+  dependentes?: { nome: string; parentesco?: string | null; data_nascimento?: string | null }[];
 };
 
 const SCHEMA = {
@@ -49,14 +73,49 @@ const SCHEMA = {
     banco: { type: "string" },
     agencia: { type: "string" },
     conta: { type: "string" },
+    matricula: { type: "string", description: "Matrícula / código de registro do empregado" },
+    remuneracao_base: { type: "number", description: "Salário inicial/base como número, ex: 1798.40" },
+    nome_pai: { type: "string" },
+    nome_mae: { type: "string" },
+    estado_civil: { type: "string", description: "Ex.: Solteiro, Casado, Divorciado" },
+    naturalidade: { type: "string", description: "Cidade onde nasceu" },
+    naturalidade_uf: { type: "string", description: "UF da naturalidade, 2 letras" },
+    nacionalidade: { type: "string" },
+    raca_cor: { type: "string" },
+    grau_instrucao: { type: "string", description: "Ex.: Ensino médio completo" },
+    ctps_numero: { type: "string", description: "Número da CTPS, somente dígitos" },
+    ctps_serie: { type: "string", description: "Série da CTPS" },
+    titulo_eleitor: { type: "string" },
+    cbo: { type: "string", description: "Código CBO da função" },
+    matricula_esocial: { type: "string" },
+    insalubridade_pct: { type: "number", description: "Percentual de insalubridade, ex: 40" },
+    periculosidade_pct: { type: "number", description: "Percentual de periculosidade, ex: 30" },
+    sindicato: { type: "string" },
+    horario_trabalho: { type: "string", description: "Jornada/horário, ex.: Seg a Sex 07:30-12:00 / 13:00-17:18" },
+    dependentes: {
+      type: "array",
+      description: "Beneficiários/dependentes listados na ficha",
+      items: {
+        type: "object",
+        properties: {
+          nome: { type: "string" },
+          parentesco: { type: "string", description: "Ex.: Filho(a), Cônjuge" },
+          data_nascimento: { type: "string", description: "Formato YYYY-MM-DD" },
+        },
+      },
+    },
   },
 };
 
 const PROMPT =
   "Você é um especialista em extração de dados. Extraia os dados do empregado " +
   "desta Ficha de Empregado brasileira e devolva no schema fornecido. Datas em " +
-  "YYYY-MM-DD. CPF, telefone e CEP somente com dígitos. Valores monetários como " +
-  "número. Se um campo não for encontrado, omita-o.";
+  "YYYY-MM-DD. CPF, telefone e CEP somente com dígitos. Inclua a matrícula/código " +
+  "de registro e o salário inicial (remuneracao_base) como número. Para telefone, " +
+  "use o celular se o telefone fixo estiver vazio. Inclua filiação, dados civis, " +
+  "documentos trabalhistas (CTPS, título de eleitor, CBO, matrícula eSocial), " +
+  "insalubridade/periculosidade em percentual e os dependentes/beneficiários " +
+  "listados. Se um campo não for encontrado, omita-o.";
 
 const MAX_ATTEMPTS = 3;
 /** Não segura a server action por mais que isto esperando um retry. */

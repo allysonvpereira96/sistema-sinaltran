@@ -43,6 +43,26 @@ export type Colaborador = {
   termo_uso_imagem_data?: string | null;
   manual_conduta?: boolean;
   manual_conduta_data?: string | null;
+  // Ficha de registro — filiação / dados civis
+  nome_pai?: string | null;
+  nome_mae?: string | null;
+  estado_civil?: string | null;
+  naturalidade?: string | null;
+  naturalidade_uf?: string | null;
+  nacionalidade?: string | null;
+  raca_cor?: string | null;
+  grau_instrucao?: string | null;
+  // Ficha de registro — documentos trabalhistas
+  ctps_numero?: string | null;
+  ctps_serie?: string | null;
+  titulo_eleitor?: string | null;
+  cbo?: string | null;
+  matricula_esocial?: string | null;
+  // Ficha de registro — contratuais
+  insalubridade_pct?: number | null;
+  periculosidade_pct?: number | null;
+  sindicato?: string | null;
+  horario_trabalho?: string | null;
   created_at: string;
 };
 
