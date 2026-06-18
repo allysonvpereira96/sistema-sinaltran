@@ -13,6 +13,7 @@ export type Colaborador = {
   data_nascimento: string | null;
   data_admissao: string;
   data_desligamento: string | null;
+  motivo_desligamento?: string | null;
   genero: "masculino" | "feminino" | "outro" | "nao_informado" | null;
   pis: string | null;
   cnh: string | null;

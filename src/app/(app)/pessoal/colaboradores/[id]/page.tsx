@@ -221,6 +221,12 @@ export default async function ColaboradorDetalhePage({
                   <KeyVal label="Periculosidade" value={`${c.periculosidade_pct ?? 0}%`} />
                   <KeyVal label="Sindicato" value={c.sindicato ?? "—"} />
                   <KeyVal label="Horário" value={c.horario_trabalho ?? "—"} />
+                  {c.data_desligamento ? (
+                    <>
+                      <KeyVal label="Desligamento" value={formatDateBR(c.data_desligamento)} />
+                      <KeyVal label="Motivo" value={c.motivo_desligamento ?? "—"} />
+                    </>
+                  ) : null}
                 </CardContent>
               </Card>
 

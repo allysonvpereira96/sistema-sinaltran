@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Save, ArrowLeft, Upload, Loader2 } from "lucide-react";
@@ -95,6 +95,7 @@ const colaboradorSchema = z.object({
   status: z.enum(statusValues),
   data_admissao: z.string().min(1, "Data de admissão é obrigatória"),
   data_desligamento: z.string().optional().or(z.literal("")),
+  motivo_desligamento: z.string().optional().or(z.literal("")),
   remuneracao_base: z
     .number({ message: "Informe um valor" })
     .min(0, "Valor deve ser positivo")
@@ -174,6 +175,7 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     status: c.status,
     data_admissao: c.data_admissao,
     data_desligamento: c.data_desligamento ?? "",
+    motivo_desligamento: c.motivo_desligamento ?? "",
     remuneracao_base: c.remuneracao_base ?? undefined,
     ajuda_custo: c.ajuda_custo,
     banco: c.banco ?? "",
@@ -233,6 +235,8 @@ export function ColaboradorForm({
     handleSubmit,
     reset,
     getValues,
+    control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ColaboradorFormValues>({
     resolver: zodResolver(colaboradorSchema),
@@ -259,6 +263,7 @@ export function ColaboradorForm({
           status: "ativo",
           data_admissao: "",
           data_desligamento: "",
+          motivo_desligamento: "",
           remuneracao_base: undefined,
           ajuda_custo: 0,
           banco: "",
@@ -301,6 +306,14 @@ export function ColaboradorForm({
   useEffect(() => {
     if (initialData) reset(colaboradorToValues(initialData));
   }, [initialData, reset]);
+
+  // Ao informar a data de desligamento, o status passa automaticamente a "Desligado".
+  const dataDesligamento = useWatch({ control, name: "data_desligamento" });
+  useEffect(() => {
+    if (dataDesligamento && getValues("status") !== "desligado") {
+      setValue("status", "desligado", { shouldDirty: true });
+    }
+  }, [dataDesligamento, getValues, setValue]);
 
   async function handleFicha(file: File) {
     setImportando(true);
@@ -373,12 +386,16 @@ export function ColaboradorForm({
   }
 
   const onSubmit: SubmitHandler<ColaboradorFormValues> = async (values) => {
+    const desligado = Boolean(values.data_desligamento);
     const input: ColaboradorInput = {
       ...values,
       genero: values.genero || null,
       centro_custo_id: values.centro_custo_id || null,
       remuneracao_base: values.remuneracao_base ?? null,
       ajuda_custo: values.ajuda_custo ?? 0,
+      // data de desligamento manda no status e no motivo
+      status: desligado ? "desligado" : values.status,
+      motivo_desligamento: desligado ? values.motivo_desligamento || null : null,
     };
 
     let novoId: string | null = null;
@@ -637,6 +654,22 @@ export function ColaboradorForm({
               <Field label="Data de desligamento" error={errors.data_desligamento?.message}>
                 <Input type="date" {...register("data_desligamento")} />
               </Field>
+              {dataDesligamento ? (
+                <Field
+                  label="Motivo do desligamento"
+                  error={errors.motivo_desligamento?.message}
+                  className="sm:col-span-2"
+                >
+                  <Textarea
+                    rows={2}
+                    {...register("motivo_desligamento")}
+                    placeholder="Ex.: Pedido de demissão, dispensa sem justa causa, fim de contrato…"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Com a data preenchida, o status muda automaticamente para “Desligado”.
+                  </p>
+                </Field>
+              ) : null}
               <Field label="Remuneração base" error={errors.remuneracao_base?.message}>
                 <Input
                   type="number"

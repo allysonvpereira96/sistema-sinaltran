@@ -72,6 +72,7 @@ export type ColaboradorInput = {
   status: Colaborador["status"];
   data_admissao: string;
   data_desligamento?: string | null;
+  motivo_desligamento?: string | null;
   remuneracao_base?: number | null;
   ajuda_custo?: number | null;
   banco?: string | null;

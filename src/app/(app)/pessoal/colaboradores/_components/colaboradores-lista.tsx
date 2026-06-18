@@ -78,6 +78,9 @@ export function ColaboradoresLista({
     });
   }, [busca, filtro, centroId, colaboradores]);
 
+  // ao filtrar por desligados, mostramos quando e por que foi o desligamento
+  const mostrarDesligamento = filtro === "desligado";
+
   const counts = useMemo(() => {
     const ativos = colaboradores.filter((c) => c.status === "ativo").length;
     const ferias = colaboradores.filter((c) => c.status === "ferias").length;
@@ -177,6 +180,7 @@ export function ColaboradoresLista({
                 <TableHead>Colaborador</TableHead>
                 <TableHead>Cargo</TableHead>
                 <TableHead>Admissão</TableHead>
+                {mostrarDesligamento && <TableHead>Desligamento</TableHead>}
                 <TableHead>Status</TableHead>
                 <TableHead className="w-32 text-right">Ações</TableHead>
               </TableRow>
@@ -184,7 +188,7 @@ export function ColaboradoresLista({
             <TableBody>
               {filtrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={mostrarDesligamento ? 6 : 5} className="py-16 text-center text-sm text-muted-foreground">
                     {colaboradores.length === 0
                       ? "Nenhum colaborador cadastrado ainda. Clique em “Novo colaborador” para começar."
                       : "Nenhum colaborador encontrado com os filtros atuais."}
@@ -201,6 +205,16 @@ export function ColaboradoresLista({
                       </TableCell>
                       <TableCell className="text-sm">{c.cargo}</TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_admissao)}</TableCell>
+                      {mostrarDesligamento && (
+                        <TableCell className="text-xs">
+                          <div>{formatDateBR(c.data_desligamento)}</div>
+                          {c.motivo_desligamento ? (
+                            <div className="text-muted-foreground max-w-[220px] truncate" title={c.motivo_desligamento}>
+                              {c.motivo_desligamento}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Badge variant="secondary" className={cn("gap-1.5 font-medium", statusTone.bg, statusTone.text)}>
                           <span className={cn("size-1.5 rounded-full", statusTone.dot)} />
