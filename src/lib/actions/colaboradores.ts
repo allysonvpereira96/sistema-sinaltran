@@ -33,24 +33,22 @@ import { TREINAMENTOS_CATALOGO } from "@/lib/types/rh";
 const TABLE = "colaboradores";
 const BUCKET = "colaborador-documentos";
 
-export type ObraResumo = { id: string; nome: string };
+export type CentroCustoResumo = { id: string; nome: string };
 
-/** Obras (id + nome) para selects/filtros. Lê a tabela real; mock no fallback. */
-export async function listObrasResumo(): Promise<ObraResumo[]> {
-  if (!hasSupabase()) {
-    const { OBRAS } = await import("@/lib/mocks/obras");
-    return OBRAS.map((o) => ({ id: o.id, nome: o.nome }));
-  }
+/** Centros de custo ativos (id + nome) para selects/filtros. */
+export async function listCentrosCusto(): Promise<CentroCustoResumo[]> {
+  if (!hasSupabase()) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("obras")
+    .from("centros_custo")
     .select("id, nome")
+    .eq("ativo", true)
     .order("nome", { ascending: true });
   if (error) {
-    console.error("[listObrasResumo]", error.message);
+    console.error("[listCentrosCusto]", error.message);
     return [];
   }
-  return (data ?? []) as ObraResumo[];
+  return (data ?? []) as CentroCustoResumo[];
 }
 
 export type ColaboradorInput = {
@@ -70,7 +68,7 @@ export type ColaboradorInput = {
   estado?: string | null;
   cep?: string | null;
   cargo: string;
-  obra_id?: string | null;
+  centro_custo_id?: string | null;
   status: Colaborador["status"];
   data_admissao: string;
   data_desligamento?: string | null;

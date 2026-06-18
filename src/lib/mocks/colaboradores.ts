@@ -1,5 +1,3 @@
-import { OBRAS } from "./obras";
-
 export type ColaboradorStatus = "ativo" | "afastado" | "ferias" | "desligado";
 
 /**
@@ -29,7 +27,7 @@ export type Colaborador = {
   cargo: string;
   setor?: string | null;
   gestor?: string | null;
-  obra_id: string | null;
+  centro_custo_id: string | null;
   remuneracao_base: number | null;
   ajuda_custo: number;
   banco: string | null;
@@ -87,7 +85,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95020000",
     cargo: "Encarregado de obra",
-    obra_id: OBRAS[0].id,
+    centro_custo_id: null,
     remuneracao_base: 5200,
     ajuda_custo: 600,
     banco: "Banrisul",
@@ -122,7 +120,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95010005",
     cargo: "Operador de máquina demarcadora",
-    obra_id: OBRAS[1].id,
+    centro_custo_id: null,
     remuneracao_base: 3800,
     ajuda_custo: 450,
     banco: "Caixa",
@@ -157,7 +155,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95020002",
     cargo: "Auxiliar administrativo",
-    obra_id: null,
+    centro_custo_id: null,
     remuneracao_base: 2650,
     ajuda_custo: 0,
     banco: "Banrisul",
@@ -192,7 +190,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95180000",
     cargo: "Motorista",
-    obra_id: OBRAS[0].id,
+    centro_custo_id: null,
     remuneracao_base: 3200,
     ajuda_custo: 450,
     banco: "Itaú",
@@ -227,7 +225,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95020010",
     cargo: "Pintor viário",
-    obra_id: OBRAS[1].id,
+    centro_custo_id: null,
     remuneracao_base: 2900,
     ajuda_custo: 450,
     banco: "Caixa",
@@ -262,7 +260,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95700000",
     cargo: "Técnica em segurança do trabalho",
-    obra_id: null,
+    centro_custo_id: null,
     remuneracao_base: 4100,
     ajuda_custo: 0,
     banco: "Banrisul",
@@ -297,7 +295,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95020020",
     cargo: "Ajudante de sinalização",
-    obra_id: OBRAS[0].id,
+    centro_custo_id: null,
     remuneracao_base: 2300,
     ajuda_custo: 450,
     banco: "Nubank",
@@ -332,7 +330,7 @@ export const COLABORADORES: Colaborador[] = [
     estado: "RS",
     cep: "95032000",
     cargo: "Engenheiro civil",
-    obra_id: OBRAS[1].id,
+    centro_custo_id: null,
     remuneracao_base: 9800,
     ajuda_custo: 800,
     banco: "Banrisul",

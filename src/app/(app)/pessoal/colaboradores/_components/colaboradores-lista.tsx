@@ -33,9 +33,9 @@ import {
   type Colaborador,
   type ColaboradorStatus,
 } from "@/lib/mocks/colaboradores";
-import type { ObraResumo } from "@/lib/actions/colaboradores";
+import type { CentroCustoResumo } from "@/lib/actions/colaboradores";
 import { deleteColaborador } from "@/lib/actions/colaboradores";
-import { formatBRL, formatDateBR, formatTelefone, normalizeSearch } from "@/lib/format";
+import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type FiltroStatus = "todos" | ColaboradorStatus;
@@ -50,17 +50,15 @@ const FILTROS_STATUS: { value: FiltroStatus; label: string }[] = [
 
 export function ColaboradoresLista({
   colaboradores,
-  obras,
+  centrosCusto,
 }: {
   colaboradores: Colaborador[];
-  obras: ObraResumo[];
+  centrosCusto: CentroCustoResumo[];
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("todos");
-  const [obraId, setObraId] = useState<string>("todas");
-
-  const obraById = useMemo(() => new Map(obras.map((o) => [o.id, o])), [obras]);
+  const [centroId, setCentroId] = useState<string>("todos");
 
   const filtrados = useMemo(() => {
     const q = normalizeSearch(busca);
@@ -74,11 +72,11 @@ export function ColaboradoresLista({
       ) {
         return false;
       }
-      if (obraId !== "todas" && c.obra_id !== obraId) return false;
+      if (centroId !== "todos" && c.centro_custo_id !== centroId) return false;
       if (filtro !== "todos" && c.status !== filtro) return false;
       return true;
     });
-  }, [busca, filtro, obraId, colaboradores]);
+  }, [busca, filtro, centroId, colaboradores]);
 
   const counts = useMemo(() => {
     const ativos = colaboradores.filter((c) => c.status === "ativo").length;
@@ -105,7 +103,7 @@ export function ColaboradoresLista({
     <div className="p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6">
       <PageHeader
         title="Colaboradores"
-        description="Cadastro completo da equipe — função, documentos, remuneração e alocação por obra."
+        description="Cadastro completo da equipe — função, documentos, remuneração e centro de custo."
         actions={
           <Link href="/pessoal/colaboradores/novo" className={cn(buttonVariants({ size: "default" }), "gap-2")}>
             <Plus className="size-4" />
@@ -134,14 +132,14 @@ export function ColaboradoresLista({
               />
             </div>
             <select
-              value={obraId}
-              onChange={(e) => setObraId(e.target.value)}
+              value={centroId}
+              onChange={(e) => setCentroId(e.target.value)}
               className="h-10 rounded-md border bg-background px-3 text-sm"
             >
-              <option value="todas">Todas as obras</option>
-              {obras.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.nome}
+              <option value="todos">Todos os centros de custo</option>
+              {centrosCusto.map((cc) => (
+                <option key={cc.id} value={cc.id}>
+                  {cc.nome}
                 </option>
               ))}
             </select>
@@ -178,10 +176,7 @@ export function ColaboradoresLista({
               <TableRow>
                 <TableHead>Colaborador</TableHead>
                 <TableHead>Cargo</TableHead>
-                <TableHead>Alocação</TableHead>
-                <TableHead>Contato</TableHead>
                 <TableHead>Admissão</TableHead>
-                <TableHead className="text-right">Remuneração</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-32 text-right">Ações</TableHead>
               </TableRow>
@@ -189,7 +184,7 @@ export function ColaboradoresLista({
             <TableBody>
               {filtrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-16 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={5} className="py-16 text-center text-sm text-muted-foreground">
                     {colaboradores.length === 0
                       ? "Nenhum colaborador cadastrado ainda. Clique em “Novo colaborador” para começar."
                       : "Nenhum colaborador encontrado com os filtros atuais."}
@@ -197,7 +192,6 @@ export function ColaboradoresLista({
                 </TableRow>
               ) : (
                 filtrados.map((c) => {
-                  const obra = c.obra_id ? obraById.get(c.obra_id) : null;
                   const statusTone = COLABORADOR_STATUS_TONE[c.status];
                   return (
                     <TableRow key={c.id}>
@@ -206,21 +200,7 @@ export function ColaboradoresLista({
                         <div className="text-xs text-muted-foreground font-mono">mat. {c.matricula ?? "—"}</div>
                       </TableCell>
                       <TableCell className="text-sm">{c.cargo}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">{obra?.nome ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{c.cidade ? `${c.cidade}/${c.estado}` : "—"}</div>
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <div>{formatTelefone(c.telefone)}</div>
-                        <div className="text-muted-foreground">{c.email ?? "—"}</div>
-                      </TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_admissao)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"}
-                        {(c.ajuda_custo ?? 0) > 0 ? (
-                          <div className="text-[10px] text-muted-foreground">+ {formatBRL(c.ajuda_custo ?? 0)} ajuda</div>
-                        ) : null}
-                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={cn("gap-1.5 font-medium", statusTone.bg, statusTone.text)}>
                           <span className={cn("size-1.5 rounded-full", statusTone.dot)} />

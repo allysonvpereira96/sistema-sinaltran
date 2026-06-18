@@ -1,10 +1,10 @@
-import { listColaboradores, listObrasResumo } from "@/lib/actions/colaboradores";
+import { listColaboradores, listCentrosCusto } from "@/lib/actions/colaboradores";
 import { ColaboradoresLista } from "./_components/colaboradores-lista";
 
 export default async function ColaboradoresPage() {
-  const [colaboradores, obras] = await Promise.all([
+  const [colaboradores, centrosCusto] = await Promise.all([
     listColaboradores(),
-    listObrasResumo(),
+    listCentrosCusto(),
   ]);
-  return <ColaboradoresLista colaboradores={colaboradores} obras={obras} />;
+  return <ColaboradoresLista colaboradores={colaboradores} centrosCusto={centrosCusto} />;
 }

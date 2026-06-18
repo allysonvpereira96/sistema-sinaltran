@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import {
   getColaboradorById,
-  listObrasResumo,
+  listCentrosCusto,
   listDocumentos,
   listDependentes,
   listFerias,
@@ -23,9 +23,9 @@ export default async function EditarColaboradorPage({
   const colaborador = await getColaboradorById(id);
   if (!colaborador) notFound();
 
-  const [obras, documentos, dependentes, ferias, aso, treinamentos, catalogoTreinamentos, avaliacoes, ocorrencias, comentarios] =
+  const [centrosCusto, documentos, dependentes, ferias, aso, treinamentos, catalogoTreinamentos, avaliacoes, ocorrencias, comentarios] =
     await Promise.all([
-      listObrasResumo(),
+      listCentrosCusto(),
       listDocumentos(id),
       listDependentes(id),
       listFerias(id),
@@ -41,7 +41,7 @@ export default async function EditarColaboradorPage({
     <ColaboradorForm
       mode="edit"
       initialData={colaborador}
-      obras={obras}
+      centrosCusto={centrosCusto}
       documentos={documentos}
       dependentes={dependentes}
       ferias={ferias}

@@ -31,7 +31,7 @@ import {
 } from "@/lib/mocks/colaboradores";
 import {
   getColaboradorById,
-  listObrasResumo,
+  listCentrosCusto,
   listDocumentos,
   listDependentes,
   listFerias,
@@ -63,9 +63,9 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [obras, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos] =
+  const [centrosCusto, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos] =
     await Promise.all([
-      listObrasResumo(),
+      listCentrosCusto(),
       listDocumentos(id),
       listDependentes(id),
       listFerias(id),
@@ -78,7 +78,7 @@ export default async function ColaboradorDetalhePage({
       listTreinamentosCatalogo(),
     ]);
 
-  const obra = c.obra_id ? obras.find((o) => o.id === c.obra_id) : null;
+  const centro = c.centro_custo_id ? centrosCusto.find((cc) => cc.id === c.centro_custo_id) : null;
   const statusTone = COLABORADOR_STATUS_TONE[c.status];
   const historicoOrdenado = [...historico].sort((a, b) => b.data.localeCompare(a.data));
 
@@ -104,7 +104,7 @@ export default async function ColaboradorDetalhePage({
             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-2">{c.nome_completo}</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {c.cargo}
-              {obra ? ` · ${obra.nome}` : ""}
+              {centro ? ` · ${centro.nome}` : ""}
             </p>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default async function ColaboradorDetalhePage({
               </CardHeader>
               <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                 <InfoRow icon={Briefcase} label="Cargo" value={c.cargo} />
-                <InfoRow icon={MapPin} label="Alocação" value={obra?.nome ?? "Sem alocação"} />
+                <InfoRow icon={MapPin} label="Centro de custo" value={centro?.nome ?? "Sem centro de custo"} />
                 <InfoRow icon={Phone} label="Telefone" value={formatTelefone(c.telefone)} />
                 <InfoRow icon={Mail} label="E-mail" value={c.email ?? "—"} />
                 <InfoRow
