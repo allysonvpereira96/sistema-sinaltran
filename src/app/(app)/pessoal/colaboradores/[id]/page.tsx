@@ -208,6 +208,7 @@ export default async function ColaboradorDetalhePage({
                 <CardContent className="space-y-3">
                   <KeyVal label="Salário base" value={c.remuneracao_base != null ? formatBRL(c.remuneracao_base) : "—"} />
                   <KeyVal label="Auxílio mobilidade" value={formatBRL(c.ajuda_custo ?? 0)} />
+                  <KeyVal label="Gratificações" value={formatBRL(c.gratificacoes ?? 0)} />
                   <KeyVal label="Insalubridade" value={formatBRL(valorInsalubridade(c.insalubridade_pct, salarioMinimo))} />
                   <div className="border-t pt-3">
                     <KeyVal label="Custo mensal" value={formatBRL(custoMensalColaborador(c, salarioMinimo))} />

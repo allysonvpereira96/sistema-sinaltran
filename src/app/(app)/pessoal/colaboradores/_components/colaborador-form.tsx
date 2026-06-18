@@ -101,6 +101,7 @@ const colaboradorSchema = z.object({
     .min(0, "Valor deve ser positivo")
     .optional(),
   ajuda_custo: z.number().min(0, "Valor deve ser positivo"),
+  gratificacoes: z.number().min(0, "Valor deve ser positivo"),
   banco: z.string().optional().or(z.literal("")),
   agencia: z.string().optional().or(z.literal("")),
   conta: z.string().optional().or(z.literal("")),
@@ -178,6 +179,7 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     motivo_desligamento: c.motivo_desligamento ?? "",
     remuneracao_base: c.remuneracao_base ?? undefined,
     ajuda_custo: c.ajuda_custo,
+    gratificacoes: c.gratificacoes ?? 0,
     banco: c.banco ?? "",
     agencia: c.agencia ?? "",
     conta: c.conta ?? "",
@@ -266,6 +268,7 @@ export function ColaboradorForm({
           motivo_desligamento: "",
           remuneracao_base: undefined,
           ajuda_custo: 0,
+          gratificacoes: 0,
           banco: "",
           agencia: "",
           conta: "",
@@ -393,6 +396,7 @@ export function ColaboradorForm({
       centro_custo_id: values.centro_custo_id || null,
       remuneracao_base: values.remuneracao_base ?? null,
       ajuda_custo: values.ajuda_custo ?? 0,
+      gratificacoes: values.gratificacoes ?? 0,
       // data de desligamento manda no status e no motivo
       status: desligado ? "desligado" : values.status,
       motivo_desligamento: desligado ? values.motivo_desligamento || null : null,
@@ -680,6 +684,9 @@ export function ColaboradorForm({
               </Field>
               <Field label="Auxílio Mobilidade" error={errors.ajuda_custo?.message}>
                 <Input type="number" step="0.01" {...register("ajuda_custo", { valueAsNumber: true })} placeholder="0,00" />
+              </Field>
+              <Field label="Gratificações" error={errors.gratificacoes?.message}>
+                <Input type="number" step="0.01" {...register("gratificacoes", { valueAsNumber: true })} placeholder="0,00" />
               </Field>
               <Field label="CBO" error={errors.cbo?.message}>
                 <Input {...register("cbo")} placeholder="Ex.: 9922-25" />

@@ -17,15 +17,16 @@ export function valorInsalubridade(
 
 /**
  * Custo mensal do colaborador:
- * remuneração base + auxílio mobilidade + adicional de insalubridade.
+ * remuneração base + auxílio mobilidade + gratificações + adicional de insalubridade.
  */
 export function custoMensalColaborador(
-  c: Pick<Colaborador, "remuneracao_base" | "ajuda_custo" | "insalubridade_pct">,
+  c: Pick<Colaborador, "remuneracao_base" | "ajuda_custo" | "gratificacoes" | "insalubridade_pct">,
   salarioMinimo: number = SALARIO_MINIMO_PADRAO,
 ): number {
   return (
     (c.remuneracao_base ?? 0) +
     (c.ajuda_custo ?? 0) +
+    (c.gratificacoes ?? 0) +
     valorInsalubridade(c.insalubridade_pct, salarioMinimo)
   );
 }

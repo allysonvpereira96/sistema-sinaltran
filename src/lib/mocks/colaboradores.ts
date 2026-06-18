@@ -31,6 +31,7 @@ export type Colaborador = {
   centro_custo_id: string | null;
   remuneracao_base: number | null;
   ajuda_custo: number;
+  gratificacoes?: number | null;
   banco: string | null;
   agencia: string | null;
   conta: string | null;
@@ -558,6 +559,14 @@ export type ColaboradorOcorrencia = {
   descricao: string;
   observacoes: string | null;
   data: string;
+  /** Para atestado/suspensão: nº de dias de afastamento (1 = só o dia da data). */
+  dias_atestado?: number | null;
+  /** Último dia do período (data + dias_atestado - 1). */
+  data_fim?: string | null;
+  /** Path do arquivo no bucket `colaborador-documentos`. */
+  anexo_url?: string | null;
+  /** Nome original do arquivo enviado. */
+  anexo_nome?: string | null;
   // Movimentações: valores preservados para consulta
   valor_anterior?: number | null;
   valor_novo?: number | null;
@@ -566,6 +575,16 @@ export type ColaboradorOcorrencia = {
   created_by: string | null;
   created_at: string;
 };
+
+/** Tipos onde faz sentido informar período (dias de afastamento). */
+export function tipoTemPeriodo(tipo: OcorrenciaTipo): boolean {
+  return tipo === "atestado" || tipo === "suspensao";
+}
+
+/** Tipos onde anexar documento é fortemente recomendado. */
+export function tipoRecomendaAnexo(tipo: OcorrenciaTipo): boolean {
+  return tipo === "atestado" || tipo === "advertencia" || tipo === "suspensao";
+}
 
 export const OCORRENCIA_TIPO_LABEL: Record<OcorrenciaTipo, string> = {
   falta: "Falta",

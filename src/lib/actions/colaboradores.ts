@@ -76,6 +76,7 @@ export type ColaboradorInput = {
   motivo_desligamento?: string | null;
   remuneracao_base?: number | null;
   ajuda_custo?: number | null;
+  gratificacoes?: number | null;
   banco?: string | null;
   agencia?: string | null;
   conta?: string | null;

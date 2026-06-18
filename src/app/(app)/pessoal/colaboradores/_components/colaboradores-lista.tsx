@@ -122,7 +122,7 @@ export function ColaboradoresLista({
         <KpiCard label="Ativos" value={String(counts.ativos)} detail={`${counts.total} colaboradores cadastrados`} icon={Users} tone="success" />
         <KpiCard label="Em férias" value={String(counts.ferias)} detail="No período atual" icon={Plane} tone="info" />
         <KpiCard label="Afastados" value={String(counts.afastados)} detail="INSS / atestado" icon={HeartPulse} tone="alert" />
-        <KpiCard label="Custo mensal (ativos)" value={formatBRL(counts.folhaAtivos)} detail="Remuneração + auxílio mobilidade + insalubridade" icon={Wallet} tone="ok" />
+        <KpiCard label="Custo mensal (ativos)" value={formatBRL(counts.folhaAtivos)} detail="Remuneração + auxílio mobilidade + gratificações + insalubridade" icon={Wallet} tone="ok" />
       </div>
 
       <Card>
