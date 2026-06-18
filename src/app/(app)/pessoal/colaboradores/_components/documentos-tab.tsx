@@ -119,7 +119,9 @@ export function DocumentosTab({
     const novos: Pendente[] = Array.from(files).map((file) => ({
       id: ++seq.current,
       file,
-      titulo: file.name.replace(/\.[^.]+$/, ""),
+      // Título começa em branco para o usuário escrever um nome legível.
+      // O nome original do arquivo aparece como placeholder/tooltip.
+      titulo: "",
       tipo: "outros",
       dias: "",
       status: "pendente",
@@ -145,6 +147,13 @@ export function DocumentosTab({
    * chama a server action `registrarDocumento` para gravar o registro.
    */
   async function enviarUm(p: Pendente): Promise<void> {
+    if (!p.titulo.trim()) {
+      patchPendente(p.id, {
+        status: "erro",
+        erro: "Informe um título para identificar o documento.",
+      });
+      throw new Error(`${p.file.name}: título obrigatório`);
+    }
     if (p.file.size > MAX_FILE_BYTES) {
       patchPendente(p.id, {
         status: "erro",
@@ -441,9 +450,14 @@ export function DocumentosTab({
                       onChange={(e) =>
                         patchPendente(p.id, { titulo: e.target.value })
                       }
-                      placeholder="Título do documento"
+                      placeholder={`Título — ex.: ${p.file.name}`}
                       title={`Arquivo: ${p.file.name} (${(p.file.size / 1024 / 1024).toFixed(2)} MB)`}
-                      className="flex-1 min-w-[180px] h-9"
+                      className={cn(
+                        "flex-1 min-w-[180px] h-9",
+                        !p.titulo.trim() &&
+                          p.status === "pendente" &&
+                          "border-amber-400 focus-visible:ring-amber-400/40",
+                      )}
                       disabled={uploading}
                     />
                     <TipoSelect
