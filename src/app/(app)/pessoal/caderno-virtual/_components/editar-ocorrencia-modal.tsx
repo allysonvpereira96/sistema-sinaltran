@@ -20,8 +20,10 @@ import { updateOcorrenciaCaderno, type OcorrenciaCaderno } from "@/lib/actions/c
 import {
   OCORRENCIA_TIPO_LABEL,
   tipoTemPeriodo,
+  tipoEhBancoHoras,
   type OcorrenciaTipo,
 } from "@/lib/mocks/colaboradores";
+import { cn } from "@/lib/utils";
 
 const TIPOS = Object.entries(OCORRENCIA_TIPO_LABEL) as [OcorrenciaTipo, string][];
 
@@ -41,13 +43,25 @@ export function EditarOcorrenciaModal({ open, onOpenChange, ocorrencia }: Props)
   const [dias, setDias] = useState(String(ocorrencia?.dias_atestado ?? 1));
   const [descricao, setDescricao] = useState(ocorrencia?.descricao ?? "");
   const [observacoes, setObservacoes] = useState(ocorrencia?.observacoes ?? "");
+  // banco de horas
+  const bm0 = ocorrencia?.horas_minutos ?? 0;
+  const [sinal, setSinal] = useState<"credito" | "debito">(bm0 < 0 ? "debito" : "credito");
+  const [horasH, setHorasH] = useState(String(Math.floor(Math.abs(bm0) / 60)));
+  const [horasM, setHorasM] = useState(String(Math.abs(bm0) % 60));
 
   const temPeriodo = tipoTemPeriodo(tipo);
+  const ehBanco = tipoEhBancoHoras(tipo);
+
+  const totalMin = (Number(horasH) || 0) * 60 + (Number(horasM) || 0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!ocorrencia) return;
-    if (!descricao.trim()) {
+    if (ehBanco && totalMin === 0) {
+      toast.error("Informe as horas (crédito ou débito)");
+      return;
+    }
+    if (!ehBanco && !descricao.trim()) {
       toast.error("Informe a descrição da ocorrência");
       return;
     }
@@ -60,6 +74,7 @@ export function EditarOcorrenciaModal({ open, onOpenChange, ocorrencia }: Props)
         observacoes: observacoes.trim() || null,
         data,
         dias_atestado: temPeriodo ? Math.floor(Number(dias)) || null : null,
+        horas_minutos: ehBanco ? (sinal === "debito" ? -totalMin : totalMin) : null,
       });
       if (!res.ok) {
         toast.error("Erro ao salvar", { description: res.error });
@@ -123,9 +138,41 @@ export function EditarOcorrenciaModal({ open, onOpenChange, ocorrencia }: Props)
             </div>
           )}
 
+          {ehBanco && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                Horas *
+              </Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex rounded-md border p-0.5">
+                  <button type="button" onClick={() => setSinal("credito")}
+                    className={cn("px-3 py-1.5 text-xs font-semibold rounded", sinal === "credito" ? "bg-emerald-600 text-white" : "hover:bg-muted")}>
+                    + Crédito
+                  </button>
+                  <button type="button" onClick={() => setSinal("debito")}
+                    className={cn("px-3 py-1.5 text-xs font-semibold rounded", sinal === "debito" ? "bg-rose-600 text-white" : "hover:bg-muted")}>
+                    − Débito
+                  </button>
+                </div>
+                <Input type="number" min={0} value={horasH} onChange={(e) => setHorasH(e.target.value)} className="w-20" aria-label="Horas" />
+                <span className="text-sm text-muted-foreground">h</span>
+                <Input type="number" min={0} max={59} value={horasM} onChange={(e) => setHorasM(e.target.value)} className="w-20" aria-label="Minutos" />
+                <span className="text-sm text-muted-foreground">min</span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Descrição *</Label>
-            <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} required />
+            <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+              {ehBanco ? "Descrição" : "Descrição *"}
+            </Label>
+            <Textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              rows={3}
+              placeholder={ehBanco ? "Opcional — gerada automaticamente se vazia" : undefined}
+              required={!ehBanco}
+            />
           </div>
 
           <div className="space-y-1.5">

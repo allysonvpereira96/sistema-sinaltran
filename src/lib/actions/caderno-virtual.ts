@@ -46,6 +46,8 @@ export type OcorrenciaCaderno = {
   anexo_url: string | null;
   /** Nome original do arquivo enviado. */
   anexo_nome: string | null;
+  /** Banco de horas: minutos com sinal (+ crédito / − débito). */
+  horas_minutos: number | null;
   created_at: string;
 };
 
@@ -102,6 +104,7 @@ export async function listOcorrenciasCaderno(
           data_fim: o.data_fim ?? null,
           anexo_url: o.anexo_url ?? null,
           anexo_nome: o.anexo_nome ?? null,
+          horas_minutos: o.horas_minutos ?? null,
           created_at: o.created_at,
         };
       });
@@ -123,6 +126,7 @@ export async function listOcorrenciasCaderno(
         data_fim,
         anexo_url,
         anexo_nome,
+        horas_minutos,
         created_at,
         colaboradores:colaboradores!colaborador_id (
           nome_completo,
@@ -165,6 +169,7 @@ export async function listOcorrenciasCaderno(
     data_fim: string | null;
     anexo_url: string | null;
     anexo_nome: string | null;
+    horas_minutos: number | null;
     created_at: string;
     // PostgREST retorna o relacionamento como objeto (FK to-one) ou array.
     colaboradores: ColaboradorEmbed | ColaboradorEmbed[] | null;
@@ -190,6 +195,7 @@ export async function listOcorrenciasCaderno(
       data_fim: row.data_fim ?? null,
       anexo_url: row.anexo_url ?? null,
       anexo_nome: row.anexo_nome ?? null,
+      horas_minutos: row.horas_minutos ?? null,
       created_at: String(row.created_at),
     };
   });
@@ -268,20 +274,42 @@ export type CreateOcorrenciaInput = {
   observacoes?: string | null;
   data: string;
   dias_atestado?: number | null;
+  /** Banco de horas: minutos com sinal (+ crédito / − débito). */
+  horas_minutos?: number | null;
   /** Path do arquivo já enviado pelo cliente ao bucket. */
   anexo_url?: string | null;
   /** Nome original do arquivo (pra exibir). */
   anexo_nome?: string | null;
 };
 
+/** Descrição automática para banco de horas quando o usuário não escreve nada. */
+function descricaoBancoHoras(minutos: number): string {
+  const credito = minutos >= 0;
+  const abs = Math.abs(minutos);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  const hhmm = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return `${credito ? "Crédito" : "Débito"} de ${hhmm} no banco de horas`;
+}
+
 export async function createOcorrenciaCaderno(
   input: CreateOcorrenciaInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const colaboradorId = input.colaborador_id;
   const tipo = input.tipo;
-  const descricao = (input.descricao ?? "").trim();
+  let descricao = (input.descricao ?? "").trim();
   const observacoes = (input.observacoes ?? "").trim();
   const data = input.data;
+
+  // Banco de horas: minutos com sinal; descrição é opcional (auto).
+  let horasMin: number | null = null;
+  if (tipo === "banco_horas") {
+    horasMin = Math.trunc(Number(input.horas_minutos ?? 0));
+    if (!Number.isFinite(horasMin) || horasMin === 0) {
+      return { ok: false, error: "Informe as horas (crédito ou débito)." };
+    }
+    if (!descricao) descricao = descricaoBancoHoras(horasMin);
+  }
 
   if (!colaboradorId) return { ok: false, error: "Selecione um colaborador." };
   if (!descricao) return { ok: false, error: "Descrição é obrigatória." };
@@ -312,6 +340,7 @@ export async function createOcorrenciaCaderno(
     data,
     dias_atestado: dias,
     data_fim: dataFim,
+    horas_minutos: horasMin,
     anexo_url: input.anexo_url || null,
     anexo_nome: input.anexo_nome || null,
     created_by: user?.id ?? null,
@@ -343,16 +372,26 @@ export type UpdateOcorrenciaInput = {
   observacoes?: string | null;
   data: string;
   dias_atestado?: number | null;
+  horas_minutos?: number | null;
 };
 
 export async function updateOcorrenciaCaderno(
   input: UpdateOcorrenciaInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const descricao = (input.descricao ?? "").trim();
+  let descricao = (input.descricao ?? "").trim();
   const observacoes = (input.observacoes ?? "").trim();
   if (!input.id) return { ok: false, error: "Ocorrência não informada." };
-  if (!descricao) return { ok: false, error: "Descrição é obrigatória." };
   if (!input.data) return { ok: false, error: "Data é obrigatória." };
+
+  let horasMin: number | null = null;
+  if (input.tipo === "banco_horas") {
+    horasMin = Math.trunc(Number(input.horas_minutos ?? 0));
+    if (!Number.isFinite(horasMin) || horasMin === 0) {
+      return { ok: false, error: "Informe as horas (crédito ou débito)." };
+    }
+    if (!descricao) descricao = descricaoBancoHoras(horasMin);
+  }
+  if (!descricao) return { ok: false, error: "Descrição é obrigatória." };
 
   let dias: number | null = null;
   if (tipoTemPeriodo(input.tipo) && input.dias_atestado != null) {
@@ -376,6 +415,7 @@ export async function updateOcorrenciaCaderno(
       data: input.data,
       dias_atestado: dias,
       data_fim: dataFim,
+      horas_minutos: horasMin,
     })
     .eq("id", input.id);
 
@@ -387,6 +427,30 @@ export async function updateOcorrenciaCaderno(
   revalidatePath("/pessoal/caderno-virtual");
   if (input.colaborador_id) revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
   return { ok: true };
+}
+
+/**
+ * Saldo do banco de horas de um colaborador (soma dos minutos com sinal das
+ * ocorrências do tipo banco_horas). Positivo = crédito, negativo = débito.
+ */
+export async function getSaldoBancoHoras(colaboradorId: string): Promise<number> {
+  if (!colaboradorId) return 0;
+  if (!hasSupabase()) {
+    return COLABORADOR_OCORRENCIAS.filter(
+      (o) => o.colaborador_id === colaboradorId && o.tipo === "banco_horas",
+    ).reduce((s, o) => s + (o.horas_minutos ?? 0), 0);
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_ocorrencias")
+    .select("horas_minutos")
+    .eq("colaborador_id", colaboradorId)
+    .eq("tipo", "banco_horas");
+  if (error) {
+    console.error("[getSaldoBancoHoras]", error.message);
+    return 0;
+  }
+  return (data ?? []).reduce((s, r) => s + (Number(r.horas_minutos) || 0), 0);
 }
 
 /**

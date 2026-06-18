@@ -551,7 +551,8 @@ export type OcorrenciaTipo =
   | "observacao"
   | "outro"
   | "aumento_salario"
-  | "troca_funcao";
+  | "troca_funcao"
+  | "banco_horas";
 
 export type ColaboradorOcorrencia = {
   id: string;
@@ -573,6 +574,8 @@ export type ColaboradorOcorrencia = {
   valor_novo?: number | null;
   funcao_anterior?: string | null;
   funcao_nova?: string | null;
+  /** Banco de horas: minutos com sinal (+ crédito / − débito). */
+  horas_minutos?: number | null;
   created_by: string | null;
   created_at: string;
 };
@@ -598,7 +601,23 @@ export const OCORRENCIA_TIPO_LABEL: Record<OcorrenciaTipo, string> = {
   outro: "Outro",
   aumento_salario: "Aumento de salário",
   troca_funcao: "Troca de função",
+  banco_horas: "Banco de horas",
 };
+
+/** Tipo de movimentação que registra crédito/débito de horas. */
+export function tipoEhBancoHoras(tipo: OcorrenciaTipo): boolean {
+  return tipo === "banco_horas";
+}
+
+/** Minutos com sinal → "+02:00" / "−01:30". */
+export function formatHorasMinutos(minutos: number | null | undefined): string {
+  if (minutos == null || minutos === 0) return "00:00";
+  const sinal = minutos < 0 ? "−" : "+";
+  const abs = Math.abs(minutos);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `${sinal}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
 
 export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: string }> = {
   falta: { bg: "bg-rose-50", text: "text-rose-700" },
@@ -611,6 +630,7 @@ export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: st
   outro: { bg: "bg-slate-50", text: "text-slate-700" },
   aumento_salario: { bg: "bg-emerald-50", text: "text-emerald-700" },
   troca_funcao: { bg: "bg-violet-50", text: "text-violet-700" },
+  banco_horas: { bg: "bg-indigo-50", text: "text-indigo-700" },
 };
 
 export const COLABORADOR_OCORRENCIAS: ColaboradorOcorrencia[] = [

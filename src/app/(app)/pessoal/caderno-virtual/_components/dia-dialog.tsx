@@ -21,6 +21,7 @@ import {
 import {
   OCORRENCIA_TIPO_LABEL,
   OCORRENCIA_TIPO_TONE,
+  formatHorasMinutos,
 } from "@/lib/mocks/colaboradores";
 import type { OcorrenciaCaderno } from "@/lib/actions/caderno-virtual";
 import { EditarOcorrenciaModal } from "./editar-ocorrencia-modal";
@@ -181,6 +182,16 @@ export function DiaDialog({
                       </Button>
                     </div>
                   </div>
+                  {o.tipo === "banco_horas" && o.horas_minutos != null ? (
+                    <span
+                      className={cn(
+                        "inline-block text-sm font-bold tabular-nums",
+                        o.horas_minutos < 0 ? "text-rose-600" : "text-emerald-600",
+                      )}
+                    >
+                      {formatHorasMinutos(o.horas_minutos)}
+                    </span>
+                  ) : null}
                   <p className="text-sm">{o.descricao}</p>
                   {o.observacoes && (
                     <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2">

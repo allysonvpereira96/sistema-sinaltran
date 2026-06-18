@@ -45,6 +45,8 @@ import {
   listTreinamentosCatalogo,
 } from "@/lib/actions/colaboradores";
 import { getSalarioMinimo } from "@/lib/actions/parametros";
+import { getSaldoBancoHoras } from "@/lib/actions/caderno-virtual";
+import { formatHorasMinutos } from "@/lib/mocks/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { custoMensalColaborador, valorInsalubridade } from "@/lib/rh";
 import { cn } from "@/lib/utils";
@@ -67,7 +69,7 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [centrosCusto, documentos, dependentes, ferias, periodosAq, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo] =
+  const [centrosCusto, documentos, dependentes, ferias, periodosAq, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo, saldoBancoHoras] =
     await Promise.all([
       listCentrosCusto(),
       listDocumentos(id),
@@ -82,6 +84,7 @@ export default async function ColaboradorDetalhePage({
       listTreinamentos(id),
       listTreinamentosCatalogo(),
       getSalarioMinimo(),
+      getSaldoBancoHoras(id),
     ]);
 
   const centro = c.centro_custo_id ? centrosCusto.find((cc) => cc.id === c.centro_custo_id) : null;
@@ -231,6 +234,12 @@ export default async function ColaboradorDetalhePage({
                   <KeyVal label="Periculosidade" value={`${c.periculosidade_pct ?? 0}%`} />
                   <KeyVal label="Sindicato" value={c.sindicato ?? "—"} />
                   <KeyVal label="Horário" value={c.horario_trabalho ?? "—"} />
+                  <div className="border-t pt-3">
+                    <KeyVal
+                      label="Saldo banco de horas"
+                      value={formatHorasMinutos(saldoBancoHoras)}
+                    />
+                  </div>
                   {c.data_desligamento ? (
                     <>
                       <KeyVal label="Desligamento" value={formatDateBR(c.data_desligamento)} />

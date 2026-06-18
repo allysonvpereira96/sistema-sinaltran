@@ -22,6 +22,7 @@ import {
   OCORRENCIA_TIPO_LABEL,
   tipoTemPeriodo,
   tipoRecomendaAnexo,
+  tipoEhBancoHoras,
   type OcorrenciaTipo,
 } from "@/lib/mocks/colaboradores";
 import type { ColaboradorResumo } from "@/lib/actions/caderno-virtual";
@@ -64,6 +65,10 @@ export function NovoRegistroModal({
   const [descricao, setDescricao] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [anexo, setAnexo] = useState<File | null>(null);
+  // banco de horas
+  const [sinal, setSinal] = useState<"credito" | "debito">("credito");
+  const [horasH, setHorasH] = useState("0");
+  const [horasM, setHorasM] = useState("0");
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +80,9 @@ export function NovoRegistroModal({
     setDescricao("");
     setObservacoes("");
     setAnexo(null);
+    setSinal("credito");
+    setHorasH("0");
+    setHorasM("0");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [open, dataPre]);
 
@@ -90,6 +98,8 @@ export function NovoRegistroModal({
   const colaboradorSelecionado = colaboradores.find((c) => c.id === colaboradorId);
   const temPeriodo = tipoTemPeriodo(tipo);
   const recomendaAnexo = tipoRecomendaAnexo(tipo);
+  const ehBanco = tipoEhBancoHoras(tipo);
+  const totalMin = (Number(horasH) || 0) * 60 + (Number(horasM) || 0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,8 +107,12 @@ export function NovoRegistroModal({
       toast.error("Selecione um colaborador");
       return;
     }
-    if (!descricao.trim()) {
+    if (!ehBanco && !descricao.trim()) {
       toast.error("Informe a descrição da ocorrência");
+      return;
+    }
+    if (ehBanco && totalMin === 0) {
+      toast.error("Informe as horas (crédito ou débito)");
       return;
     }
     if (!data) {
@@ -152,6 +166,7 @@ export function NovoRegistroModal({
         dias_atestado: temPeriodo
           ? Math.floor(Number(dias)) || null
           : null,
+        horas_minutos: ehBanco ? (sinal === "debito" ? -totalMin : totalMin) : null,
         anexo_url: anexoUrl,
         anexo_nome: anexoNome,
       });
@@ -302,17 +317,42 @@ export function NovoRegistroModal({
             </div>
           )}
 
+          {/* === Banco de horas === */}
+          {ehBanco && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                Horas *
+              </Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex rounded-md border p-0.5">
+                  <button type="button" onClick={() => setSinal("credito")}
+                    className={cn("px-3 py-1.5 text-xs font-semibold rounded", sinal === "credito" ? "bg-emerald-600 text-white" : "hover:bg-muted")}>
+                    + Crédito
+                  </button>
+                  <button type="button" onClick={() => setSinal("debito")}
+                    className={cn("px-3 py-1.5 text-xs font-semibold rounded", sinal === "debito" ? "bg-rose-600 text-white" : "hover:bg-muted")}>
+                    − Débito
+                  </button>
+                </div>
+                <Input type="number" min={0} value={horasH} onChange={(e) => setHorasH(e.target.value)} className="w-20" aria-label="Horas" />
+                <span className="text-sm text-muted-foreground">h</span>
+                <Input type="number" min={0} max={59} value={horasM} onChange={(e) => setHorasM(e.target.value)} className="w-20" aria-label="Minutos" />
+                <span className="text-sm text-muted-foreground">min</span>
+              </div>
+            </div>
+          )}
+
           {/* === Descrição === */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-              Descrição *
+              {ehBanco ? "Descrição" : "Descrição *"}
             </Label>
             <Textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               rows={3}
-              placeholder="Descreva a ocorrência…"
-              required
+              placeholder={ehBanco ? "Opcional — gerada automaticamente se vazia" : "Descreva a ocorrência…"}
+              required={!ehBanco}
             />
           </div>
 

@@ -36,6 +36,7 @@ const TIPO_BG: Record<OcorrenciaTipo, string> = {
   outro: "#F1F5F9",
   aumento_salario: "#D1FAE5",
   troca_funcao: "#EDE9FE",
+  banco_horas: "#E0E7FF",
 };
 const TIPO_FG: Record<OcorrenciaTipo, string> = {
   falta: "#9F1239",
@@ -48,6 +49,7 @@ const TIPO_FG: Record<OcorrenciaTipo, string> = {
   outro: "#334155",
   aumento_salario: "#065F46",
   troca_funcao: "#5B21B6",
+  banco_horas: "#3730A3",
 };
 
 const styles = StyleSheet.create({
