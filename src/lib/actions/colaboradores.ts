@@ -26,6 +26,8 @@ import type {
   ColaboradorAso,
   ColaboradorTreinamento,
   ColaboradorExperiencia,
+  ColaboradorPeriodoAquisitivo,
+  FeriasRiscoRow,
   VencimentoRow,
   TreinamentoCatalogo,
 } from "@/lib/types/rh";
@@ -69,6 +71,7 @@ export type ColaboradorInput = {
   estado?: string | null;
   cep?: string | null;
   cargo: string;
+  empresa_id?: string | null;
   centro_custo_id?: string | null;
   status: Colaborador["status"];
   data_admissao: string;
@@ -382,6 +385,108 @@ export async function deleteFerias(
   }
   revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
   return { ok: true };
+}
+
+// ── Períodos aquisitivos de férias (do relatório da contabilidade) ───────────
+
+export async function listPeriodosAquisitivos(
+  colaboradorId: string,
+): Promise<ColaboradorPeriodoAquisitivo[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_periodos_aquisitivos")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("aquisitivo_inicio", { ascending: false });
+  if (error) {
+    console.error("[listPeriodosAquisitivos]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorPeriodoAquisitivo[];
+}
+
+export async function upsertPeriodoAquisitivo(input: {
+  id?: string;
+  colaborador_id: string;
+  aquisitivo_inicio: string;
+  aquisitivo_fim: string;
+  dias_direito: number;
+  concessivo_inicio?: string | null;
+  concessivo_fim?: string | null;
+  prazo_dobro?: string | null;
+  observacoes?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.colaborador_id) return { ok: false, error: "Colaborador obrigatório." };
+  if (!input.aquisitivo_inicio || !input.aquisitivo_fim)
+    return { ok: false, error: "Período aquisitivo obrigatório." };
+  if (input.dias_direito < 0)
+    return { ok: false, error: "Dias de direito não pode ser negativo." };
+
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const payload = {
+    colaborador_id: input.colaborador_id,
+    aquisitivo_inicio: input.aquisitivo_inicio,
+    aquisitivo_fim: input.aquisitivo_fim,
+    dias_direito: input.dias_direito,
+    concessivo_inicio: input.concessivo_inicio ?? null,
+    concessivo_fim: input.concessivo_fim ?? null,
+    prazo_dobro: input.prazo_dobro ?? null,
+    observacoes: input.observacoes?.trim() || null,
+  };
+  const { error } = input.id
+    ? await supabase
+        .from("colaborador_periodos_aquisitivos")
+        .update(payload)
+        .eq("id", input.id)
+    : await supabase
+        .from("colaborador_periodos_aquisitivos")
+        .upsert(payload, {
+          onConflict: "colaborador_id,aquisitivo_inicio,aquisitivo_fim",
+        });
+
+  if (error) {
+    console.error("[upsertPeriodoAquisitivo]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
+export async function deletePeriodoAquisitivo(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("colaborador_periodos_aquisitivos")
+    .delete()
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
+/**
+ * Lista os períodos aquisitivos em risco de pagamento em dobro,
+ * ordenados pelos mais próximos do limite. Usado na página de Vencimentos.
+ */
+export async function listFeriasEmRisco(): Promise<FeriasRiscoRow[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vw_ferias_risco_dobra")
+    .select("*")
+    .order("dias_para_dobra", { ascending: true });
+  if (error) {
+    console.error("[listFeriasEmRisco]", error.message);
+    return [];
+  }
+  return (data ?? []) as FeriasRiscoRow[];
 }
 
 export async function listHistorico(colaboradorId: string): Promise<ColaboradorHistorico[]> {

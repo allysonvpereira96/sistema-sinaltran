@@ -34,6 +34,7 @@ import {
 import type {
   ColaboradorAso,
   ColaboradorTreinamento,
+  ColaboradorPeriodoAquisitivo,
   TreinamentoCatalogo,
 } from "@/lib/types/rh";
 import {
@@ -146,6 +147,7 @@ type ColaboradorFormProps = {
   documentos?: ColaboradorDocumento[];
   dependentes?: ColaboradorDependente[];
   ferias?: ColaboradorFerias[];
+  periodosAq?: ColaboradorPeriodoAquisitivo[];
   aso?: ColaboradorAso[];
   treinamentos?: ColaboradorTreinamento[];
   catalogoTreinamentos?: TreinamentoCatalogo[];
@@ -219,6 +221,7 @@ export function ColaboradorForm({
   documentos = [],
   dependentes = [],
   ferias = [],
+  periodosAq = [],
   aso = [],
   treinamentos = [],
   catalogoTreinamentos = [],
@@ -805,7 +808,7 @@ export function ColaboradorForm({
               <DependentesTab colaboradorId={cid} dependentes={dependentes} />
             </TabsContent>
             <TabsContent value="ferias" className="pt-4">
-              <FeriasTab colaboradorId={cid} ferias={ferias} />
+              <FeriasTab colaboradorId={cid} ferias={ferias} periodos={periodosAq} />
             </TabsContent>
             <TabsContent value="aso" className="pt-4">
               <AsoTab colaboradorId={cid} aso={aso} />

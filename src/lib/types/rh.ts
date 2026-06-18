@@ -60,6 +60,41 @@ export type VencimentoRow = {
   dias_para_vencer: number | null;
 };
 
+/**
+ * Período aquisitivo de férias do colaborador (espelha o relatório da
+ * contabilidade). Não é o GOZO — é o "estado do direito" naquele momento.
+ */
+export type ColaboradorPeriodoAquisitivo = {
+  id: string;
+  colaborador_id: string;
+  aquisitivo_inicio: string;
+  aquisitivo_fim: string;
+  dias_direito: number;
+  concessivo_inicio: string | null;
+  concessivo_fim: string | null;
+  prazo_dobro: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Linha da view vw_ferias_risco_dobra. */
+export type FeriasRiscoRow = {
+  registro_id: string;
+  colaborador_id: string;
+  colaborador: string;
+  matricula: string | null;
+  cargo: string | null;
+  setor: string | null;
+  aquisitivo_inicio: string;
+  aquisitivo_fim: string;
+  dias_direito: number;
+  concessivo_inicio: string | null;
+  concessivo_fim: string | null;
+  prazo_dobro: string;
+  dias_para_dobra: number;
+};
+
 export const ASO_TIPO_LABEL: Record<AsoTipoExame, string> = {
   admissional: "Admissional",
   periodico: "Periódico",

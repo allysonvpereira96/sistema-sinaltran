@@ -1,11 +1,41 @@
 import { CalendarClock } from "lucide-react";
-import { listVencimentos } from "@/lib/actions/colaboradores";
+import {
+  listVencimentos,
+  listFeriasEmRisco,
+} from "@/lib/actions/colaboradores";
+import { formatDateBR } from "@/lib/format";
+import type { VencimentoRow } from "@/lib/types/rh";
 import { VencimentosLista } from "./_components/vencimentos-lista";
 
 export const metadata = { title: "Vencimentos · Departamento Pessoal" };
 
+function formatPeriodo(ini: string, fim: string) {
+  return `${formatDateBR(ini)} → ${formatDateBR(fim)}`;
+}
+
 export default async function VencimentosPage() {
-  const rows = await listVencimentos();
+  const [rowsBase, ferias] = await Promise.all([
+    listVencimentos(),
+    listFeriasEmRisco(),
+  ]);
+
+  // Períodos aquisitivos com prazo de dobra viram linhas do tipo "Férias (dobra)"
+  // mescladas com os outros vencimentos (ASO/treinamentos/etc) para que a tela
+  // mostre tudo num só lugar.
+  const feriasRows: VencimentoRow[] = ferias.map((f) => ({
+    tipo: "Férias (dobra)",
+    registro_id: f.registro_id,
+    colaborador_id: f.colaborador_id,
+    colaborador: f.colaborador,
+    setor: f.setor,
+    descricao: `Aquisitivo ${formatPeriodo(f.aquisitivo_inicio, f.aquisitivo_fim)} · ${Number(
+      f.dias_direito,
+    ).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} dias`,
+    vencimento: f.prazo_dobro,
+    dias_para_vencer: f.dias_para_dobra,
+  }));
+
+  const rows = [...rowsBase, ...feriasRows];
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
@@ -16,7 +46,8 @@ export default async function VencimentosPage() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Vencimentos</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            ASO, treinamentos e férias — alertas a 60 e 30 dias do vencimento.
+            ASO, treinamentos e férias (incluindo prazo para dobra) — alertas a
+            60 e 30 dias do vencimento.
           </p>
         </div>
       </header>

@@ -34,6 +34,7 @@ import {
   type ColaboradorStatus,
 } from "@/lib/mocks/colaboradores";
 import type { CentroCustoResumo } from "@/lib/actions/colaboradores";
+import type { EmpresaResumo } from "@/lib/actions/orcamentos";
 import { deleteColaborador } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { custoMensalColaborador } from "@/lib/rh";
@@ -52,20 +53,35 @@ const FILTROS_STATUS: { value: FiltroStatus; label: string }[] = [
 export function ColaboradoresLista({
   colaboradores,
   centrosCusto,
+  empresas,
   salarioMinimo,
 }: {
   colaboradores: Colaborador[];
   centrosCusto: CentroCustoResumo[];
+  empresas: EmpresaResumo[];
   salarioMinimo: number;
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("todos");
   const [centroId, setCentroId] = useState<string>("todos");
+  const [empresaId, setEmpresaId] = useState<string>("todas");
+
+  const empresaById = useMemo(
+    () => new Map(empresas.map((e) => [e.id, e.nome])),
+    [empresas],
+  );
+  const multiEmpresa = empresas.length > 1;
+
+  // tudo na tela (KPIs + tabela) é escopado pela empresa selecionada
+  const daEmpresa = useMemo(
+    () => (empresaId === "todas" ? colaboradores : colaboradores.filter((c) => c.empresa_id === empresaId)),
+    [colaboradores, empresaId],
+  );
 
   const filtrados = useMemo(() => {
     const q = normalizeSearch(busca);
-    return colaboradores.filter((c) => {
+    return daEmpresa.filter((c) => {
       if (
         q &&
         !normalizeSearch(c.nome_completo).includes(q) &&
@@ -79,20 +95,20 @@ export function ColaboradoresLista({
       if (filtro !== "todos" && c.status !== filtro) return false;
       return true;
     });
-  }, [busca, filtro, centroId, colaboradores]);
+  }, [busca, filtro, centroId, daEmpresa]);
 
   // ao filtrar por desligados, mostramos quando e por que foi o desligamento
   const mostrarDesligamento = filtro === "desligado";
 
   const counts = useMemo(() => {
-    const ativos = colaboradores.filter((c) => c.status === "ativo").length;
-    const ferias = colaboradores.filter((c) => c.status === "ferias").length;
-    const afastados = colaboradores.filter((c) => c.status === "afastado").length;
-    const folhaAtivos = colaboradores
+    const ativos = daEmpresa.filter((c) => c.status === "ativo").length;
+    const ferias = daEmpresa.filter((c) => c.status === "ferias").length;
+    const afastados = daEmpresa.filter((c) => c.status === "afastado").length;
+    const folhaAtivos = daEmpresa
       .filter((c) => c.status === "ativo")
       .reduce((acc, c) => acc + custoMensalColaborador(c, salarioMinimo), 0);
-    return { total: colaboradores.length, ativos, ferias, afastados, folhaAtivos };
-  }, [colaboradores, salarioMinimo]);
+    return { total: daEmpresa.length, ativos, ferias, afastados, folhaAtivos };
+  }, [daEmpresa, salarioMinimo]);
 
   async function handleDelete(c: Colaborador) {
     if (!confirm(`Excluir o colaborador "${c.nome_completo}"? Esta ação não pode ser desfeita.`)) return;
@@ -117,6 +133,31 @@ export function ColaboradoresLista({
           </Link>
         }
       />
+
+      {multiEmpresa && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empresa</span>
+          <div className="inline-flex rounded-md border p-0.5">
+            <button
+              type="button"
+              onClick={() => setEmpresaId("todas")}
+              className={cn("px-3 py-1.5 text-xs font-semibold rounded transition-colors", empresaId === "todas" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+            >
+              Todas
+            </button>
+            {empresas.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => setEmpresaId(e.id)}
+                className={cn("px-3 py-1.5 text-xs font-semibold rounded transition-colors", empresaId === e.id ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+              >
+                {e.nome}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Ativos" value={String(counts.ativos)} detail={`${counts.total} colaboradores cadastrados`} icon={Users} tone="success" />
@@ -206,7 +247,12 @@ export function ColaboradoresLista({
                     <TableRow key={c.id}>
                       <TableCell>
                         <div className="font-semibold">{c.nome_completo}</div>
-                        <div className="text-xs text-muted-foreground font-mono">mat. {c.matricula ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground font-mono">
+                          mat. {c.matricula ?? "—"}
+                          {multiEmpresa && empresaId === "todas" && c.empresa_id ? (
+                            <span className="ml-2 font-sans not-italic text-foreground/70">· {empresaById.get(c.empresa_id)}</span>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm">{c.cargo}</TableCell>
                       <TableCell className="text-xs">{formatDateBR(c.data_admissao)}</TableCell>

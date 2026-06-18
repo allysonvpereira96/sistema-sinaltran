@@ -5,6 +5,7 @@ import {
   listDocumentos,
   listDependentes,
   listFerias,
+  listPeriodosAquisitivos,
   listAso,
   listTreinamentos,
   listTreinamentosCatalogo,
@@ -23,12 +24,13 @@ export default async function EditarColaboradorPage({
   const colaborador = await getColaboradorById(id);
   if (!colaborador) notFound();
 
-  const [centrosCusto, documentos, dependentes, ferias, aso, treinamentos, catalogoTreinamentos, avaliacoes, ocorrencias, comentarios] =
+  const [centrosCusto, documentos, dependentes, ferias, periodosAq, aso, treinamentos, catalogoTreinamentos, avaliacoes, ocorrencias, comentarios] =
     await Promise.all([
       listCentrosCusto(),
       listDocumentos(id),
       listDependentes(id),
       listFerias(id),
+      listPeriodosAquisitivos(id),
       listAso(id),
       listTreinamentos(id),
       listTreinamentosCatalogo(),
@@ -45,6 +47,7 @@ export default async function EditarColaboradorPage({
       documentos={documentos}
       dependentes={dependentes}
       ferias={ferias}
+      periodosAq={periodosAq}
       aso={aso}
       treinamentos={treinamentos}
       catalogoTreinamentos={catalogoTreinamentos}

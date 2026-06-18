@@ -35,6 +35,7 @@ import {
   listDocumentos,
   listDependentes,
   listFerias,
+  listPeriodosAquisitivos,
   listHistorico,
   listComentarios,
   listOcorrencias,
@@ -66,12 +67,13 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [centrosCusto, documentos, dependentes, ferias, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo] =
+  const [centrosCusto, documentos, dependentes, ferias, periodosAq, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo] =
     await Promise.all([
       listCentrosCusto(),
       listDocumentos(id),
       listDependentes(id),
       listFerias(id),
+      listPeriodosAquisitivos(id),
       listHistorico(id),
       listComentarios(id),
       listOcorrencias(id),
@@ -264,7 +266,12 @@ export default async function ColaboradorDetalhePage({
         </TabsContent>
 
         <TabsContent value="ferias" className="pt-4">
-          <FeriasTab colaboradorId={c.id} ferias={ferias} readOnly />
+          <FeriasTab
+            colaboradorId={c.id}
+            ferias={ferias}
+            periodos={periodosAq}
+            readOnly
+          />
         </TabsContent>
 
         <TabsContent value="aso" className="pt-4">
