@@ -4,7 +4,7 @@ import type { Colaborador } from "@/lib/mocks/colaboradores";
  * Salário mínimo nacional vigente — base de cálculo do adicional de insalubridade.
  * ⚠️ ATUALIZE este valor quando o piso mudar (vira todo início de ano).
  */
-export const SALARIO_MINIMO = 1518;
+export const SALARIO_MINIMO = 1621;
 
 /** Adicional de insalubridade em reais: percentual sobre o salário mínimo. */
 export function valorInsalubridade(pct: number | null | undefined): number {
