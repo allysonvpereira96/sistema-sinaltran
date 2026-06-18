@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Loader2, Paperclip, Download } from "lucide-react";
+import { Plus, Trash2, Loader2, Paperclip, Download, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -23,6 +23,7 @@ import {
   OCORRENCIA_TIPO_TONE,
 } from "@/lib/mocks/colaboradores";
 import type { OcorrenciaCaderno } from "@/lib/actions/caderno-virtual";
+import { EditarOcorrenciaModal } from "./editar-ocorrencia-modal";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -62,6 +63,7 @@ export function DiaDialog({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [editando, setEditando] = useState<OcorrenciaCaderno | null>(null);
 
   function handleDelete(id: string, anexoUrl: string | null) {
     if (!confirm("Excluir esta ocorrência?")) return;
@@ -91,6 +93,7 @@ export function DiaDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -151,20 +154,32 @@ export function DiaDialog({
                         </div>
                       ) : null}
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handleDelete(o.id, o.anexo_url)}
-                      disabled={isPending}
-                      aria-label="Excluir"
-                    >
-                      {isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-3.5" />
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setEditando(o)}
+                        disabled={isPending}
+                        aria-label="Editar"
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDelete(o.id, o.anexo_url)}
+                        disabled={isPending}
+                        aria-label="Excluir"
+                      >
+                        {isPending ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-3.5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-sm">{o.descricao}</p>
                   {o.observacoes && (
@@ -208,5 +223,13 @@ export function DiaDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+      <EditarOcorrenciaModal
+        key={editando?.id ?? "none"}
+        open={editando !== null}
+        onOpenChange={(o) => { if (!o) setEditando(null); }}
+        ocorrencia={editando}
+      />
+    </>
   );
 }

@@ -332,6 +332,64 @@ export async function createOcorrenciaCaderno(
 }
 
 /**
+ * Edita os campos de uma ocorrência já registrada (corrigir texto/tipo/data/
+ * dias). Não altera colaborador nem anexo — recalcula data_fim conforme dias.
+ */
+export type UpdateOcorrenciaInput = {
+  id: string;
+  colaborador_id?: string | null;
+  tipo: OcorrenciaTipo;
+  descricao: string;
+  observacoes?: string | null;
+  data: string;
+  dias_atestado?: number | null;
+};
+
+export async function updateOcorrenciaCaderno(
+  input: UpdateOcorrenciaInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const descricao = (input.descricao ?? "").trim();
+  const observacoes = (input.observacoes ?? "").trim();
+  if (!input.id) return { ok: false, error: "Ocorrência não informada." };
+  if (!descricao) return { ok: false, error: "Descrição é obrigatória." };
+  if (!input.data) return { ok: false, error: "Data é obrigatória." };
+
+  let dias: number | null = null;
+  if (tipoTemPeriodo(input.tipo) && input.dias_atestado != null) {
+    const n = Number(input.dias_atestado);
+    if (!Number.isFinite(n) || n < 1) {
+      return { ok: false, error: "Dias deve ser maior que zero." };
+    }
+    dias = Math.floor(n);
+  }
+  const dataFim = dias && dias > 1 ? addDays(input.data, dias - 1) : dias ? input.data : null;
+
+  if (!hasSupabase()) return { ok: true };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("colaborador_ocorrencias")
+    .update({
+      tipo: input.tipo,
+      descricao,
+      observacoes: observacoes || null,
+      data: input.data,
+      dias_atestado: dias,
+      data_fim: dataFim,
+    })
+    .eq("id", input.id);
+
+  if (error) {
+    console.error("[updateOcorrenciaCaderno]", error.message);
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/pessoal/caderno-virtual");
+  if (input.colaborador_id) revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  return { ok: true };
+}
+
+/**
  * Exclui uma ocorrência (e o anexo, se existir).
  */
 export async function deleteOcorrenciaCaderno(
