@@ -39,6 +39,7 @@ import type { ColaboradorPeriodoAquisitivo } from "@/lib/types/rh";
 import { calcularPrazoInicioGozo } from "@/lib/types/rh";
 import {
   createFerias,
+  updateFerias,
   deleteFerias,
   upsertPeriodoAquisitivo,
   deletePeriodoAquisitivo,
@@ -67,11 +68,19 @@ function diasAteHoje(prazoIso: string): number {
 }
 
 const FORM_INICIAL = {
+  id: "",
   periodo_aquisitivo_inicio: "",
   periodo_aquisitivo_fim: "",
   data_inicio: "",
   data_fim: "",
   status: "agendada" as FeriasStatus,
+};
+
+/** Cor de cada status para o select inline. */
+const STATUS_TONE: Record<FeriasStatus, string> = {
+  agendada: "bg-amber-50 text-amber-700 border-amber-200",
+  em_gozo: "bg-sky-50 text-sky-700 border-sky-200",
+  concluida: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 const FORM_AQ_INICIAL = {
@@ -105,6 +114,23 @@ export function FeriasTab({
 
   const dias = diasEntre(form.data_inicio, form.data_fim);
 
+  function abrirNovoGozo() {
+    setForm(FORM_INICIAL);
+    setOpen(true);
+  }
+
+  function abrirEditarGozo(f: ColaboradorFerias) {
+    setForm({
+      id: f.id,
+      periodo_aquisitivo_inicio: f.periodo_aquisitivo_inicio ?? "",
+      periodo_aquisitivo_fim: f.periodo_aquisitivo_fim ?? "",
+      data_inicio: f.data_inicio,
+      data_fim: f.data_fim,
+      status: f.status,
+    });
+    setOpen(true);
+  }
+
   async function handleAdd() {
     if (!form.data_inicio || !form.data_fim) {
       toast.error("Informe as datas de início e fim.");
@@ -115,20 +141,50 @@ export function FeriasTab({
       return;
     }
     setSaving(true);
-    const res = await createFerias({
-      colaborador_id: colaboradorId,
-      ...form,
-      dias,
-    });
+    const res = form.id
+      ? await updateFerias(
+          form.id,
+          {
+            periodo_aquisitivo_inicio: form.periodo_aquisitivo_inicio || null,
+            periodo_aquisitivo_fim: form.periodo_aquisitivo_fim || null,
+            data_inicio: form.data_inicio,
+            data_fim: form.data_fim,
+            dias,
+            status: form.status,
+          },
+          colaboradorId,
+        )
+      : await createFerias({
+          colaborador_id: colaboradorId,
+          periodo_aquisitivo_inicio: form.periodo_aquisitivo_inicio || null,
+          periodo_aquisitivo_fim: form.periodo_aquisitivo_fim || null,
+          data_inicio: form.data_inicio,
+          data_fim: form.data_fim,
+          status: form.status,
+          dias,
+        });
     setSaving(false);
     if (res.ok) {
-      toast.success("Gozo de férias registrado");
+      toast.success(form.id ? "Gozo atualizado" : "Gozo de férias registrado");
       setForm(FORM_INICIAL);
       setOpen(false);
       router.refresh();
     } else {
-      toast.error("Erro ao adicionar", { description: res.error });
+      toast.error("Erro ao salvar", { description: res.error });
     }
+  }
+
+  function handleStatusChange(f: ColaboradorFerias, novoStatus: FeriasStatus) {
+    if (novoStatus === f.status) return;
+    startTransition(async () => {
+      const res = await updateFerias(f.id, { status: novoStatus }, colaboradorId);
+      if (res.ok) {
+        toast.success(`Status alterado para "${FERIAS_STATUS_LABEL[novoStatus]}"`);
+        router.refresh();
+      } else {
+        toast.error("Erro ao alterar status", { description: res.error });
+      }
+    });
   }
 
   function handleDelete(f: ColaboradorFerias) {
@@ -377,7 +433,7 @@ export function FeriasTab({
             </p>
           </div>
           {!readOnly && (
-            <Button className="gap-2" size="sm" onClick={() => setOpen(true)}>
+            <Button className="gap-2" size="sm" onClick={abrirNovoGozo}>
               <Plus className="size-4" />
               Registrar gozo
             </Button>
@@ -400,7 +456,7 @@ export function FeriasTab({
                     <TableHead className="text-right">Dias</TableHead>
                     <TableHead>Status</TableHead>
                     {!readOnly && (
-                      <TableHead className="w-16 text-right">Ações</TableHead>
+                      <TableHead className="w-24 text-right">Ações</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -419,24 +475,58 @@ export function FeriasTab({
                         {f.dias}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className="bg-muted text-muted-foreground"
-                        >
-                          {FERIAS_STATUS_LABEL[f.status]}
-                        </Badge>
+                        {readOnly ? (
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "font-medium border",
+                              STATUS_TONE[f.status],
+                            )}
+                          >
+                            {FERIAS_STATUS_LABEL[f.status]}
+                          </Badge>
+                        ) : (
+                          <select
+                            value={f.status}
+                            disabled={isPending}
+                            onChange={(e) =>
+                              handleStatusChange(f, e.target.value as FeriasStatus)
+                            }
+                            className={cn(
+                              "h-7 rounded-md border px-2 text-xs font-medium cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                              STATUS_TONE[f.status],
+                            )}
+                            aria-label="Status do gozo"
+                          >
+                            {STATUS_VALUES.map((s) => (
+                              <option key={s} value={s}>
+                                {FERIAS_STATUS_LABEL[s]}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </TableCell>
                       {!readOnly && (
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={isPending}
-                            onClick={() => handleDelete(f)}
-                            aria-label="Remover"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => abrirEditarGozo(f)}
+                              aria-label="Editar"
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={isPending}
+                              onClick={() => handleDelete(f)}
+                              aria-label="Remover"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -448,11 +538,13 @@ export function FeriasTab({
         </Card>
       </section>
 
-      {/* === Modal: Gozo === */}
+      {/* === Modal: Gozo (criação ou edição) === */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar gozo de férias</DialogTitle>
+            <DialogTitle>
+              {form.id ? "Editar gozo de férias" : "Registrar gozo de férias"}
+            </DialogTitle>
             <DialogDescription>
               Registre as datas efetivas de fruição e o período aquisitivo
               correspondente.
@@ -544,7 +636,7 @@ export function FeriasTab({
               Cancelar
             </Button>
             <Button disabled={saving} onClick={handleAdd}>
-              {saving ? "Salvando…" : "Adicionar"}
+              {saving ? "Salvando…" : form.id ? "Salvar" : "Adicionar"}
             </Button>
           </div>
         </DialogContent>

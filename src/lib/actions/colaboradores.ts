@@ -372,6 +372,44 @@ export async function createFerias(input: {
   return { ok: true };
 }
 
+/**
+ * Atualiza um gozo de férias existente. Aceita patch parcial — apenas os
+ * campos enviados são alterados. Usado tanto pela edição inline do status
+ * (passa só `status`) quanto pelo modal completo de edição.
+ */
+export async function updateFerias(
+  id: string,
+  patch: Partial<{
+    periodo_aquisitivo_inicio: string | null;
+    periodo_aquisitivo_fim: string | null;
+    data_inicio: string;
+    data_fim: string;
+    dias: number;
+    status: ColaboradorFerias["status"];
+  }>,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!id) return { ok: false, error: "ID obrigatório." };
+  if (!hasSupabase()) return { ok: true };
+  // Remove campos undefined antes de enviar (patch parcial)
+  const updates: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (v !== undefined) updates[k] = v;
+  }
+  if (Object.keys(updates).length === 0) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("colaborador_ferias")
+    .update(clean(updates))
+    .eq("id", id);
+  if (error) {
+    console.error("[updateFerias]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
 export async function deleteFerias(
   id: string,
   colaboradorId: string,
