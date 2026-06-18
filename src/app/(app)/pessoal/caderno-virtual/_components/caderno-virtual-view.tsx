@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Plus,
   FileSpreadsheet,
+  FileDown,
   Ban,
   FileText,
   AlertTriangle,
@@ -279,8 +280,28 @@ export function CadernoVirtualView({
               disabled={ocorrencias.length === 0}
             >
               <FileSpreadsheet className="size-4" />
-              Exportar CSV
+              Excel
             </Button>
+            <a
+              href={`/pessoal/caderno-virtual/pdf?${new URLSearchParams({
+                ano: String(ano),
+                mes: String(mes),
+                ...(tipoFiltro !== "todos" ? { tipo: tipoFiltro } : {}),
+                ...(centroCustoFiltro !== "todos"
+                  ? { cc: centroCustoFiltro }
+                  : {}),
+              }).toString()}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "inline-flex items-center justify-center gap-2 h-9 px-3 text-sm rounded-md border bg-background hover:bg-muted font-medium",
+                ocorrencias.length === 0 &&
+                  "pointer-events-none opacity-50",
+              )}
+            >
+              <FileDown className="size-4" />
+              PDF
+            </a>
             <Button
               type="button"
               size="sm"
