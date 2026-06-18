@@ -26,7 +26,7 @@ export function AppTopbar({ profile }: { profile?: CurrentProfile | null }) {
   const crumbs = findCrumbs(pathname);
 
   return (
-    <header className="h-16 border-b bg-background/95 backdrop-blur sticky top-0 z-20">
+    <header className="h-16 border-b bg-background/95 backdrop-blur sticky top-0 z-20 print:hidden">
       <div className="h-full flex items-center justify-between gap-4 px-6">
         <div className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground/80">{crumbs.section}</span>

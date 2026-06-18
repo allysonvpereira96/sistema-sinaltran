@@ -73,7 +73,7 @@ export function AppSidebar({ profile }: { profile: CurrentProfile | null }) {
   }
 
   return (
-    <aside className="hidden lg:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+    <aside className="hidden lg:flex print:hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-5 py-5 border-b border-sidebar-border">
         <Link href="/dashboard" className="flex items-center gap-3">
           <div className="size-10 rounded-md bg-primary text-primary-foreground grid place-items-center font-extrabold text-lg">
