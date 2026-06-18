@@ -23,21 +23,35 @@ import {
   type ColaboradorOcorrencia,
   type OcorrenciaTipo,
 } from "@/lib/mocks/colaboradores";
-import { createOcorrencia, deleteOcorrencia } from "@/lib/actions/colaboradores";
-import { formatDateBR } from "@/lib/format";
+import { createOcorrencia, deleteOcorrencia, registrarMovimentacao } from "@/lib/actions/colaboradores";
+import { formatBRL, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const TIPOS = Object.keys(OCORRENCIA_TIPO_LABEL) as OcorrenciaTipo[];
-const FORM_INICIAL = { tipo: "observacao" as OcorrenciaTipo, descricao: "", data: "" };
+const FORM_INICIAL = {
+  tipo: "observacao" as OcorrenciaTipo,
+  descricao: "",
+  data: "",
+  valor_novo: "",
+  funcao_nova: "",
+};
+
+function isMovimentacao(t: OcorrenciaTipo) {
+  return t === "aumento_salario" || t === "troca_funcao";
+}
 
 export function OcorrenciasTab({
   colaboradorId,
   ocorrencias,
   readOnly = false,
+  remuneracaoAtual = null,
+  cargoAtual = null,
 }: {
   colaboradorId: string;
   ocorrencias: ColaboradorOcorrencia[];
   readOnly?: boolean;
+  remuneracaoAtual?: number | null;
+  cargoAtual?: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -46,15 +60,50 @@ export function OcorrenciasTab({
   const [form, setForm] = useState(FORM_INICIAL);
 
   async function handleAdd() {
-    if (!form.descricao.trim() || !form.data) {
-      toast.error("Preencha descrição e data.");
+    if (!form.data) {
+      toast.error("Informe a data.");
       return;
     }
+
     setSaving(true);
-    const res = await createOcorrencia({ colaborador_id: colaboradorId, ...form });
+    let res: { ok: true } | { ok: false; error: string };
+
+    if (isMovimentacao(form.tipo)) {
+      if (form.tipo === "aumento_salario" && !form.valor_novo) {
+        setSaving(false);
+        toast.error("Informe o novo salário.");
+        return;
+      }
+      if (form.tipo === "troca_funcao" && !form.funcao_nova.trim()) {
+        setSaving(false);
+        toast.error("Informe a nova função.");
+        return;
+      }
+      res = await registrarMovimentacao({
+        colaborador_id: colaboradorId,
+        tipo: form.tipo as "aumento_salario" | "troca_funcao",
+        data: form.data,
+        observacoes: form.descricao.trim() || null,
+        valor_novo: form.tipo === "aumento_salario" ? Number(form.valor_novo) : null,
+        funcao_nova: form.tipo === "troca_funcao" ? form.funcao_nova.trim() : null,
+      });
+    } else {
+      if (!form.descricao.trim()) {
+        setSaving(false);
+        toast.error("Preencha a descrição.");
+        return;
+      }
+      res = await createOcorrencia({
+        colaborador_id: colaboradorId,
+        tipo: form.tipo,
+        descricao: form.descricao,
+        data: form.data,
+      });
+    }
+
     setSaving(false);
     if (res.ok) {
-      toast.success("Ocorrência registrada");
+      toast.success(isMovimentacao(form.tipo) ? "Movimentação registrada" : "Ocorrência registrada");
       setForm(FORM_INICIAL);
       setOpen(false);
       router.refresh();
@@ -122,7 +171,9 @@ export function OcorrenciasTab({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar ocorrência</DialogTitle>
-            <DialogDescription>Caderno virtual: faltas, atrasos, advertências, elogios…</DialogDescription>
+            <DialogDescription>
+              Faltas, atrasos, advertências, elogios — e movimentações (aumento de salário, troca de função) que atualizam o cadastro.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid grid-cols-2 gap-3">
@@ -145,10 +196,59 @@ export function OcorrenciasTab({
                 <Input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
               </div>
             </div>
+            {form.tipo === "aumento_salario" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Salário atual</Label>
+                  <Input value={formatBRL(remuneracaoAtual)} disabled />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Novo salário *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.valor_novo}
+                    onChange={(e) => setForm({ ...form, valor_novo: e.target.value })}
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+            )}
+
+            {form.tipo === "troca_funcao" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Função atual</Label>
+                  <Input value={cargoAtual ?? "—"} disabled />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Nova função *</Label>
+                  <Input
+                    value={form.funcao_nova}
+                    onChange={(e) => setForm({ ...form, funcao_nova: e.target.value })}
+                    placeholder="Ex.: Encarregado de obra"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Descrição *</Label>
-              <Textarea rows={3} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descreva a ocorrência" />
+              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                {isMovimentacao(form.tipo) ? "Observações (opcional)" : "Descrição *"}
+              </Label>
+              <Textarea
+                rows={isMovimentacao(form.tipo) ? 2 : 3}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                placeholder={isMovimentacao(form.tipo) ? "Notas adicionais (opcional)" : "Descreva a ocorrência"}
+              />
             </div>
+
+            {form.tipo === "troca_funcao" && (
+              <p className="text-xs text-muted-foreground">
+                Um ASO de <span className="font-medium">mudança de função</span> será criado como pendente em Vencimentos.
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

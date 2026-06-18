@@ -810,7 +810,12 @@ export function ColaboradorForm({
               <AvaliacoesTab colaboradorId={cid} avaliacoes={avaliacoes} />
             </TabsContent>
             <TabsContent value="ocorrencias" className="pt-4">
-              <OcorrenciasTab colaboradorId={cid} ocorrencias={ocorrencias} />
+              <OcorrenciasTab
+                colaboradorId={cid}
+                ocorrencias={ocorrencias}
+                remuneracaoAtual={initialData?.remuneracao_base ?? null}
+                cargoAtual={initialData?.cargo ?? null}
+              />
             </TabsContent>
             <TabsContent value="comentarios" className="pt-4">
               <ComentariosTab colaboradorId={cid} comentarios={comentarios} />

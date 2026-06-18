@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { formatBRL } from "@/lib/format";
 import {
   COLABORADORES,
   COLABORADOR_DOCUMENTOS,
@@ -600,6 +601,113 @@ export async function deleteOcorrencia(
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
   revalidatePath(`/pessoal/caderno-virtual`);
+  return { ok: true };
+}
+
+/**
+ * Movimentação com efeito: "Aumento de salário" ou "Troca de função".
+ * Além de registrar a ocorrência (com os valores anterior/novo preservados),
+ * altera o cadastro, lança no histórico e, na troca de função, cria um ASO
+ * pendente (tipo "mudança de função") para ser preenchido depois.
+ */
+export async function registrarMovimentacao(input: {
+  colaborador_id: string;
+  tipo: "aumento_salario" | "troca_funcao";
+  data: string;
+  observacoes?: string | null;
+  valor_novo?: number | null;
+  funcao_nova?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.data) return { ok: false, error: "Data é obrigatória." };
+  if (input.tipo === "aumento_salario" && (input.valor_novo == null || input.valor_novo < 0)) {
+    return { ok: false, error: "Informe o novo salário." };
+  }
+  if (input.tipo === "troca_funcao" && !input.funcao_nova?.trim()) {
+    return { ok: false, error: "Informe a nova função." };
+  }
+  if (!hasSupabase()) return { ok: true };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: atual } = await supabase
+    .from(TABLE)
+    .select("remuneracao_base, cargo")
+    .eq("id", input.colaborador_id)
+    .maybeSingle();
+
+  const ocorrencia: Record<string, unknown> = {
+    colaborador_id: input.colaborador_id,
+    tipo: input.tipo,
+    data: input.data,
+    observacoes: input.observacoes?.trim() || null,
+    created_by: user?.id ?? null,
+  };
+
+  if (input.tipo === "aumento_salario") {
+    const anterior = (atual?.remuneracao_base as number | null) ?? null;
+    const novo = input.valor_novo as number;
+    ocorrencia.descricao = `Salário alterado de ${formatBRL(anterior)} para ${formatBRL(novo)}`;
+    ocorrencia.valor_anterior = anterior;
+    ocorrencia.valor_novo = novo;
+
+    const { error: upErr } = await supabase
+      .from(TABLE)
+      .update({ remuneracao_base: novo })
+      .eq("id", input.colaborador_id);
+    if (upErr) {
+      console.error("[registrarMovimentacao] salário", upErr.message);
+      return { ok: false, error: upErr.message };
+    }
+    await supabase.from("colaborador_historico").insert({
+      colaborador_id: input.colaborador_id,
+      tipo: "alteracao_salarial",
+      descricao: ocorrencia.descricao as string,
+      data: input.data,
+    });
+  } else {
+    const anterior = (atual?.cargo as string | null) ?? null;
+    const nova = input.funcao_nova!.trim();
+    ocorrencia.descricao = `Função alterada de ${anterior ?? "—"} para ${nova}`;
+    ocorrencia.funcao_anterior = anterior;
+    ocorrencia.funcao_nova = nova;
+
+    const { error: upErr } = await supabase
+      .from(TABLE)
+      .update({ cargo: nova })
+      .eq("id", input.colaborador_id);
+    if (upErr) {
+      console.error("[registrarMovimentacao] função", upErr.message);
+      return { ok: false, error: upErr.message };
+    }
+    await supabase.from("colaborador_historico").insert({
+      colaborador_id: input.colaborador_id,
+      tipo: "promocao",
+      descricao: ocorrencia.descricao as string,
+      data: input.data,
+    });
+    // ASO pendente de mudança de função (sem data/resultado — preencher depois)
+    await supabase.from("colaborador_aso").insert({
+      colaborador_id: input.colaborador_id,
+      tipo_exame: "mudanca_funcao",
+      periodicidade_meses: 12,
+      observacoes: `Gerado pela troca de função (${anterior ?? "—"} → ${nova}). Agendar exame.`,
+      created_by: user?.id ?? null,
+    });
+  }
+
+  const { error } = await supabase.from("colaborador_ocorrencias").insert(ocorrencia);
+  if (error) {
+    console.error("[registrarMovimentacao]", error.message);
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}/editar`);
+  revalidatePath("/pessoal/caderno-virtual");
+  revalidatePath("/pessoal/vencimentos");
   return { ok: true };
 }
 

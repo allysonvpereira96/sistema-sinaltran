@@ -547,7 +547,9 @@ export type OcorrenciaTipo =
   | "suspensao"
   | "elogio"
   | "observacao"
-  | "outro";
+  | "outro"
+  | "aumento_salario"
+  | "troca_funcao";
 
 export type ColaboradorOcorrencia = {
   id: string;
@@ -556,6 +558,11 @@ export type ColaboradorOcorrencia = {
   descricao: string;
   observacoes: string | null;
   data: string;
+  // Movimentações: valores preservados para consulta
+  valor_anterior?: number | null;
+  valor_novo?: number | null;
+  funcao_anterior?: string | null;
+  funcao_nova?: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -569,6 +576,8 @@ export const OCORRENCIA_TIPO_LABEL: Record<OcorrenciaTipo, string> = {
   elogio: "Elogio",
   observacao: "Observação",
   outro: "Outro",
+  aumento_salario: "Aumento de salário",
+  troca_funcao: "Troca de função",
 };
 
 export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: string }> = {
@@ -580,6 +589,8 @@ export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: st
   elogio: { bg: "bg-emerald-50", text: "text-emerald-700" },
   observacao: { bg: "bg-slate-50", text: "text-slate-700" },
   outro: { bg: "bg-slate-50", text: "text-slate-700" },
+  aumento_salario: { bg: "bg-emerald-50", text: "text-emerald-700" },
+  troca_funcao: { bg: "bg-violet-50", text: "text-violet-700" },
 };
 
 export const COLABORADOR_OCORRENCIAS: ColaboradorOcorrencia[] = [
