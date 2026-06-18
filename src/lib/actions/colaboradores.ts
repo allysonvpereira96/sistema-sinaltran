@@ -223,6 +223,45 @@ export async function updateColaborador(
   return { ok: true };
 }
 
+/**
+ * Aplica uma atualização PARCIAL no colaborador — só os campos aprovados na
+ * revisão da ficha — e adiciona os dependentes novos extraídos. Usado pelo
+ * fluxo "Atualizar pela ficha".
+ */
+export async function atualizarColaboradorPelaFicha(
+  id: string,
+  patch: Partial<ColaboradorInput>,
+  novosDependentes: { nome: string; parentesco?: string | null; data_nascimento?: string | null }[] = [],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!id) return { ok: false, error: "Colaborador não informado." };
+  if (!hasSupabase()) return { ok: true };
+
+  const supabase = await createClient();
+
+  if (Object.keys(patch).length > 0) {
+    const { error } = await supabase
+      .from(TABLE)
+      .update(clean(patch as Record<string, unknown>))
+      .eq("id", id);
+    if (error) {
+      console.error("[atualizarColaboradorPelaFicha]", error.message);
+      return { ok: false, error: error.message };
+    }
+  }
+
+  for (const dep of novosDependentes) {
+    if (!dep.nome?.trim()) continue;
+    const { error } = await supabase
+      .from("colaborador_dependentes")
+      .insert(clean({ colaborador_id: id, ...dep }));
+    if (error) console.error("[atualizarColaboradorPelaFicha] dependente", error.message);
+  }
+
+  revalidatePath("/pessoal/colaboradores");
+  revalidatePath(`/pessoal/colaboradores/${id}`);
+  return { ok: true };
+}
+
 export async function deleteColaborador(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {

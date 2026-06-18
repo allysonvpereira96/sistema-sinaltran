@@ -45,6 +45,7 @@ import {
 } from "@/lib/actions/colaboradores";
 import { formatBRL, formatDateBR, formatTelefone } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AtualizarFichaDialog } from "../_components/atualizar-ficha-dialog";
 import { DocumentosTab } from "../_components/documentos-tab";
 import { DependentesTab } from "../_components/dependentes-tab";
 import { FeriasTab } from "../_components/ferias-tab";
@@ -109,6 +110,7 @@ export default async function ColaboradorDetalhePage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <AtualizarFichaDialog colaborador={c} dependentesAtuais={dependentes} />
           <Link href={`/pessoal/colaboradores/${c.id}/editar`} className={cn(buttonVariants({}), "gap-2")}>
             <Pencil className="size-4" />
             Editar e gerenciar
