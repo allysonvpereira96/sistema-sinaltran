@@ -12,6 +12,7 @@ import {
   FileText,
   AlertTriangle,
   CalendarDays,
+  Paperclip,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,26 @@ type Props = {
   centrosCusto: CentroCustoResumo[];
 };
 
+type OcorrenciaCalendario = OcorrenciaCaderno & { isContinuacao: boolean };
+
+function nextDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + 1));
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Sufixo curto para o card no calendário:
+ * - "Atestado · 5d" no primeiro dia de um atestado de 5 dias
+ * - "Atestado (cont.)" nos dias seguintes do período
+ * - "" para ocorrências sem período
+ */
+function formatarSufixoCelula(o: OcorrenciaCalendario): string {
+  if (!o.dias_atestado || o.dias_atestado <= 1) return "";
+  if (o.isContinuacao) return " (cont.)";
+  return ` · ${o.dias_atestado}d`;
+}
+
 export function CadernoVirtualView({
   ano,
   mes,
@@ -78,13 +99,27 @@ export function CadernoVirtualView({
     return { total: ocorrencias.length, faltas, atestados, advertencias };
   }, [ocorrencias]);
 
-  // ── Agrupar ocorrências por data (YYYY-MM-DD) ────────────────────────────
+  // ── Agrupar ocorrências por data (YYYY-MM-DD).
+  //    Ocorrências com data_fim > data (atestado/suspensão de N dias) aparecem
+  //    em cada dia do período, marcadas como "continuação" a partir do 2º dia. ─
   const porDia = useMemo(() => {
-    const map = new Map<string, OcorrenciaCaderno[]>();
+    const map = new Map<string, OcorrenciaCalendario[]>();
     for (const o of ocorrencias) {
-      const arr = map.get(o.data) ?? [];
-      arr.push(o);
-      map.set(o.data, arr);
+      // Sempre lança no dia inicial
+      const arrInicial = map.get(o.data) ?? [];
+      arrInicial.push({ ...o, isContinuacao: false });
+      map.set(o.data, arrInicial);
+
+      // Se tem período (data_fim > data), replica nos dias seguintes
+      if (o.data_fim && o.data_fim > o.data) {
+        let cur = nextDay(o.data);
+        while (cur <= o.data_fim) {
+          const arr = map.get(cur) ?? [];
+          arr.push({ ...o, isContinuacao: true });
+          map.set(cur, arr);
+          cur = nextDay(cur);
+        }
+      }
     }
     return map;
   }, [ocorrencias]);
@@ -169,6 +204,8 @@ export function CadernoVirtualView({
   function exportarCsv() {
     const headers = [
       "Data",
+      "Data fim",
+      "Dias",
       "Colaborador",
       "Matrícula",
       "Cargo",
@@ -176,12 +213,15 @@ export function CadernoVirtualView({
       "Tipo",
       "Descrição",
       "Observações",
+      "Anexo",
     ];
     const linhas = ocorrencias
       .slice()
       .sort((a, b) => (a.data > b.data ? 1 : -1))
       .map((o) => [
         o.data,
+        o.data_fim ?? "",
+        o.dias_atestado ? String(o.dias_atestado) : "",
         o.colaborador_nome,
         o.colaborador_matricula ?? "",
         o.colaborador_cargo ?? "",
@@ -189,6 +229,7 @@ export function CadernoVirtualView({
         OCORRENCIA_TIPO_LABEL[o.tipo],
         o.descricao,
         o.observacoes ?? "",
+        o.anexo_nome ?? "",
       ]);
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const conteudo = [headers, ...linhas]
@@ -421,19 +462,27 @@ export function CadernoVirtualView({
                     )}
                   </div>
                   <div className="mt-1 space-y-0.5">
-                    {mostrar.map((o) => {
+                    {mostrar.map((o, ix) => {
                       const tone = OCORRENCIA_TIPO_TONE[o.tipo];
+                      const sufixo = formatarSufixoCelula(o);
                       return (
                         <div
-                          key={o.id}
+                          key={`${o.id}-${ix}`}
                           className={cn(
-                            "text-[10px] font-medium rounded px-1.5 py-0.5 truncate",
+                            "text-[10px] font-medium rounded px-1.5 py-0.5 truncate flex items-center gap-1",
                             tone.bg,
                             tone.text,
+                            o.isContinuacao && "opacity-60",
                           )}
                           title={`${o.colaborador_nome} — ${o.descricao}`}
                         >
-                          {OCORRENCIA_TIPO_LABEL[o.tipo]}
+                          <span className="truncate flex-1">
+                            {OCORRENCIA_TIPO_LABEL[o.tipo]}
+                            {sufixo}
+                          </span>
+                          {o.anexo_url && !o.isContinuacao && (
+                            <Paperclip className="size-2.5 shrink-0 opacity-70" />
+                          )}
                         </div>
                       );
                     })}

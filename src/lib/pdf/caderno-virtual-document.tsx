@@ -140,11 +140,12 @@ const styles = StyleSheet.create({
   },
 
   // Colunas
-  cData: { width: 56 },
-  cColab: { width: 130 },
-  cMat: { width: 40, textAlign: "center" },
-  cCargo: { width: 90 },
-  cTipo: { width: 64 },
+  cData: { width: 52 },
+  cColab: { width: 120 },
+  cMat: { width: 36, textAlign: "center" },
+  cCargo: { width: 80 },
+  cTipo: { width: 72 },
+  cDias: { width: 30, textAlign: "center" },
   cDesc: { flexGrow: 1, flexBasis: 0 },
 
   footer: {
@@ -302,6 +303,9 @@ export function CadernoVirtualDocument({
               <Text style={[styles.cell, styles.cTipo, styles.cellHeaderTxt]}>
                 Tipo
               </Text>
+              <Text style={[styles.cell, styles.cDias, styles.cellHeaderTxt]}>
+                Dias
+              </Text>
               <Text
                 style={[
                   styles.cell,
@@ -332,7 +336,9 @@ export function CadernoVirtualDocument({
                     wrap={false}
                   >
                     <Text style={[styles.cell, styles.cData]}>
-                      {formatarDataBR(o.data)}
+                      {o.data_fim && o.dias_atestado && o.dias_atestado > 1
+                        ? `${formatarDataBR(o.data)}\na ${formatarDataBR(o.data_fim)}`
+                        : formatarDataBR(o.data)}
                     </Text>
                     <Text style={[styles.cell, styles.cColab]}>
                       {o.colaborador_nome}
@@ -356,11 +362,26 @@ export function CadernoVirtualDocument({
                         {OCORRENCIA_TIPO_LABEL[o.tipo]}
                       </Text>
                     </View>
+                    <Text style={[styles.cell, styles.cDias]}>
+                      {o.dias_atestado ? `${o.dias_atestado}d` : "—"}
+                    </Text>
                     <View style={[styles.cell, styles.cDesc, { borderRightWidth: 0 }]}>
                       <Text>{o.descricao}</Text>
                       {o.observacoes ? (
                         <Text style={{ marginTop: 2, color: CINZA, fontSize: 7 }}>
                           Obs.: {o.observacoes}
+                        </Text>
+                      ) : null}
+                      {o.anexo_nome ? (
+                        <Text
+                          style={{
+                            marginTop: 2,
+                            color: TIPO_FG.atestado,
+                            fontSize: 7,
+                            fontFamily: "Helvetica-Bold",
+                          }}
+                        >
+                          Anexo: {o.anexo_nome}
                         </Text>
                       ) : null}
                     </View>

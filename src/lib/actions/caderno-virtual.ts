@@ -1,12 +1,27 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import {
   COLABORADORES,
   COLABORADOR_OCORRENCIAS,
+  tipoTemPeriodo,
   type OcorrenciaTipo,
 } from "@/lib/mocks/colaboradores";
+
+const BUCKET = "colaborador-documentos";
+
+/**
+ * Adiciona N dias a uma data ISO (YYYY-MM-DD), retornando a nova data ISO.
+ * Mantém a operação em UTC para não sofrer com fuso.
+ */
+function addDays(iso: string, dias: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + dias);
+  return dt.toISOString().slice(0, 10);
+}
 
 /**
  * Ocorrência enriquecida com dados do colaborador — formato consumido pelo
@@ -23,6 +38,14 @@ export type OcorrenciaCaderno = {
   descricao: string;
   observacoes: string | null;
   data: string; // YYYY-MM-DD
+  /** Para atestado/suspensão: nº de dias de afastamento. */
+  dias_atestado: number | null;
+  /** Último dia do período (data + dias_atestado - 1). */
+  data_fim: string | null;
+  /** Path do arquivo no bucket. */
+  anexo_url: string | null;
+  /** Nome original do arquivo enviado. */
+  anexo_nome: string | null;
   created_at: string;
 };
 
@@ -75,6 +98,10 @@ export async function listOcorrenciasCaderno(
           descricao: o.descricao,
           observacoes: o.observacoes ?? null,
           data: o.data,
+          dias_atestado: o.dias_atestado ?? null,
+          data_fim: o.data_fim ?? null,
+          anexo_url: o.anexo_url ?? null,
+          anexo_nome: o.anexo_nome ?? null,
           created_at: o.created_at,
         };
       });
@@ -92,6 +119,10 @@ export async function listOcorrenciasCaderno(
         descricao,
         observacoes,
         data,
+        dias_atestado,
+        data_fim,
+        anexo_url,
+        anexo_nome,
         created_at,
         colaboradores:colaboradores!colaborador_id (
           nome_completo,
@@ -130,6 +161,10 @@ export async function listOcorrenciasCaderno(
     descricao: string | null;
     observacoes: string | null;
     data: string;
+    dias_atestado: number | null;
+    data_fim: string | null;
+    anexo_url: string | null;
+    anexo_nome: string | null;
     created_at: string;
     // PostgREST retorna o relacionamento como objeto (FK to-one) ou array.
     colaboradores: ColaboradorEmbed | ColaboradorEmbed[] | null;
@@ -151,6 +186,10 @@ export async function listOcorrenciasCaderno(
       descricao: row.descricao ?? "",
       observacoes: row.observacoes ?? null,
       data: String(row.data),
+      dias_atestado: row.dias_atestado ?? null,
+      data_fim: row.data_fim ?? null,
+      anexo_url: row.anexo_url ?? null,
+      anexo_nome: row.anexo_nome ?? null,
       created_at: String(row.created_at),
     };
   });
@@ -211,4 +250,126 @@ export async function listColaboradoresParaCaderno(
     return [];
   }
   return (data ?? []) as ColaboradorResumo[];
+}
+
+/* ===========================================================================
+ * Criação de ocorrência via Caderno Virtual — aceita FormData (com File) para
+ * permitir upload do anexo (atestado médico, termo de advertência, etc.).
+ * ======================================================================== */
+
+export async function createOcorrenciaCaderno(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const colaboradorId = String(formData.get("colaborador_id") ?? "");
+  const tipo = String(formData.get("tipo") ?? "observacao") as OcorrenciaTipo;
+  const descricao = String(formData.get("descricao") ?? "").trim();
+  const observacoes = String(formData.get("observacoes") ?? "").trim();
+  const data = String(formData.get("data") ?? "");
+  const diasRaw = formData.get("dias_atestado");
+  const file = formData.get("anexo");
+
+  if (!colaboradorId) return { ok: false, error: "Selecione um colaborador." };
+  if (!descricao) return { ok: false, error: "Descrição é obrigatória." };
+  if (!data) return { ok: false, error: "Data é obrigatória." };
+
+  let dias: number | null = null;
+  if (tipoTemPeriodo(tipo) && diasRaw != null && String(diasRaw).trim() !== "") {
+    const n = Number(diasRaw);
+    if (!Number.isFinite(n) || n < 1) {
+      return { ok: false, error: "Dias deve ser maior que zero." };
+    }
+    dias = Math.floor(n);
+  }
+  const dataFim = dias && dias > 1 ? addDays(data, dias - 1) : dias ? data : null;
+
+  if (!hasSupabase()) return { ok: true };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // -- Upload do anexo (opcional)
+  let anexoPath: string | null = null;
+  let anexoNome: string | null = null;
+  if (file instanceof File && file.size > 0) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${colaboradorId}/ocorrencia-${tipo}/${Date.now()}_${safeName}`;
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file);
+    if (upErr) {
+      console.error("[createOcorrenciaCaderno] upload", upErr.message);
+      return { ok: false, error: `Falha no upload: ${upErr.message}` };
+    }
+    anexoPath = path;
+    anexoNome = file.name;
+  }
+
+  const { error } = await supabase.from("colaborador_ocorrencias").insert({
+    colaborador_id: colaboradorId,
+    tipo,
+    descricao,
+    observacoes: observacoes || null,
+    data,
+    dias_atestado: dias,
+    data_fim: dataFim,
+    anexo_url: anexoPath,
+    anexo_nome: anexoNome,
+    created_by: user?.id ?? null,
+  });
+
+  if (error) {
+    console.error("[createOcorrenciaCaderno] insert", error.message);
+    if (anexoPath) await supabase.storage.from(BUCKET).remove([anexoPath]);
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/pessoal/caderno-virtual");
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
+/**
+ * Exclui uma ocorrência (e o anexo, se existir).
+ */
+export async function deleteOcorrenciaCaderno(
+  id: string,
+  anexoUrl: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+
+  if (anexoUrl) {
+    await supabase.storage.from(BUCKET).remove([anexoUrl]);
+  }
+
+  const { error } = await supabase
+    .from("colaborador_ocorrencias")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    console.error("[deleteOcorrenciaCaderno]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/pessoal/caderno-virtual");
+  return { ok: true };
+}
+
+/**
+ * Gera uma URL assinada (60s) para download do anexo de uma ocorrência.
+ */
+export async function getAnexoOcorrenciaUrl(
+  anexoUrl: string,
+): Promise<string | null> {
+  if (!hasSupabase()) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(anexoUrl, 60);
+  if (error) {
+    console.error("[getAnexoOcorrenciaUrl]", error.message);
+    return null;
+  }
+  return data?.signedUrl ?? null;
 }
