@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Upload, Download, Trash2 } from "lucide-react";
+import { FileText, Upload, Download, Trash2, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,38 @@ import {
 import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+/** Arquivo na fila de envio, com seu próprio título/tipo. */
+type Pendente = { id: number; file: File; tipo: string; dias: string };
+
+/** Select de tipo de documento reaproveitado (com optgroups). */
+function TipoSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn("h-9 rounded-md border border-input bg-background px-3 text-sm", className)}
+    >
+      {TIPOS_DOCUMENTO_GRUPOS.map((g) => (
+        <optgroup key={g} label={g}>
+          {TIPOS_DOCUMENTO.filter((t) => t.grupo === g).map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
 export function DocumentosTab({
   colaboradorId,
   documentos,
@@ -42,34 +74,60 @@ export function DocumentosTab({
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [tipo, setTipo] = useState("outros");
-  const [diasAtestado, setDiasAtestado] = useState("");
+  const seq = useRef(0);
+  const [pendentes, setPendentes] = useState<Pendente[]>([]);
   const [filtro, setFiltro] = useState("all");
   const [uploading, setUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
   // capturado uma vez (inicializador lazy = pode ser impuro)
   const [agora] = useState(() => Date.now());
 
-  async function handleFiles(files: FileList) {
+  function addFiles(files: FileList) {
+    const novos: Pendente[] = Array.from(files).map((file) => ({
+      id: ++seq.current,
+      file,
+      tipo: "outros",
+      dias: "",
+    }));
+    setPendentes((p) => [...p, ...novos]);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function patchPendente(id: number, patch: Partial<Pendente>) {
+    setPendentes((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+
+  function removePendente(id: number) {
+    setPendentes((p) => p.filter((x) => x.id !== id));
+  }
+
+  function aplicarTipoTodos(tipo: string) {
+    setPendentes((p) => p.map((x) => ({ ...x, tipo })));
+  }
+
+  async function handleEnviar() {
+    if (pendentes.length === 0) return;
     setUploading(true);
+    let enviados = 0;
     try {
-      for (const file of Array.from(files)) {
+      for (const p of pendentes) {
         const fd = new FormData();
         fd.set("colaborador_id", colaboradorId);
-        fd.set("tipo", tipo);
-        if (tipo === "atestado" && diasAtestado) fd.set("dias_atestado", diasAtestado);
-        fd.set("file", file);
+        fd.set("tipo", p.tipo);
+        if (p.tipo === "atestado" && p.dias) fd.set("dias_atestado", p.dias);
+        fd.set("file", p.file);
         const res = await uploadDocumento(fd);
-        if (!res.ok) throw new Error(res.error);
+        if (!res.ok) throw new Error(`${p.file.name}: ${res.error}`);
+        enviados++;
       }
-      toast.success(`${files.length} documento(s) enviado(s)`);
-      setDiasAtestado("");
+      toast.success(`${enviados} documento(s) enviado(s)`);
+      setPendentes([]);
       router.refresh();
     } catch (e) {
-      toast.error("Erro ao enviar", { description: (e as Error).message });
+      toast.error(`Enviados ${enviados} de ${pendentes.length}`, { description: (e as Error).message });
+      router.refresh();
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -112,75 +170,101 @@ export function DocumentosTab({
       )}
 
       {!readOnly && (
-      <Card>
-        <CardContent className="p-4 flex flex-wrap items-end gap-3">
-          <div className="min-w-[180px]">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Tipo de documento</Label>
-            <select
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value)}
-              className="mt-1.5 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              {TIPOS_DOCUMENTO_GRUPOS.map((g) => (
-                <optgroup key={g} label={g}>
-                  {TIPOS_DOCUMENTO.filter((t) => t.grupo === g).map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-          {tipo === "atestado" && (
-            <div className="w-28">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Dias</Label>
-              <Input
-                type="number"
-                min="1"
-                value={diasAtestado}
-                onChange={(e) => setDiasAtestado(e.target.value)}
-                className="mt-1.5"
-                placeholder="Dias"
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && e.target.files.length > 0 && addFiles(e.target.files)}
               />
-            </div>
-          )}
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => e.target.files && e.target.files.length > 0 && handleFiles(e.target.files)}
-            />
-            <Button type="button" variant="outline" className="gap-2" disabled={uploading} onClick={() => fileRef.current?.click()}>
-              <Upload className="size-4" />
-              {uploading ? "Enviando…" : "Anexar arquivo(s)"}
-            </Button>
-          </div>
+              <Button type="button" variant="outline" className="gap-2" onClick={() => fileRef.current?.click()}>
+                <Upload className="size-4" />
+                Anexar arquivo(s)
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {pendentes.length > 0
+                  ? `${pendentes.length} arquivo(s) na fila — escolha o título de cada um e envie.`
+                  : "Selecione um ou vários arquivos."}
+              </span>
 
-          {documentos.length > 0 && (
-            <div className="ml-auto">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Filtrar</Label>
-              <select
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                className="mt-1.5 h-9 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="all">Todos ({documentos.length})</option>
-                {TIPOS_DOCUMENTO.map((t) => {
-                  const n = documentos.filter((d) => d.tipo === t.value).length;
-                  return n > 0 ? (
-                    <option key={t.value} value={t.value}>
-                      {t.label} ({n})
-                    </option>
-                  ) : null;
-                })}
-              </select>
+              {documentos.length > 0 && (
+                <div className="ml-auto flex items-center gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Filtrar</Label>
+                  <select
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="all">Todos ({documentos.length})</option>
+                    {TIPOS_DOCUMENTO.map((t) => {
+                      const n = documentos.filter((d) => d.tipo === t.value).length;
+                      return n > 0 ? (
+                        <option key={t.value} value={t.value}>
+                          {t.label} ({n})
+                        </option>
+                      ) : null;
+                    })}
+                  </select>
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Fila de envio — título por arquivo */}
+            {pendentes.length > 0 && (
+              <div className="rounded-lg border divide-y">
+                <div className="flex items-center gap-2 p-2.5 bg-muted/40">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                    Definir título de todos
+                  </Label>
+                  <TipoSelect value="outros" onChange={aplicarTipoTodos} />
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setPendentes([])} disabled={uploading}>
+                      Limpar
+                    </Button>
+                    <Button size="sm" className="gap-2" onClick={handleEnviar} disabled={uploading}>
+                      <Send className="size-4" />
+                      {uploading ? "Enviando…" : `Enviar (${pendentes.length})`}
+                    </Button>
+                  </div>
+                </div>
+
+                {pendentes.map((p) => (
+                  <div key={p.id} className="flex flex-wrap items-center gap-3 p-2.5">
+                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="text-sm truncate max-w-[240px]" title={p.file.name}>
+                      {p.file.name}
+                    </span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <TipoSelect value={p.tipo} onChange={(v) => patchPendente(p.id, { tipo: v })} />
+                      {p.tipo === "atestado" && (
+                        <Input
+                          type="number"
+                          min="1"
+                          value={p.dias}
+                          onChange={(e) => patchPendente(p.id, { dias: e.target.value })}
+                          placeholder="Dias"
+                          className="w-20"
+                        />
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removePendente(p.id)}
+                        disabled={uploading}
+                        aria-label="Remover da fila"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card>
