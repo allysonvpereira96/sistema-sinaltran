@@ -562,6 +562,7 @@ export async function createOcorrencia(input: {
   tipo: ColaboradorOcorrencia["tipo"];
   descricao: string;
   data: string;
+  observacoes?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!input.descricao.trim()) return { ok: false, error: "Descrição é obrigatória." };
   if (!input.data) return { ok: false, error: "Data é obrigatória." };
@@ -572,12 +573,20 @@ export async function createOcorrencia(input: {
   } = await supabase.auth.getUser();
   const { error } = await supabase
     .from("colaborador_ocorrencias")
-    .insert({ ...input, created_by: user?.id ?? null });
+    .insert({
+      colaborador_id: input.colaborador_id,
+      tipo: input.tipo,
+      descricao: input.descricao,
+      data: input.data,
+      observacoes: input.observacoes?.trim() || null,
+      created_by: user?.id ?? null,
+    });
   if (error) {
     console.error("[createOcorrencia]", error.message);
     return { ok: false, error: error.message };
   }
   revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  revalidatePath(`/pessoal/caderno-virtual`);
   return { ok: true };
 }
 
@@ -590,6 +599,7 @@ export async function deleteOcorrencia(
   const { error } = await supabase.from("colaborador_ocorrencias").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  revalidatePath(`/pessoal/caderno-virtual`);
   return { ok: true };
 }
 

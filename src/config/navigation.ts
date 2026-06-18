@@ -21,6 +21,7 @@ import {
   GraduationCap,
   ListChecks,
   UserCog,
+  NotebookPen,
 } from "lucide-react";
 import type { ModuloKey } from "@/lib/types/usuario";
 
@@ -88,6 +89,7 @@ export const navigation: NavSection[] = [
     key: "pessoal",
     items: [
       { label: "Colaboradores", href: "/pessoal/colaboradores", icon: Users },
+      { label: "Caderno Virtual", href: "/pessoal/caderno-virtual", icon: NotebookPen },
       { label: "Vencimentos", href: "/pessoal/vencimentos", icon: CalendarClock },
       { label: "Catálogo de treinamentos", href: "/pessoal/treinamentos-catalogo", icon: GraduationCap },
     ],

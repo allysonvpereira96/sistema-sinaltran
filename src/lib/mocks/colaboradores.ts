@@ -554,6 +554,7 @@ export type ColaboradorOcorrencia = {
   colaborador_id: string;
   tipo: OcorrenciaTipo;
   descricao: string;
+  observacoes: string | null;
   data: string;
   created_by: string | null;
   created_at: string;
@@ -582,8 +583,8 @@ export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: st
 };
 
 export const COLABORADOR_OCORRENCIAS: ColaboradorOcorrencia[] = [
-  { id: "oco-1", colaborador_id: "col-2", tipo: "elogio", descricao: "Reconhecimento por produtividade acima da meta.", data: "2026-03-12", created_by: null, created_at: "2026-03-12T10:00:00Z" },
-  { id: "oco-2", colaborador_id: "col-5", tipo: "atraso", descricao: "Atraso de 40 min sem justificativa.", data: "2026-05-04", created_by: null, created_at: "2026-05-04T08:40:00Z" },
+  { id: "oco-1", colaborador_id: "col-2", tipo: "elogio", descricao: "Reconhecimento por produtividade acima da meta.", data: "2026-03-12", observacoes: null, created_by: null, created_at: "2026-03-12T10:00:00Z" },
+  { id: "oco-2", colaborador_id: "col-5", tipo: "atraso", descricao: "Atraso de 40 min sem justificativa.", data: "2026-05-04", observacoes: null, created_by: null, created_at: "2026-05-04T08:40:00Z" },
 ];
 
 // ── Avaliações de desempenho ─────────────────────────────────────────────────
