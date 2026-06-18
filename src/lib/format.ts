@@ -26,7 +26,15 @@ export function formatNumber(value: number | null | undefined) {
 
 export function formatDateBR(value: string | Date | null | undefined) {
   if (!value) return "—";
-  const d = typeof value === "string" ? new Date(value) : value;
+  let d: Date;
+  if (typeof value === "string") {
+    // Datas puras (YYYY-MM-DD) devem ser tratadas como data local — senão
+    // `new Date("2026-06-18")` vira meia-noite UTC e recua 1 dia em UTC-3.
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
+  } else {
+    d = value;
+  }
   if (Number.isNaN(d.getTime())) return "—";
   return dateBR.format(d);
 }
