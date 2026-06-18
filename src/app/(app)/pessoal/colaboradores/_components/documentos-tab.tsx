@@ -32,7 +32,7 @@ import { formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Arquivo na fila de envio, com seu próprio título/tipo. */
-type Pendente = { id: number; file: File; tipo: string; dias: string };
+type Pendente = { id: number; file: File; titulo: string; tipo: string; dias: string };
 
 /** Select de tipo de documento reaproveitado (com optgroups). */
 function TipoSelect({
@@ -86,6 +86,7 @@ export function DocumentosTab({
     const novos: Pendente[] = Array.from(files).map((file) => ({
       id: ++seq.current,
       file,
+      titulo: file.name.replace(/\.[^.]+$/, ""), // sem a extensão, editável
       tipo: "outros",
       dias: "",
     }));
@@ -114,6 +115,7 @@ export function DocumentosTab({
         const fd = new FormData();
         fd.set("colaborador_id", colaboradorId);
         fd.set("tipo", p.tipo);
+        fd.set("descricao", p.titulo.trim() || p.file.name);
         if (p.tipo === "atestado" && p.dias) fd.set("dias_atestado", p.dias);
         fd.set("file", p.file);
         const res = await uploadDocumento(fd);
@@ -232,33 +234,35 @@ export function DocumentosTab({
                 </div>
 
                 {pendentes.map((p) => (
-                  <div key={p.id} className="flex flex-wrap items-center gap-3 p-2.5">
+                  <div key={p.id} className="flex flex-wrap items-center gap-2 p-2.5">
                     <FileText className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="text-sm truncate max-w-[240px]" title={p.file.name}>
-                      {p.file.name}
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
-                      <TipoSelect value={p.tipo} onChange={(v) => patchPendente(p.id, { tipo: v })} />
-                      {p.tipo === "atestado" && (
-                        <Input
-                          type="number"
-                          min="1"
-                          value={p.dias}
-                          onChange={(e) => patchPendente(p.id, { dias: e.target.value })}
-                          placeholder="Dias"
-                          className="w-20"
-                        />
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removePendente(p.id)}
-                        disabled={uploading}
-                        aria-label="Remover da fila"
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </div>
+                    <Input
+                      value={p.titulo}
+                      onChange={(e) => patchPendente(p.id, { titulo: e.target.value })}
+                      placeholder="Título do documento"
+                      title={`Arquivo: ${p.file.name}`}
+                      className="flex-1 min-w-[180px] h-9"
+                    />
+                    <TipoSelect value={p.tipo} onChange={(v) => patchPendente(p.id, { tipo: v })} />
+                    {p.tipo === "atestado" && (
+                      <Input
+                        type="number"
+                        min="1"
+                        value={p.dias}
+                        onChange={(e) => patchPendente(p.id, { dias: e.target.value })}
+                        placeholder="Dias"
+                        className="w-20"
+                      />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => removePendente(p.id)}
+                      disabled={uploading}
+                      aria-label="Remover da fila"
+                    >
+                      <X className="size-4" />
+                    </Button>
                   </div>
                 ))}
               </div>

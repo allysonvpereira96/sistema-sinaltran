@@ -422,6 +422,7 @@ export async function uploadDocumento(
   const colaboradorId = String(formData.get("colaborador_id") ?? "");
   const tipo = String(formData.get("tipo") ?? "outros");
   const diasAtestadoRaw = formData.get("dias_atestado");
+  const descricaoRaw = String(formData.get("descricao") ?? "").trim();
   const file = formData.get("file");
 
   if (!colaboradorId) return { ok: false, error: "Colaborador não informado." };
@@ -447,7 +448,7 @@ export async function uploadDocumento(
   const { error: dbErr } = await supabase.from("colaborador_documentos").insert({
     colaborador_id: colaboradorId,
     tipo,
-    descricao: file.name,
+    descricao: descricaoRaw || file.name,
     arquivo_url: path,
     dias_atestado: tipo === "atestado" && dias ? dias : null,
     uploaded_by: user?.id ?? null,
