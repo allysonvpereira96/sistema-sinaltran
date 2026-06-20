@@ -34,6 +34,7 @@ import {
   listCentrosCusto,
   listDocumentos,
   listDependentes,
+  listEmergencias,
   listFerias,
   listPeriodosAquisitivos,
   listHistorico,
@@ -69,11 +70,12 @@ export default async function ColaboradorDetalhePage({
   const c = await getColaboradorById(id);
   if (!c) notFound();
 
-  const [centrosCusto, documentos, dependentes, ferias, periodosAq, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo, saldoBancoHoras] =
+  const [centrosCusto, documentos, dependentes, emergencias, ferias, periodosAq, historico, comentarios, ocorrencias, avaliacoes, aso, treinamentos, catalogoTreinamentos, salarioMinimo, saldoBancoHoras] =
     await Promise.all([
       listCentrosCusto(),
       listDocumentos(id),
       listDependentes(id),
+      listEmergencias(id),
       listFerias(id),
       listPeriodosAquisitivos(id),
       listHistorico(id),
@@ -256,10 +258,23 @@ export default async function ColaboradorDetalhePage({
                     Emergência
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <KeyVal label="Nome" value={c.emergencia_nome ?? "—"} />
-                  <KeyVal label="Parentesco" value={c.emergencia_parentesco ?? "—"} />
-                  <KeyVal label="Telefone" value={formatTelefone(c.emergencia_telefone)} />
+                <CardContent className="space-y-4">
+                  {emergencias.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum contato cadastrado.
+                    </p>
+                  ) : (
+                    emergencias.map((e, i) => (
+                      <div
+                        key={e.id}
+                        className={cn("space-y-3", i > 0 && "border-t pt-4")}
+                      >
+                        <KeyVal label="Nome" value={e.nome} />
+                        <KeyVal label="Parentesco" value={e.parentesco ?? "—"} />
+                        <KeyVal label="Telefone" value={formatTelefone(e.telefone)} />
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
             </div>

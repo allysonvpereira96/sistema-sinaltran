@@ -23,6 +23,7 @@ import {
   tipoTemPeriodo,
   tipoRecomendaAnexo,
   tipoEhBancoHoras,
+  tipoEhViagem,
   type OcorrenciaTipo,
 } from "@/lib/mocks/colaboradores";
 import type { ColaboradorResumo } from "@/lib/actions/caderno-virtual";
@@ -62,6 +63,8 @@ export function NovoRegistroModal({
   const [data, setData] = useState(dataPre ?? hoje());
   const [tipo, setTipo] = useState<OcorrenciaTipo>("observacao");
   const [dias, setDias] = useState<string>("1");
+  // viagem: data de volta (a saída usa o campo `data`)
+  const [dataVolta, setDataVolta] = useState("");
   const [descricao, setDescricao] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [anexo, setAnexo] = useState<File | null>(null);
@@ -77,6 +80,7 @@ export function NovoRegistroModal({
     setData(dataPre ?? hoje());
     setTipo("observacao");
     setDias("1");
+    setDataVolta("");
     setDescricao("");
     setObservacoes("");
     setAnexo(null);
@@ -99,7 +103,9 @@ export function NovoRegistroModal({
   const temPeriodo = tipoTemPeriodo(tipo);
   const recomendaAnexo = tipoRecomendaAnexo(tipo);
   const ehBanco = tipoEhBancoHoras(tipo);
+  const ehViagem = tipoEhViagem(tipo);
   const totalMin = (Number(horasH) || 0) * 60 + (Number(horasM) || 0);
+  const diasViagem = ehViagem ? diasEntreDatas(data, dataVolta) : 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -119,7 +125,16 @@ export function NovoRegistroModal({
       toast.error("Informe a data");
       return;
     }
-    if (temPeriodo) {
+    if (ehViagem) {
+      if (!dataVolta) {
+        toast.error("Informe a data de volta");
+        return;
+      }
+      if (dataVolta < data) {
+        toast.error("A data de volta deve ser igual ou posterior à data de saída");
+        return;
+      }
+    } else if (temPeriodo) {
       const n = Number(dias);
       if (!Number.isFinite(n) || n < 1) {
         toast.error("Informe os dias de afastamento (mínimo 1)");
@@ -163,9 +178,11 @@ export function NovoRegistroModal({
         descricao: descricao.trim(),
         observacoes: observacoes.trim() || null,
         data,
-        dias_atestado: temPeriodo
-          ? Math.floor(Number(dias)) || null
-          : null,
+        dias_atestado: ehViagem
+          ? diasViagem || null
+          : temPeriodo
+            ? Math.floor(Number(dias)) || null
+            : null,
         horas_minutos: ehBanco ? (sinal === "debito" ? -totalMin : totalMin) : null,
         anexo_url: anexoUrl,
         anexo_nome: anexoNome,
@@ -265,7 +282,7 @@ export function NovoRegistroModal({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-                {temPeriodo ? "Data inicial *" : "Data *"}
+                {ehViagem ? "Data de saída *" : temPeriodo ? "Data inicial *" : "Data *"}
               </Label>
               <Input
                 type="date"
@@ -292,8 +309,32 @@ export function NovoRegistroModal({
             </div>
           </div>
 
+          {/* === Viagem: data de volta (saída usa o campo Data acima) === */}
+          {ehViagem && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                Data de volta *
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  min={data || undefined}
+                  value={dataVolta}
+                  onChange={(e) => setDataVolta(e.target.value)}
+                  className="w-44"
+                  required
+                />
+                <span className="text-xs text-muted-foreground">
+                  {diasViagem > 0
+                    ? `${diasViagem} ${diasViagem === 1 ? "dia" : "dias"} de viagem`
+                    : "Informe a data de volta"}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* === Dias (somente atestado/suspensão) === */}
-          {temPeriodo && (
+          {temPeriodo && !ehViagem && (
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
                 Dias de afastamento *
@@ -455,4 +496,15 @@ function formatarPeriodoPreview(dataIso: string, dias: number) {
   const fmt = (dt: Date) =>
     `${String(dt.getUTCDate()).padStart(2, "0")}/${String(dt.getUTCMonth() + 1).padStart(2, "0")}`;
   return `${fmt(inicio)} a ${fmt(fim)} (${dias} dias)`;
+}
+
+/** Nº de dias inclusivos entre duas datas ISO (volta − saída + 1). 0 se inválido. */
+function diasEntreDatas(inicio: string, fim: string): number {
+  if (!inicio || !fim) return 0;
+  const [y1, m1, d1] = inicio.split("-").map(Number);
+  const [y2, m2, d2] = fim.split("-").map(Number);
+  const a = Date.UTC(y1, m1 - 1, d1);
+  const b = Date.UTC(y2, m2 - 1, d2);
+  if (b < a) return 0;
+  return Math.round((b - a) / 86_400_000) + 1;
 }

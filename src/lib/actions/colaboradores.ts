@@ -13,9 +13,11 @@ import {
   COLABORADOR_COMENTARIOS,
   COLABORADOR_OCORRENCIAS,
   COLABORADOR_AVALIACOES,
+  COLABORADOR_EMERGENCIAS,
   type Colaborador,
   type ColaboradorDocumento,
   type ColaboradorDependente,
+  type ColaboradorEmergencia,
   type ColaboradorFerias,
   type ColaboradorHistorico,
   type ColaboradorComentario,
@@ -84,9 +86,6 @@ export type ColaboradorInput = {
   agencia?: string | null;
   conta?: string | null;
   chave_pix?: string | null;
-  emergencia_nome?: string | null;
-  emergencia_parentesco?: string | null;
-  emergencia_telefone?: string | null;
   observacoes?: string | null;
   termo_uso_imagem?: boolean;
   termo_uso_imagem_data?: string | null;
@@ -328,6 +327,54 @@ export async function deleteDependente(
   const { error } = await supabase.from("colaborador_dependentes").delete().eq("id", id);
   if (error) {
     console.error("[deleteDependente]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);
+  return { ok: true };
+}
+
+export async function listEmergencias(colaboradorId: string): Promise<ColaboradorEmergencia[]> {
+  if (!hasSupabase()) return COLABORADOR_EMERGENCIAS.filter((e) => e.colaborador_id === colaboradorId);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_emergencias")
+    .select("*")
+    .eq("colaborador_id", colaboradorId)
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("[listEmergencias]", error.message);
+    return [];
+  }
+  return (data ?? []) as ColaboradorEmergencia[];
+}
+
+export async function createEmergencia(input: {
+  colaborador_id: string;
+  nome: string;
+  parentesco?: string | null;
+  telefone?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.nome?.trim()) return { ok: false, error: "Nome é obrigatório." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_emergencias").insert(clean(input));
+  if (error) {
+    console.error("[createEmergencia]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  return { ok: true };
+}
+
+export async function deleteEmergencia(
+  id: string,
+  colaboradorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("colaborador_emergencias").delete().eq("id", id);
+  if (error) {
+    console.error("[deleteEmergencia]", error.message);
     return { ok: false, error: error.message };
   }
   revalidatePath(`/pessoal/colaboradores/${colaboradorId}`);

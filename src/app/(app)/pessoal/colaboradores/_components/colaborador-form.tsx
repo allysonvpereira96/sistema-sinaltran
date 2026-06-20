@@ -26,6 +26,7 @@ import {
   type ColaboradorStatus,
   type ColaboradorDocumento,
   type ColaboradorDependente,
+  type ColaboradorEmergencia,
   type ColaboradorFerias,
   type ColaboradorAvaliacao,
   type ColaboradorOcorrencia,
@@ -50,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { AtualizarFichaDialog } from "./atualizar-ficha-dialog";
 import { DocumentosTab } from "./documentos-tab";
 import { DependentesTab } from "./dependentes-tab";
+import { EmergenciasTab } from "./emergencias-tab";
 import { FeriasTab } from "./ferias-tab";
 import { AsoTab } from "./aso-tab";
 import { TreinamentosTab } from "./treinamentos-tab";
@@ -109,9 +111,6 @@ const colaboradorSchema = z.object({
   agencia: z.string().optional().or(z.literal("")),
   conta: z.string().optional().or(z.literal("")),
   chave_pix: z.string().optional().or(z.literal("")),
-  emergencia_nome: z.string().optional().or(z.literal("")),
-  emergencia_parentesco: z.string().optional().or(z.literal("")),
-  emergencia_telefone: z.string().optional().or(z.literal("")),
   observacoes: z.string().optional().or(z.literal("")),
   termo_uso_imagem: z.boolean(),
   termo_uso_imagem_data: z.string().optional().or(z.literal("")),
@@ -149,6 +148,7 @@ type ColaboradorFormProps = {
   // Dados operacionais (apenas no modo edição) para as abas-filhas
   documentos?: ColaboradorDocumento[];
   dependentes?: ColaboradorDependente[];
+  emergencias?: ColaboradorEmergencia[];
   ferias?: ColaboradorFerias[];
   periodosAq?: ColaboradorPeriodoAquisitivo[];
   aso?: ColaboradorAso[];
@@ -190,9 +190,6 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     agencia: c.agencia ?? "",
     conta: c.conta ?? "",
     chave_pix: c.chave_pix ?? "",
-    emergencia_nome: c.emergencia_nome ?? "",
-    emergencia_parentesco: c.emergencia_parentesco ?? "",
-    emergencia_telefone: c.emergencia_telefone ?? "",
     observacoes: c.observacoes ?? "",
     termo_uso_imagem: c.termo_uso_imagem ?? false,
     termo_uso_imagem_data: c.termo_uso_imagem_data ?? "",
@@ -225,6 +222,7 @@ export function ColaboradorForm({
   empresas,
   documentos = [],
   dependentes = [],
+  emergencias = [],
   ferias = [],
   periodosAq = [],
   aso = [],
@@ -285,9 +283,6 @@ export function ColaboradorForm({
           agencia: "",
           conta: "",
           chave_pix: "",
-          emergencia_nome: "",
-          emergencia_parentesco: "",
-          emergencia_telefone: "",
           observacoes: "",
           termo_uso_imagem: false,
           termo_uso_imagem_data: "",
@@ -770,22 +765,19 @@ export function ColaboradorForm({
 
         {/* ── Emergência ── */}
         <TabsContent value="emergencia" className="pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contato de Emergência</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
-              <Field label="Nome" error={errors.emergencia_nome?.message}>
-                <Input {...register("emergencia_nome")} placeholder="Nome do contato" />
-              </Field>
-              <Field label="Parentesco" error={errors.emergencia_parentesco?.message}>
-                <Input {...register("emergencia_parentesco")} placeholder="Ex.: Esposa" />
-              </Field>
-              <Field label="Telefone" error={errors.emergencia_telefone?.message}>
-                <Input {...register("emergencia_telefone")} placeholder="(54) 99999-9999" />
-              </Field>
-            </CardContent>
-          </Card>
+          {isEdit ? (
+            <EmergenciasTab colaboradorId={cid} emergencias={emergencias} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Contatos de Emergência</CardTitle>
+                <CardDescription>
+                  Salve o cadastro primeiro para adicionar um ou mais contatos de
+                  emergência.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ── Termos ── */}

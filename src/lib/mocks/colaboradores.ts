@@ -37,9 +37,12 @@ export type Colaborador = {
   agencia: string | null;
   conta: string | null;
   chave_pix: string | null;
-  emergencia_nome: string | null;
-  emergencia_parentesco: string | null;
-  emergencia_telefone: string | null;
+  /** @deprecated migrado para a tabela colaborador_emergencias (vários contatos). */
+  emergencia_nome?: string | null;
+  /** @deprecated idem — ver colaborador_emergencias. */
+  emergencia_parentesco?: string | null;
+  /** @deprecated idem — ver colaborador_emergencias. */
+  emergencia_telefone?: string | null;
   status: ColaboradorStatus;
   observacoes: string | null;
   termo_uso_imagem?: boolean;
@@ -474,6 +477,28 @@ export const COLABORADOR_DEPENDENTES: ColaboradorDependente[] = [
   { id: "dep-4", colaborador_id: "col-8", nome: "Pedro Tonet", parentesco: "Filho", data_nascimento: "2009-03-30", cpf: null },
 ];
 
+/** Espelha public.colaborador_emergencias — vários contatos por colaborador. */
+export type ColaboradorEmergencia = {
+  id: string;
+  colaborador_id: string;
+  nome: string;
+  parentesco: string | null;
+  telefone: string | null;
+  created_at: string;
+};
+
+/** Mock derivado dos contatos de emergência legados (1 por colaborador). */
+export const COLABORADOR_EMERGENCIAS: ColaboradorEmergencia[] = COLABORADORES.filter(
+  (c) => c.emergencia_nome,
+).map((c, i) => ({
+  id: `eme-${i + 1}`,
+  colaborador_id: c.id,
+  nome: c.emergencia_nome as string,
+  parentesco: c.emergencia_parentesco ?? null,
+  telefone: c.emergencia_telefone ?? null,
+  created_at: c.created_at,
+}));
+
 export type FeriasStatus = "agendada" | "em_gozo" | "concluida";
 
 export type ColaboradorFerias = {
@@ -552,7 +577,8 @@ export type OcorrenciaTipo =
   | "outro"
   | "aumento_salario"
   | "troca_funcao"
-  | "banco_horas";
+  | "banco_horas"
+  | "viagem";
 
 export type ColaboradorOcorrencia = {
   id: string;
@@ -580,9 +606,16 @@ export type ColaboradorOcorrencia = {
   created_at: string;
 };
 
-/** Tipos onde faz sentido informar período (dias de afastamento). */
+/** Tipos onde faz sentido informar período (intervalo de dias). */
 export function tipoTemPeriodo(tipo: OcorrenciaTipo): boolean {
-  return tipo === "atestado" || tipo === "suspensao";
+  return tipo === "atestado" || tipo === "suspensao" || tipo === "viagem";
+}
+
+/** Viagem a trabalho: registra intervalo (saída → volta), base p/ descontos
+ * de mobilidade e alimentação. Entrada por duas datas; reaproveita
+ * `dias_atestado`/`data_fim`. */
+export function tipoEhViagem(tipo: OcorrenciaTipo): boolean {
+  return tipo === "viagem";
 }
 
 /** Tipos onde anexar documento é fortemente recomendado. */
@@ -602,6 +635,7 @@ export const OCORRENCIA_TIPO_LABEL: Record<OcorrenciaTipo, string> = {
   aumento_salario: "Aumento de salário",
   troca_funcao: "Troca de função",
   banco_horas: "Banco de horas",
+  viagem: "Viagem",
 };
 
 /** Tipo de movimentação que registra crédito/débito de horas. */
@@ -631,6 +665,7 @@ export const OCORRENCIA_TIPO_TONE: Record<OcorrenciaTipo, { bg: string; text: st
   aumento_salario: { bg: "bg-emerald-50", text: "text-emerald-700" },
   troca_funcao: { bg: "bg-violet-50", text: "text-violet-700" },
   banco_horas: { bg: "bg-indigo-50", text: "text-indigo-700" },
+  viagem: { bg: "bg-teal-50", text: "text-teal-700" },
 };
 
 export const COLABORADOR_OCORRENCIAS: ColaboradorOcorrencia[] = [

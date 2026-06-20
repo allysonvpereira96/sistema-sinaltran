@@ -151,7 +151,8 @@ export function DiaDialog({
                       o.dias_atestado > 1 &&
                       o.data_fim ? (
                         <div className="text-[11px] text-foreground/70 mt-0.5 font-mono">
-                          Afastamento: {formatarPeriodo(o.data, o.data_fim)}
+                          {o.tipo === "viagem" ? "Viagem" : "Afastamento"}:{" "}
+                          {formatarPeriodo(o.data, o.data_fim)}
                         </div>
                       ) : null}
                     </div>
