@@ -63,6 +63,7 @@ export const navigation: NavSection[] = [
     key: "obras",
     items: [
       { label: "Obras", href: "/obras", icon: HardHat },
+      { label: "Ordens de Serviço", href: "/obras/ordens-servico", icon: FileText },
       { label: "Planejamento", href: "/obras/planejamento", icon: CalendarRange },
       { label: "Relatórios de obra", href: "/obras/relatorios", icon: ClipboardList },
     ],
