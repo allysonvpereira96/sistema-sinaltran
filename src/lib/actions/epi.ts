@@ -66,6 +66,14 @@ function clean<T extends Record<string, unknown>>(obj: T): T {
   return out;
 }
 
+/** Soma dias a uma data ISO (YYYY-MM-DD), em UTC. */
+function addDays(iso: string, dias: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + dias);
+  return dt.toISOString().slice(0, 10);
+}
+
 function embedNome(v: unknown): string | null {
   if (!v) return null;
   const o = Array.isArray(v) ? v[0] : v;
@@ -306,5 +314,189 @@ export async function registrarMovimentacaoEpi(input: {
   revalidatePath(PATH);
   revalidatePath("/almoxarifado/epi/estoque");
   revalidatePath("/almoxarifado/epi/movimentacoes");
+  return { ok: true };
+}
+
+// ── Entregas ao colaborador ───────────────────────────────────────────────────
+
+export type EpiEntregaEmUso = {
+  id: string;
+  catalogo_id: string;
+  item_nome: string;
+  quantidade: number;
+  data_entrega: string;
+  data_prevista_troca: string | null;
+};
+
+export type EpiEntrega = {
+  id: string;
+  colaborador_id: string;
+  colaborador_nome: string;
+  item_nome: string;
+  item_codigo: string;
+  quantidade: number;
+  data_entrega: string;
+  data_prevista_troca: string | null;
+  data_devolucao: string | null;
+  motivo_entrega: string;
+  motivo_devolucao: string | null;
+  condicao_devolucao: string | null;
+  observacoes: string | null;
+};
+
+/** EPIs em uso (não devolvidos) de um colaborador. */
+export async function listEpiEmUso(colaboradorId: string): Promise<EpiEntregaEmUso[]> {
+  if (!colaboradorId || !hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("epi_entregas")
+    .select("id, catalogo_id, quantidade, data_entrega, data_prevista_troca, epi_catalogo(nome)")
+    .eq("colaborador_id", colaboradorId)
+    .is("data_devolucao", null)
+    .order("data_entrega", { ascending: false });
+  if (error) {
+    console.error("[listEpiEmUso]", error.message);
+    return [];
+  }
+  type Row = Record<string, unknown> & { epi_catalogo?: unknown };
+  return ((data ?? []) as Row[]).map((r) => {
+    const cat = (Array.isArray(r.epi_catalogo) ? r.epi_catalogo[0] : r.epi_catalogo) as { nome?: string } | null;
+    return {
+      id: String(r.id),
+      catalogo_id: String(r.catalogo_id),
+      item_nome: cat?.nome ?? "—",
+      quantidade: Number(r.quantidade ?? 1),
+      data_entrega: String(r.data_entrega),
+      data_prevista_troca: (r.data_prevista_troca as string | null) ?? null,
+    };
+  });
+}
+
+/** Histórico de entregas (todas), com colaborador e item. */
+export async function listEpiEntregas(limite = 500): Promise<EpiEntrega[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("epi_entregas")
+    .select(
+      "id, colaborador_id, quantidade, data_entrega, data_prevista_troca, data_devolucao, motivo_entrega, motivo_devolucao, condicao_devolucao, observacoes, colaboradores(nome_completo), epi_catalogo(nome, codigo)",
+    )
+    .order("data_entrega", { ascending: false })
+    .limit(limite);
+  if (error) {
+    console.error("[listEpiEntregas]", error.message);
+    return [];
+  }
+  type Row = Record<string, unknown> & { colaboradores?: unknown; epi_catalogo?: unknown };
+  return ((data ?? []) as Row[]).map((r) => {
+    const col = (Array.isArray(r.colaboradores) ? r.colaboradores[0] : r.colaboradores) as { nome_completo?: string } | null;
+    const cat = (Array.isArray(r.epi_catalogo) ? r.epi_catalogo[0] : r.epi_catalogo) as { nome?: string; codigo?: string } | null;
+    return {
+      id: String(r.id),
+      colaborador_id: String(r.colaborador_id),
+      colaborador_nome: col?.nome_completo ?? "—",
+      item_nome: cat?.nome ?? "—",
+      item_codigo: cat?.codigo ?? "",
+      quantidade: Number(r.quantidade ?? 1),
+      data_entrega: String(r.data_entrega),
+      data_prevista_troca: (r.data_prevista_troca as string | null) ?? null,
+      data_devolucao: (r.data_devolucao as string | null) ?? null,
+      motivo_entrega: String(r.motivo_entrega ?? ""),
+      motivo_devolucao: (r.motivo_devolucao as string | null) ?? null,
+      condicao_devolucao: (r.condicao_devolucao as string | null) ?? null,
+      observacoes: (r.observacoes as string | null) ?? null,
+    };
+  });
+}
+
+export type ItemEntrega = {
+  catalogo_id: string;
+  quantidade: number;
+  motivo: string;
+  observacoes?: string | null;
+  periodicidade_troca_dias?: number | null;
+};
+
+/**
+ * Registra uma entrega de N itens a um colaborador. Opcionalmente marca EPIs
+ * em uso como devolvidos (troca). O estoque é debitado/creditado pelos triggers.
+ */
+export async function createEntregaEpi(input: {
+  colaborador_id: string;
+  data_entrega: string;
+  itens: ItemEntrega[];
+  devolver_ids?: string[];
+}): Promise<{ ok: true; total: number } | { ok: false; error: string }> {
+  if (!input.colaborador_id) return { ok: false, error: "Selecione um colaborador." };
+  if (!input.data_entrega) return { ok: false, error: "Informe a data da entrega." };
+  const itens = (input.itens ?? []).filter((i) => i.catalogo_id && i.quantidade > 0);
+  if (itens.length === 0) return { ok: false, error: "Adicione ao menos um item." };
+  if (!hasSupabase()) return { ok: true, total: itens.length };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // 1) marca devoluções (troca) — descarte, não retorna ao estoque
+  if (input.devolver_ids && input.devolver_ids.length) {
+    const { error: devErr } = await supabase
+      .from("epi_entregas")
+      .update({ data_devolucao: input.data_entrega, condicao_devolucao: "descarte", motivo_devolucao: "Troca" })
+      .in("id", input.devolver_ids)
+      .is("data_devolucao", null);
+    if (devErr) console.error("[createEntregaEpi] devolucao", devErr.message);
+  }
+
+  // 2) insere as entregas (trigger debita estoque)
+  const linhas = itens.map((i) => ({
+    colaborador_id: input.colaborador_id,
+    catalogo_id: i.catalogo_id,
+    quantidade: Math.floor(i.quantidade),
+    data_entrega: input.data_entrega,
+    data_prevista_troca: i.periodicidade_troca_dias ? addDays(input.data_entrega, i.periodicidade_troca_dias) : null,
+    motivo_entrega: i.motivo || "Primeira entrega",
+    observacoes: i.observacoes?.trim() || null,
+    usuario_responsavel_id: user?.id ?? null,
+  }));
+  const { error } = await supabase.from("epi_entregas").insert(linhas);
+  if (error) {
+    console.error("[createEntregaEpi]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/almoxarifado/epi/entregas");
+  revalidatePath("/almoxarifado/epi/estoque");
+  revalidatePath(PATH);
+  return { ok: true, total: itens.length };
+}
+
+/** Registra a devolução de uma entrega. */
+export async function devolverEpi(input: {
+  id: string;
+  data_devolucao: string;
+  motivo_devolucao?: string | null;
+  condicao_devolucao: "aproveitavel" | "descarte";
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.id) return { ok: false, error: "Entrega não informada." };
+  if (!input.data_devolucao) return { ok: false, error: "Informe a data de devolução." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("epi_entregas")
+    .update(
+      clean({
+        data_devolucao: input.data_devolucao,
+        motivo_devolucao: input.motivo_devolucao ?? null,
+        condicao_devolucao: input.condicao_devolucao,
+      }),
+    )
+    .eq("id", input.id)
+    .is("data_devolucao", null);
+  if (error) {
+    console.error("[devolverEpi]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/almoxarifado/epi/entregas");
+  revalidatePath("/almoxarifado/epi/estoque");
   return { ok: true };
 }
