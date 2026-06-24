@@ -9,6 +9,18 @@ import { hasSupabase } from "@/lib/supabase/env";
 export type EpiCategoria = { id: string; nome: string };
 export type EpiMarca = { id: string; nome: string };
 
+export type EpiMovimentacao = {
+  id: string;
+  catalogo_id: string;
+  item_nome: string;
+  item_codigo: string;
+  tipo: "entrada" | "saida";
+  quantidade: number;
+  motivo: string | null;
+  numero_nf: string | null;
+  created_at: string;
+};
+
 export type EpiCatalogo = {
   id: string;
   codigo: string;
@@ -46,7 +58,7 @@ export type CatalogoInput = {
   quantidade_minima?: number | null;
 };
 
-const PATH = "/epi/catalogo";
+const PATH = "/almoxarifado/epi/catalogo";
 
 function clean<T extends Record<string, unknown>>(obj: T): T {
   const out = { ...obj };
@@ -209,6 +221,56 @@ export async function deleteEpiCatalogo(id: string): Promise<{ ok: true } | { ok
   return { ok: true };
 }
 
+/** Ajusta o estoque mínimo de um item. */
+export async function setEstoqueMinimoEpi(
+  catalogoId: string,
+  minimo: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("epi_estoque")
+    .update({ quantidade_minima: Math.max(0, Math.floor(minimo) || 0) })
+    .eq("catalogo_id", catalogoId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/almoxarifado/epi/estoque");
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+// ── Movimentações (ledger) ────────────────────────────────────────────────────
+
+export async function listEpiMovimentacoes(limite = 300): Promise<EpiMovimentacao[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("epi_movimentacoes_estoque")
+    .select("id, catalogo_id, tipo, quantidade, motivo, numero_nf, created_at, epi_catalogo(nome, codigo)")
+    .order("created_at", { ascending: false })
+    .limit(limite);
+  if (error) {
+    console.error("[listEpiMovimentacoes]", error.message);
+    return [];
+  }
+  type Row = Record<string, unknown> & { epi_catalogo?: unknown };
+  return ((data ?? []) as Row[]).map((r) => {
+    const cat = (Array.isArray(r.epi_catalogo) ? r.epi_catalogo[0] : r.epi_catalogo) as
+      | { nome?: string; codigo?: string }
+      | null;
+    return {
+      id: String(r.id),
+      catalogo_id: String(r.catalogo_id),
+      item_nome: cat?.nome ?? "—",
+      item_codigo: cat?.codigo ?? "",
+      tipo: r.tipo as "entrada" | "saida",
+      quantidade: Number(r.quantidade ?? 0),
+      motivo: (r.motivo as string | null) ?? null,
+      numero_nf: (r.numero_nf as string | null) ?? null,
+      created_at: String(r.created_at),
+    };
+  });
+}
+
 // ── Movimentação de estoque (entrada/saída) ───────────────────────────────────
 
 export async function registrarMovimentacaoEpi(input: {
@@ -242,7 +304,7 @@ export async function registrarMovimentacaoEpi(input: {
     return { ok: false, error: error.message };
   }
   revalidatePath(PATH);
-  revalidatePath("/epi/estoque");
-  revalidatePath("/epi/movimentacoes");
+  revalidatePath("/almoxarifado/epi/estoque");
+  revalidatePath("/almoxarifado/epi/movimentacoes");
   return { ok: true };
 }
