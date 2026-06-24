@@ -13,7 +13,13 @@ import { formatBRL } from "@/lib/format";
 
 const BASE_PATH = "/cadastros/materiais";
 
-export function MateriaisList({ items }: { items: MaterialRow[] }) {
+export function MateriaisList({
+  items,
+  empresaNome,
+}: {
+  items: MaterialRow[];
+  empresaNome?: string | null;
+}) {
   const router = useRouter();
 
   async function handleToggleAtivo(m: MaterialRow) {
@@ -31,8 +37,8 @@ export function MateriaisList({ items }: { items: MaterialRow[] }) {
   return (
     <div className="p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6">
       <PageHeader
-        title="Materiais"
-        description="Catálogo de produtos: placas, tachões, tinta, defensa e demais materiais — com preço de material e de instalação."
+        title={empresaNome ? `Materiais · ${empresaNome}` : "Materiais"}
+        description="Catálogo de produtos da empresa ativa: placas, tachões, tinta, defensa e demais materiais — com preço de material e de instalação."
         actions={
           <Button onClick={() => router.push(`${BASE_PATH}/novo`)} className="gap-2">
             <Plus className="size-4" /> Novo material

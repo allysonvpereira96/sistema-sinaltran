@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { getOrcamento } from "@/lib/actions/orcamentos";
+import { getEmpresaAtivaId } from "@/lib/actions/empresas";
 import type {
   ObraListRow,
   ObraDetalhe,
@@ -85,13 +86,22 @@ export async function proximoNumeroObra(): Promise<string> {
   return `${prefixo}${String(max + 1).padStart(3, "0")}`;
 }
 
-export async function listObras(): Promise<ObraListRow[]> {
+/**
+ * Lista obras. Escopo por empresa: se `empresaId` for omitido usa a empresa
+ * ativa (cookie); passe `"todas"` para trazer de todas as empresas.
+ */
+export async function listObras(
+  empresaId?: string | "todas",
+): Promise<ObraListRow[]> {
   if (!hasSupabase()) return [];
+  const escopo = empresaId ?? (await getEmpresaAtivaId());
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from(TABLE)
     .select(`*, ${CLIENTE_SELECT}`)
     .order("created_at", { ascending: false });
+  if (escopo && escopo !== "todas") q = q.eq("empresa_id", escopo);
+  const { data, error } = await q;
   if (error) {
     console.error("[listObras]", error.message);
     return [];
@@ -162,6 +172,8 @@ export async function createObra(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sessão expirada. Faça login novamente." };
 
+  const empresaId = await getEmpresaAtivaId();
+
   for (let tentativa = 0; tentativa < 3; tentativa++) {
     const numero =
       tentativa === 0 && input.numero?.trim()
@@ -169,7 +181,7 @@ export async function createObra(
         : await proximoNumeroObra();
     const { data, error } = await supabase
       .from(TABLE)
-      .insert({ ...dados(input), numero, user_id: user.id })
+      .insert({ ...dados(input), numero, empresa_id: empresaId, user_id: user.id })
       .select("id")
       .single();
     if (error) {

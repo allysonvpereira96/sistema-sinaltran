@@ -59,7 +59,13 @@ function isAtrasada(obra: ObraListRow) {
 const clienteNome = (o: ObraListRow) =>
   o.cliente?.nome_fantasia ?? o.cliente?.razao_social ?? "—";
 
-export function ObrasLista({ obras }: { obras: ObraListRow[] }) {
+export function ObrasLista({
+  obras,
+  empresaNome,
+}: {
+  obras: ObraListRow[];
+  empresaNome?: string | null;
+}) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroRapido>("todas");
@@ -134,8 +140,8 @@ export function ObrasLista({ obras }: { obras: ObraListRow[] }) {
   return (
     <div className="p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6">
       <PageHeader
-        title="Obras"
-        description="Painel único com todas as obras: escopo, prazos, responsáveis, equipe e medições."
+        title={empresaNome ? `Obras · ${empresaNome}` : "Obras"}
+        description="Obras da empresa ativa: escopo, prazos, responsáveis, equipe e medições."
         actions={
           <Link
             href="/obras/nova"
