@@ -8,6 +8,7 @@ import {
   Briefcase,
   Truck,
   Boxes,
+  Cake,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -30,6 +31,12 @@ import { listClientes } from "@/lib/actions/clientes";
 import { listFornecedores } from "@/lib/actions/fornecedores";
 import { listMateriais } from "@/lib/actions/materiais";
 import { listOrcamentos } from "@/lib/actions/orcamentos";
+import { getCurrentProfile } from "@/lib/actions/usuarios";
+
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
 
 const toneClasses: Record<string, { dot: string; text: string; bg: string }> = {
   ok: { dot: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-50" },
@@ -39,8 +46,9 @@ const toneClasses: Record<string, { dot: string; text: string; bg: string }> = {
 };
 
 export default async function DashboardPage() {
-  const [colaboradores, vencimentos, clientes, fornecedores, materiais, orcamentos] =
+  const [profile, colaboradores, vencimentos, clientes, fornecedores, materiais, orcamentos] =
     await Promise.all([
+      getCurrentProfile(),
       listColaboradores(),
       listVencimentos(),
       listClientes(),
@@ -48,6 +56,19 @@ export default async function DashboardPage() {
       listMateriais(),
       listOrcamentos(),
     ]);
+
+  // Card de aniversariantes só para quem tem o módulo Pessoal (admin vê tudo).
+  const podePessoal = profile?.role === "admin" || (profile?.modulos.includes("pessoal") ?? false);
+  const mesAtual = new Date().getMonth() + 1;
+  const aniversariantesMes = colaboradores
+    .filter((c) => c.status !== "desligado" && Number((c.data_nascimento ?? "").slice(5, 7)) === mesAtual)
+    .map((c) => ({
+      id: c.id,
+      dia: Number((c.data_nascimento ?? "").slice(8, 10)),
+      nome: c.nome_completo,
+      cargo: c.cargo,
+    }))
+    .sort((a, b) => a.dia - b.dia || a.nome.localeCompare(b.nome));
 
   const ativos = colaboradores.filter((c) => c.status === "ativo").length;
   const emFerias = colaboradores.filter((c) => c.status === "ferias").length;
@@ -232,6 +253,53 @@ export default async function DashboardPage() {
         </Card>
 
         <div className="space-y-4">
+          {podePessoal && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cake className="size-4 text-primary" />
+                    Aniversariantes de {MESES[mesAtual - 1]}
+                  </CardTitle>
+                  <CardDescription>{aniversariantesMes.length} no mês</CardDescription>
+                </div>
+                <Link
+                  href="/pessoal/relatorios"
+                  className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline shrink-0"
+                >
+                  Ver <ArrowUpRight className="size-3" />
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {aniversariantesMes.length === 0 ? (
+                  <div className="py-8 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <Cake className="size-7 opacity-40" />
+                    <p className="text-sm">Ninguém faz aniversário em {MESES[mesAtual - 1]}.</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2 max-h-72 overflow-y-auto">
+                    {aniversariantesMes.map((a) => (
+                      <li key={a.id} className="flex items-center gap-3">
+                        <Badge variant="secondary" className="font-mono bg-primary/10 text-primary shrink-0">
+                          {String(a.dia).padStart(2, "0")}/{String(mesAtual).padStart(2, "0")}
+                        </Badge>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/pessoal/colaboradores/${a.id}`}
+                            className="text-sm font-medium hover:underline truncate block"
+                          >
+                            {a.nome}
+                          </Link>
+                          <div className="text-xs text-muted-foreground truncate">{a.cargo}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Cadastros</CardTitle>
