@@ -86,6 +86,13 @@ export const navigation: NavSection[] = [
     ],
   },
   {
+    title: "Almoxarifado",
+    key: "almoxarifado",
+    items: [
+      { label: "EPI", href: "/almoxarifado/epi", icon: HardHat },
+    ],
+  },
+  {
     title: "Departamento Pessoal",
     key: "pessoal",
     items: [

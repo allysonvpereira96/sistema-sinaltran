@@ -9,6 +9,7 @@ export type ModuloKey =
   | "obras"
   | "financeiro"
   | "producao"
+  | "almoxarifado"
   | "pessoal"
   | "cadastros"
   | "gestao";
