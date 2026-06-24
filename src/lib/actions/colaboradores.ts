@@ -111,6 +111,12 @@ export type ColaboradorInput = {
   periculosidade_pct?: number | null;
   sindicato?: string | null;
   horario_trabalho?: string | null;
+  // Tamanhos de EPI/uniforme
+  tamanho_camisa?: string | null;
+  tamanho_calca?: string | null;
+  tamanho_calcado?: string | null;
+  tamanho_luva?: string | null;
+  tamanho_macacao?: string | null;
 };
 
 /** Normaliza strings vazias para null antes de persistir. */

@@ -136,6 +136,12 @@ const colaboradorSchema = z.object({
   periculosidade_pct: z.number().min(0).optional(),
   sindicato: z.string().optional().or(z.literal("")),
   horario_trabalho: z.string().optional().or(z.literal("")),
+  // Tamanhos de EPI/uniforme
+  tamanho_camisa: z.string().optional().or(z.literal("")),
+  tamanho_calca: z.string().optional().or(z.literal("")),
+  tamanho_calcado: z.string().optional().or(z.literal("")),
+  tamanho_luva: z.string().optional().or(z.literal("")),
+  tamanho_macacao: z.string().optional().or(z.literal("")),
 });
 
 export type ColaboradorFormValues = z.infer<typeof colaboradorSchema>;
@@ -212,6 +218,11 @@ function colaboradorToValues(c: Colaborador): ColaboradorFormValues {
     periculosidade_pct: c.periculosidade_pct ?? undefined,
     sindicato: c.sindicato ?? "",
     horario_trabalho: c.horario_trabalho ?? "",
+    tamanho_camisa: c.tamanho_camisa ?? "",
+    tamanho_calca: c.tamanho_calca ?? "",
+    tamanho_calcado: c.tamanho_calcado ?? "",
+    tamanho_luva: c.tamanho_luva ?? "",
+    tamanho_macacao: c.tamanho_macacao ?? "",
   };
 }
 
@@ -305,6 +316,11 @@ export function ColaboradorForm({
           periculosidade_pct: undefined,
           sindicato: "",
           horario_trabalho: "",
+          tamanho_camisa: "",
+          tamanho_calca: "",
+          tamanho_calcado: "",
+          tamanho_luva: "",
+          tamanho_macacao: "",
         },
   });
 
@@ -731,6 +747,29 @@ export function ColaboradorForm({
               <Field label="Horário de trabalho" error={errors.horario_trabalho?.message} className="sm:col-span-2">
                 <Input {...register("horario_trabalho")} placeholder="Ex.: Seg a Sex 07:30-12:00 / 13:00-17:18" />
               </Field>
+
+              <div className="sm:col-span-2 pt-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Tamanhos (EPI / uniforme)
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Usados na entrega de EPI pelo almoxarifado.</p>
+              </div>
+              <Field label="Camisa / blusa" error={errors.tamanho_camisa?.message}>
+                <Input {...register("tamanho_camisa")} placeholder="Ex.: M, G, GG" />
+              </Field>
+              <Field label="Calça" error={errors.tamanho_calca?.message}>
+                <Input {...register("tamanho_calca")} placeholder="Ex.: 40, 42" />
+              </Field>
+              <Field label="Calçado / botina" error={errors.tamanho_calcado?.message}>
+                <Input {...register("tamanho_calcado")} placeholder="Ex.: 41" />
+              </Field>
+              <Field label="Luva" error={errors.tamanho_luva?.message}>
+                <Input {...register("tamanho_luva")} placeholder="Ex.: 8, M" />
+              </Field>
+              <Field label="Macacão" error={errors.tamanho_macacao?.message}>
+                <Input {...register("tamanho_macacao")} placeholder="Ex.: G" />
+              </Field>
+
               <Field label="Observações" error={errors.observacoes?.message} className="sm:col-span-2">
                 <Textarea rows={3} {...register("observacoes")} placeholder="Informações relevantes sobre o colaborador" />
               </Field>

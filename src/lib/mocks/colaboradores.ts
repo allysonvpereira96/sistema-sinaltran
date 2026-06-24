@@ -69,6 +69,12 @@ export type Colaborador = {
   periculosidade_pct?: number | null;
   sindicato?: string | null;
   horario_trabalho?: string | null;
+  // Tamanhos de EPI/uniforme (entrega no Almoxarifado)
+  tamanho_camisa?: string | null;
+  tamanho_calca?: string | null;
+  tamanho_calcado?: string | null;
+  tamanho_luva?: string | null;
+  tamanho_macacao?: string | null;
   created_at: string;
 };
 
