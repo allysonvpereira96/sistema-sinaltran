@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Check, Loader2, User, Shirt } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Check, Loader2, User, Shirt, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -21,6 +21,50 @@ import { formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const MOTIVOS = ["Primeira entrega", "Troca por vencimento", "Troca por desgaste", "Perda/Extravio", "Mudança de função"];
+
+/** Kit padrão da entrega inicial (nome de referência + CA + quantidade). */
+const ENTREGA_INICIAL: { nome: string; ca: string | null; qtd: number }[] = [
+  { nome: "Botina bico de aço", ca: "17138", qtd: 1 },
+  { nome: "Luva PU preta", ca: "15272", qtd: 1 },
+  { nome: "Óculos proteção incolor", ca: "19176", qtd: 1 },
+  { nome: "Óculos proteção escuro", ca: "19176", qtd: 1 },
+  { nome: "Capacete com jugular", ca: "29792", qtd: 1 },
+  { nome: "Máscara de fuga", ca: "5821", qtd: 1 },
+  { nome: "Máscara PFF2", ca: "38503", qtd: 1 },
+  { nome: "Protetor auricular plug", ca: "14470", qtd: 1 },
+  { nome: "Protetor solar", ca: null, qtd: 1 },
+  { nome: "Colete refletivo", ca: null, qtd: 1 },
+  { nome: "Cinto segurança com talabarte", ca: "35509", qtd: 1 },
+  { nome: "Camiseta refletiva manga longa", ca: null, qtd: 2 },
+  { nome: "Camiseta refletiva manga curta", ca: null, qtd: 1 },
+  { nome: "Calça laranja refletiva", ca: null, qtd: 2 },
+  { nome: "Jaqueta laranja refletiva", ca: null, qtd: 1 },
+  { nome: "Chapéu pescador", ca: null, qtd: 1 },
+];
+
+const digitosCA = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
+
+/** Casa um item do kit padrão a um item do catálogo (por nome + CA). */
+function casarItemCatalogo(
+  entry: { nome: string; ca: string | null },
+  itens: EpiCatalogo[],
+): EpiCatalogo | null {
+  const tokens = normalizeSearch(entry.nome).split(/\s+/).filter((t) => t.length >= 3);
+  const caRef = digitosCA(entry.ca);
+  let melhor: EpiCatalogo | null = null;
+  let melhorScore = 0;
+  for (const it of itens) {
+    const nome = normalizeSearch(it.nome);
+    let score = 0;
+    for (const t of tokens) if (nome.includes(t)) score += 1;
+    if (caRef && digitosCA(it.numero_ca) === caRef) score += 2;
+    if (score > melhorScore) {
+      melhorScore = score;
+      melhor = it;
+    }
+  }
+  return melhorScore >= 1 ? melhor : null;
+}
 
 type LinhaItem = { uid: number; catalogo_id: string; quantidade: string; motivo: string };
 
@@ -68,6 +112,33 @@ export function NovaEntregaView({
   function addLinha() {
     seq.current += 1;
     setLinhas((l) => [...l, { uid: seq.current, catalogo_id: "", quantidade: "1", motivo: "Primeira entrega" }]);
+  }
+  function entregaInicial() {
+    if (itensAtivos.length === 0) {
+      toast.error("Catálogo de EPI vazio — cadastre os itens primeiro.");
+      return;
+    }
+    const novas: LinhaItem[] = [];
+    const naoEncontrados: string[] = [];
+    for (const e of ENTREGA_INICIAL) {
+      const cat = casarItemCatalogo(e, itensAtivos);
+      if (!cat) {
+        naoEncontrados.push(e.nome);
+        continue;
+      }
+      seq.current += 1;
+      novas.push({ uid: seq.current, catalogo_id: cat.id, quantidade: String(e.qtd), motivo: "Primeira entrega" });
+    }
+    if (novas.length === 0) {
+      toast.error("Nenhum item do kit padrão foi encontrado no catálogo de EPI.");
+      return;
+    }
+    setLinhas(novas);
+    toast.success(`Entrega inicial: ${novas.length} item(ns) adicionados.`, {
+      description: naoEncontrados.length
+        ? `Não encontrados no catálogo (adicione manualmente): ${naoEncontrados.join(", ")}`
+        : "Revise e remova o que não for entregar.",
+    });
   }
   function patchLinha(uid: number, patch: Partial<LinhaItem>) {
     setLinhas((l) => l.map((x) => (x.uid === uid ? { ...x, ...patch } : x)));
@@ -200,8 +271,17 @@ export function NovaEntregaView({
 
       {/* 3) Itens a entregar */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Itens a entregar</CardTitle>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle className="text-base">Itens a entregar</CardTitle>
+            <CardDescription>
+              Use “Entrega inicial” para carregar o kit padrão e ajuste o que precisar.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={entregaInicial} className="gap-2 shrink-0">
+            <PackageCheck className="size-4" />
+            Entrega inicial
+          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           {linhas.map((l) => {
