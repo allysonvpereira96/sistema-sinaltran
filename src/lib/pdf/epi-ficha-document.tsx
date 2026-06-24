@@ -26,21 +26,21 @@ function dataBR(iso: string | null): string {
 const BORDA = "#000000";
 
 const s = StyleSheet.create({
-  page: { paddingTop: 26, paddingBottom: 30, paddingHorizontal: 34, fontSize: 9, fontFamily: "Helvetica", color: "#111" },
-  logoWrap: { alignItems: "center", marginBottom: 12 },
-  logo: { width: 150, height: 52, objectFit: "contain" },
-  tituloBox: { borderWidth: 1, borderColor: BORDA, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14, alignSelf: "center", marginBottom: 12 },
-  titulo: { fontFamily: "Helvetica-Bold", fontSize: 11, textAlign: "center", lineHeight: 1.3 },
+  page: { paddingTop: 22, paddingBottom: 20, paddingHorizontal: 34, fontSize: 9, fontFamily: "Helvetica", color: "#111" },
+  logoWrap: { alignItems: "center", marginBottom: 8 },
+  logo: { width: 140, height: 46, objectFit: "contain" },
+  tituloBox: { borderWidth: 1, borderColor: BORDA, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 14, alignSelf: "center", marginBottom: 9 },
+  titulo: { fontFamily: "Helvetica-Bold", fontSize: 11, textAlign: "center", lineHeight: 1.25 },
 
-  infoTable: { borderWidth: 1, borderColor: BORDA, marginBottom: 12 },
+  infoTable: { borderWidth: 1, borderColor: BORDA, marginBottom: 9 },
   infoRow: { flexDirection: "row", borderBottomWidth: 1, borderColor: BORDA },
   infoRowLast: { flexDirection: "row" },
-  infoLabel: { width: 110, fontFamily: "Helvetica-Bold", padding: 4, textAlign: "right", borderRightWidth: 1, borderColor: BORDA },
-  infoValue: { flex: 1, padding: 4 },
+  infoLabel: { width: 110, fontFamily: "Helvetica-Bold", padding: 3, textAlign: "right", borderRightWidth: 1, borderColor: BORDA },
+  infoValue: { flex: 1, padding: 3 },
 
-  termo: { textAlign: "justify", lineHeight: 1.4, marginBottom: 8 },
+  termo: { textAlign: "justify", lineHeight: 1.35, marginBottom: 6 },
   bold: { fontFamily: "Helvetica-Bold" },
-  assLine: { marginTop: 4, marginBottom: 12 },
+  assLine: { marginTop: 3, marginBottom: 9 },
 
   table: { borderWidth: 1, borderColor: BORDA },
   th: { flexDirection: "row", backgroundColor: "#f0f0f0", borderBottomWidth: 1, borderColor: BORDA },
@@ -55,12 +55,12 @@ const s = StyleSheet.create({
   cAss: { width: "16%", borderRightWidth: 0 },
 
   // página 2
-  p2title: { fontFamily: "Helvetica-Bold", fontSize: 10, marginBottom: 8 },
-  par: { textAlign: "justify", lineHeight: 1.4, marginBottom: 6 },
-  h: { fontFamily: "Helvetica-Bold", marginTop: 4, marginBottom: 2 },
-  li: { marginLeft: 10, marginBottom: 1.5, lineHeight: 1.35 },
-  italic: { fontFamily: "Helvetica-Oblique", textAlign: "justify", lineHeight: 1.4, marginBottom: 6 },
-  cienteRow: { flexDirection: "row", marginTop: 18, alignItems: "flex-end" },
+  p2title: { fontFamily: "Helvetica-Bold", fontSize: 10, marginBottom: 5 },
+  par: { textAlign: "justify", lineHeight: 1.28, marginBottom: 3 },
+  h: { fontFamily: "Helvetica-Bold", marginTop: 5, marginBottom: 2 },
+  li: { marginLeft: 10, marginBottom: 1, lineHeight: 1.22 },
+  italic: { fontFamily: "Helvetica-Oblique", textAlign: "justify", lineHeight: 1.28, marginBottom: 3 },
+  cienteRow: { flexDirection: "row", marginTop: 12, alignItems: "flex-end" },
 });
 
 export function FichaEpiDocument({ empregado, funcao, admissao, itens, emissao }: FichaEpiProps) {
@@ -154,7 +154,7 @@ export function FichaEpiDocument({ empregado, funcao, admissao, itens, emissao }
         <Text style={s.italic}>Também terei que devolver o E.P.I. que se tornar impróprio para o uso, seja por irregularidade verificada ou por desgaste natural, quando da substituição do equipamento.</Text>
         <Text style={s.italic}><Text style={s.bold}>OBSERVAÇÃO: </Text>A transgressão desta NORMA REGULAMENTADORA, A NÃO OBSERVÂNCIA DO USO DE E.P.I. NO DECURSO DE MEU TRABALHO, IMPLICARÁ EM ADVERTÊNCIA VERBAL, ESCRITA, SUSPENSÃO, OU APLICAÇÃO DE FALTA GRAVE NOS TERMOS DO ART. 482 DA CLT.</Text>
 
-        <Text style={{ textAlign: "right", marginTop: 6 }}>Data: {emissao}</Text>
+        <Text style={{ textAlign: "right", marginTop: 4 }}>Data: {emissao}</Text>
         <View style={s.cienteRow}>
           <Text>Ciente empregado: X</Text>
           <Text>______________________________________________________</Text>
