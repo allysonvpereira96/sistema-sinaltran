@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileSpreadsheet, AlertTriangle, Coins, Repeat, Boxes } from "lucide-react";
+import { FileSpreadsheet, AlertTriangle, Coins, Repeat, Boxes, PackageX } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import type { EpiEntrega } from "@/lib/actions/epi";
+import type { EpiEntrega, EpiCatalogo } from "@/lib/actions/epi";
 import { formatBRL, formatDateBR } from "@/lib/format";
+import { classificarDias, diasAteVencimento, prazoLabel, VENC_LABEL, VENC_TONE } from "@/lib/vencimentos";
 import { cn } from "@/lib/utils";
 
 type ColabResumo = { id: string; nome: string; cargo: string; matricula: string | null };
@@ -44,17 +45,20 @@ function baixarCsv(nome: string, head: string[], linhas: (string | number)[][]) 
 export function RelatoriosView({
   entregas,
   colaboradores,
+  catalogo,
 }: {
   entregas: EpiEntrega[];
   colaboradores: ColabResumo[];
+  catalogo: EpiCatalogo[];
 }) {
   const hoje = hojeIso();
   const [tab, setTab] = useState("trocas");
 
-  // Trocas no período (com custo + filtro por motivo)
+  // Período compartilhado (trocas, custo por colaborador, devoluções)
   const [ini, setIni] = useState(inicioAnoIso());
   const [fim, setFim] = useState(hoje);
   const [motivo, setMotivo] = useState("todos");
+  const [janelaCa, setJanelaCa] = useState("90");
 
   const motivos = useMemo(
     () => ["todos", ...Array.from(new Set(entregas.map((e) => e.motivo_entrega).filter(Boolean))).sort()],
@@ -75,6 +79,57 @@ export function RelatoriosView({
   const custoPerdas = useMemo(
     () => trocasPeriodo.filter((t) => ehPerda(t.motivo_entrega)).reduce((s, t) => s + t.custo, 0),
     [trocasPeriodo],
+  );
+
+  // Custo por colaborador (no período)
+  const custoColab = useMemo(() => {
+    const acc = new Map<string, { nome: string; entregas: number; qtd: number; custo: number; perdas: number }>();
+    for (const e of entregas) {
+      if (e.data_entrega < ini || e.data_entrega > fim) continue;
+      const cur = acc.get(e.colaborador_id) ?? { nome: e.colaborador_nome, entregas: 0, qtd: 0, custo: 0, perdas: 0 };
+      const custo = e.quantidade * e.preco_unitario;
+      cur.entregas += 1;
+      cur.qtd += e.quantidade;
+      cur.custo += custo;
+      if (ehPerda(e.motivo_entrega)) cur.perdas += custo;
+      acc.set(e.colaborador_id, cur);
+    }
+    return [...acc.values()].sort((a, b) => b.custo - a.custo);
+  }, [entregas, ini, fim]);
+  const custoColabTotal = useMemo(() => custoColab.reduce((s, c) => s + c.custo, 0), [custoColab]);
+
+  // CA vencidos / a vencer (catálogo)
+  const itensCa = useMemo(() => {
+    const limite = janelaCa === "todos" ? null : Number(janelaCa);
+    return catalogo
+      .filter((c) => c.validade_ca)
+      .map((c) => ({ ...c, dias: diasAteVencimento(c.validade_ca) }))
+      .filter((c) => (limite == null ? true : c.dias != null && c.dias <= limite))
+      .sort((a, b) => (a.dias ?? 1e9) - (b.dias ?? 1e9));
+  }, [catalogo, janelaCa]);
+  const caVencidos = useMemo(() => itensCa.filter((c) => (c.dias ?? 1) < 0).length, [itensCa]);
+
+  // Estoque / reposição (catálogo)
+  const reposicao = useMemo(
+    () =>
+      catalogo
+        .filter((c) => c.ativo && c.quantidade_atual <= c.quantidade_minima)
+        .map((c) => {
+          const repor = Math.max(0, c.quantidade_minima - c.quantidade_atual);
+          return { ...c, repor, custoRepor: repor * c.preco_unitario };
+        })
+        .sort((a, b) => a.quantidade_atual - a.quantidade_minima - (b.quantidade_atual - b.quantidade_minima)),
+    [catalogo],
+  );
+  const custoReposicao = useMemo(() => reposicao.reduce((s, r) => s + r.custoRepor, 0), [reposicao]);
+
+  // Devoluções (no período)
+  const devolucoes = useMemo(
+    () =>
+      entregas
+        .filter((e) => e.data_devolucao && e.data_devolucao >= ini && e.data_devolucao <= fim)
+        .sort((a, b) => (a.data_devolucao! < b.data_devolucao! ? 1 : -1)),
+    [entregas, ini, fim],
   );
 
   const trocas = useMemo(
@@ -107,9 +162,13 @@ export function RelatoriosView({
       <PageHeader title="Relatórios de EPI" description="Trocas pendentes, consumo por item e colaboradores sem entrega." />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="trocas">Trocas pendentes ({trocas.length})</TabsTrigger>
           <TabsTrigger value="periodo">Trocas no período ({trocasPeriodo.length})</TabsTrigger>
+          <TabsTrigger value="custoColab">Custo por colaborador ({custoColab.length})</TabsTrigger>
+          <TabsTrigger value="ca">CA a vencer ({itensCa.length})</TabsTrigger>
+          <TabsTrigger value="estoque">Estoque/reposição ({reposicao.length})</TabsTrigger>
+          <TabsTrigger value="devolucoes">Devoluções ({devolucoes.length})</TabsTrigger>
           <TabsTrigger value="consumo">Consumo por item ({consumo.length})</TabsTrigger>
           <TabsTrigger value="sem">Sem entrega ({semEntrega.length})</TabsTrigger>
         </TabsList>
@@ -216,6 +275,183 @@ export function RelatoriosView({
                     </TableRow>
                   );
                 })}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        {/* Custo por colaborador */}
+        <TabsContent value="custoColab" className="pt-4 space-y-3">
+          <Card><CardContent className="p-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Início</label>
+              <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} className="h-9 w-40" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Fim</label>
+              <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="h-9 w-40" />
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-lg font-bold tabular-nums">{formatBRL(custoColabTotal)}</div>
+                <div className="text-[11px] text-muted-foreground">custo total no período</div>
+              </div>
+              <Button variant="outline" size="sm" className="gap-2" disabled={custoColab.length === 0} onClick={() => baixarCsv(
+                "epi-custo-por-colaborador",
+                ["Colaborador", "Entregas", "Qtd", "Custo perdas", "Custo total"],
+                custoColab.map((c) => [c.nome, c.entregas, c.qtd, c.perdas.toFixed(2).replace(".", ","), c.custo.toFixed(2).replace(".", ",")]),
+              )}>
+                <FileSpreadsheet className="size-4" />Exportar Excel
+              </Button>
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Colaborador</TableHead><TableHead className="text-center">Entregas</TableHead>
+                <TableHead className="text-center">Qtd</TableHead><TableHead className="text-right">Perdas</TableHead><TableHead className="text-right">Custo total</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {custoColab.length === 0 ? <TableRow><TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">Sem entregas no período.</TableCell></TableRow>
+                : custoColab.map((c) => (
+                  <TableRow key={c.nome}>
+                    <TableCell className="text-sm font-medium">{c.nome}</TableCell>
+                    <TableCell className="text-center tabular-nums text-sm">{c.entregas}</TableCell>
+                    <TableCell className="text-center tabular-nums text-sm">{c.qtd}</TableCell>
+                    <TableCell className={cn("text-right tabular-nums text-sm", c.perdas > 0 && "text-rose-600 font-medium")}>{c.perdas > 0 ? formatBRL(c.perdas) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">{formatBRL(c.custo)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        {/* CA a vencer */}
+        <TabsContent value="ca" className="pt-4 space-y-3">
+          <Card><CardContent className="p-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Janela</label>
+              <select value={janelaCa} onChange={(e) => setJanelaCa(e.target.value)} className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="30">Vencidos e até 30 dias</option>
+                <option value="60">Vencidos e até 60 dias</option>
+                <option value="90">Vencidos e até 90 dias</option>
+                <option value="todos">Todos com CA</option>
+              </select>
+            </div>
+            {caVencidos > 0 && <Badge variant="secondary" className="gap-1 bg-rose-50 text-rose-700"><AlertTriangle className="size-3" />{caVencidos} com CA vencido</Badge>}
+            <Button variant="outline" size="sm" className="gap-2 ml-auto" disabled={itensCa.length === 0} onClick={() => baixarCsv(
+              "epi-ca-a-vencer",
+              ["Código", "Item", "CA", "Validade", "Situação"],
+              itensCa.map((c) => [c.codigo, c.nome, c.numero_ca ?? "", c.validade_ca ? formatDateBR(c.validade_ca) : "", VENC_LABEL[classificarDias(c.dias)]]),
+            )}>
+              <FileSpreadsheet className="size-4" />Exportar Excel
+            </Button>
+          </CardContent></Card>
+          <Card><CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Item</TableHead><TableHead>CA</TableHead><TableHead>Validade</TableHead><TableHead>Situação</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {itensCa.length === 0 ? <TableRow><TableCell colSpan={4} className="py-12 text-center text-sm text-muted-foreground">Nenhum CA nessa janela.</TableCell></TableRow>
+                : itensCa.map((c) => {
+                  const st = classificarDias(c.dias);
+                  const tone = VENC_TONE[st];
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell><div className="text-sm font-medium">{c.nome}</div><div className="text-[11px] text-muted-foreground font-mono">{c.codigo}</div></TableCell>
+                      <TableCell className="text-sm tabular-nums">{c.numero_ca ?? "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        <div>{c.validade_ca ? formatDateBR(c.validade_ca) : "—"}</div>
+                        <div className="text-[11px] text-muted-foreground">{prazoLabel(c.dias)}</div>
+                      </TableCell>
+                      <TableCell><Badge variant="secondary" className={cn("text-xs gap-1.5", tone.bg, tone.text)}><span className={cn("size-1.5 rounded-full", tone.dot)} />{VENC_LABEL[st]}</Badge></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        {/* Estoque / reposição */}
+        <TabsContent value="estoque" className="pt-4 space-y-3">
+          <Card><CardContent className="p-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><PackageX className="size-4" />Itens no/abaixo do estoque mínimo.</div>
+            <div className="ml-auto flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-lg font-bold tabular-nums">{formatBRL(custoReposicao)}</div>
+                <div className="text-[11px] text-muted-foreground">custo estimado de reposição</div>
+              </div>
+              <Button variant="outline" size="sm" className="gap-2" disabled={reposicao.length === 0} onClick={() => baixarCsv(
+                "epi-reposicao-estoque",
+                ["Código", "Item", "Saldo", "Mínimo", "A repor", "Custo reposição"],
+                reposicao.map((r) => [r.codigo, r.nome, r.quantidade_atual, r.quantidade_minima, r.repor, r.custoRepor.toFixed(2).replace(".", ",")]),
+              )}>
+                <FileSpreadsheet className="size-4" />Exportar Excel
+              </Button>
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Item</TableHead><TableHead className="text-center">Saldo</TableHead><TableHead className="text-center">Mínimo</TableHead>
+                <TableHead className="text-center">A repor</TableHead><TableHead className="text-right">Custo reposição</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {reposicao.length === 0 ? <TableRow><TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">Estoque em dia — nada abaixo do mínimo. 🎉</TableCell></TableRow>
+                : reposicao.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell><div className="text-sm font-medium">{r.nome}</div><div className="text-[11px] text-muted-foreground font-mono">{r.codigo}</div></TableCell>
+                    <TableCell className={cn("text-center tabular-nums", r.quantidade_atual <= 0 && "text-rose-600 font-semibold")}>{r.quantidade_atual}</TableCell>
+                    <TableCell className="text-center tabular-nums text-sm text-muted-foreground">{r.quantidade_minima}</TableCell>
+                    <TableCell className="text-center tabular-nums font-semibold">{r.repor}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(r.custoRepor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        {/* Devoluções */}
+        <TabsContent value="devolucoes" className="pt-4 space-y-3">
+          <Card><CardContent className="p-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Início</label>
+              <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} className="h-9 w-40" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Fim</label>
+              <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="h-9 w-40" />
+            </div>
+            <Button variant="outline" size="sm" className="gap-2 ml-auto" disabled={devolucoes.length === 0} onClick={() => baixarCsv(
+              "epi-devolucoes",
+              ["Data devolução", "Colaborador", "Item", "Qtd", "Condição", "Motivo"],
+              devolucoes.map((d) => [formatDateBR(d.data_devolucao), d.colaborador_nome, d.item_nome, d.quantidade, d.condicao_devolucao ?? "", d.motivo_devolucao ?? ""]),
+            )}>
+              <FileSpreadsheet className="size-4" />Exportar Excel
+            </Button>
+          </CardContent></Card>
+          <Card><CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Devolução</TableHead><TableHead>Colaborador</TableHead><TableHead>Item</TableHead>
+                <TableHead className="text-center">Qtd</TableHead><TableHead>Condição</TableHead><TableHead>Motivo</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {devolucoes.length === 0 ? <TableRow><TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">Sem devoluções no período.</TableCell></TableRow>
+                : devolucoes.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="text-xs font-mono">{formatDateBR(d.data_devolucao)}</TableCell>
+                    <TableCell className="text-sm font-medium">{d.colaborador_nome}</TableCell>
+                    <TableCell className="text-sm">{d.item_nome}</TableCell>
+                    <TableCell className="text-center tabular-nums">{d.quantidade}</TableCell>
+                    <TableCell className="text-sm">{d.condicao_devolucao ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{d.motivo_devolucao ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </CardContent></Card>
