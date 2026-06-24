@@ -20,6 +20,7 @@ import { createPedido, type PedidoInput } from "@/lib/actions/compras";
 import { COMPRA_PRIORIDADE_LABEL, type CompraPrioridade } from "@/lib/types/compras";
 import { formatBRL, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import type {
   ObraOption,
   ColaboradorOption,
@@ -162,27 +163,27 @@ export function PedidoForm({
             />
           </Field>
           <Field label="Obra">
-            <NativeSelect value={obraId} onChange={(e) => setObraId(e.target.value)}>
-              <option value="">Selecione a obra…</option>
-              {obras.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.numero} — {o.nome}
-                </option>
-              ))}
-            </NativeSelect>
+            <SearchableSelect
+              options={obras.map((o) => ({
+                value: o.id,
+                label: `${o.numero} — ${o.nome}`,
+                hint: o.cidade ?? undefined,
+              }))}
+              value={obraId}
+              onChange={setObraId}
+              placeholder="Selecione a obra…"
+            />
           </Field>
           <Field label="Solicitante">
-            <NativeSelect
+            <SearchableSelect
+              options={colaboradores.map((c) => ({
+                value: c.id,
+                label: c.nome_completo,
+                hint: c.cargo ?? undefined,
+              }))}
               value={solicitanteId}
-              onChange={(e) => setSolicitanteId(e.target.value)}
-            >
-              <option value="">Selecione…</option>
-              {colaboradores.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome_completo}
-                </option>
-              ))}
-            </NativeSelect>
+              onChange={setSolicitanteId}
+            />
           </Field>
           <Field label="Prioridade">
             <NativeSelect

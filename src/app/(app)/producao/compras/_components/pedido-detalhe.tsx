@@ -58,6 +58,7 @@ import {
 } from "@/lib/types/compras";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { StatusTimeline } from "./status-timeline";
 import type { FornecedorOption } from "./opcoes";
 
@@ -559,18 +560,15 @@ function CotacaoPanel({
             <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
               Fornecedor
             </Label>
-            <select
+            <SearchableSelect
+              options={fornecedores.map((f) => ({
+                value: f.id,
+                label: f.nome,
+                hint: f.nome_fantasia ?? undefined,
+              }))}
               value={fornecedorId}
-              onChange={(e) => setFornecedorId(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Selecione…</option>
-              {fornecedores.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nome}
-                </option>
-              ))}
-            </select>
+              onChange={setFornecedorId}
+            />
           </div>
           <div className="sm:col-span-2">
             <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
