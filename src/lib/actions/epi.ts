@@ -342,6 +342,8 @@ export type EpiEntrega = {
   motivo_devolucao: string | null;
   condicao_devolucao: string | null;
   observacoes: string | null;
+  /** Preço unitário do item no catálogo (para custo das trocas). */
+  preco_unitario: number;
 };
 
 /** EPIs em uso (não devolvidos) de um colaborador. */
@@ -379,7 +381,7 @@ export async function listEpiEntregas(limite = 500): Promise<EpiEntrega[]> {
   const { data, error } = await supabase
     .from("epi_entregas")
     .select(
-      "id, colaborador_id, quantidade, data_entrega, data_prevista_troca, data_devolucao, motivo_entrega, motivo_devolucao, condicao_devolucao, observacoes, colaboradores(nome_completo), epi_catalogo(nome, codigo)",
+      "id, colaborador_id, quantidade, data_entrega, data_prevista_troca, data_devolucao, motivo_entrega, motivo_devolucao, condicao_devolucao, observacoes, colaboradores(nome_completo), epi_catalogo(nome, codigo, preco_unitario)",
     )
     .order("data_entrega", { ascending: false })
     .limit(limite);
@@ -390,13 +392,14 @@ export async function listEpiEntregas(limite = 500): Promise<EpiEntrega[]> {
   type Row = Record<string, unknown> & { colaboradores?: unknown; epi_catalogo?: unknown };
   return ((data ?? []) as Row[]).map((r) => {
     const col = (Array.isArray(r.colaboradores) ? r.colaboradores[0] : r.colaboradores) as { nome_completo?: string } | null;
-    const cat = (Array.isArray(r.epi_catalogo) ? r.epi_catalogo[0] : r.epi_catalogo) as { nome?: string; codigo?: string } | null;
+    const cat = (Array.isArray(r.epi_catalogo) ? r.epi_catalogo[0] : r.epi_catalogo) as { nome?: string; codigo?: string; preco_unitario?: number } | null;
     return {
       id: String(r.id),
       colaborador_id: String(r.colaborador_id),
       colaborador_nome: col?.nome_completo ?? "—",
       item_nome: cat?.nome ?? "—",
       item_codigo: cat?.codigo ?? "",
+      preco_unitario: Number(cat?.preco_unitario ?? 0),
       quantidade: Number(r.quantidade ?? 1),
       data_entrega: String(r.data_entrega),
       data_prevista_troca: (r.data_prevista_troca as string | null) ?? null,

@@ -1,17 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { FileSpreadsheet, AlertTriangle, Coins, Repeat, Boxes } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import type { EpiEntrega } from "@/lib/actions/epi";
-import { formatDateBR } from "@/lib/format";
+import { formatBRL, formatDateBR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type ColabResumo = { id: string; nome: string; cargo: string; matricula: string | null };
@@ -20,6 +21,12 @@ function hojeIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+function inicioAnoIso() {
+  return `${new Date().getFullYear()}-01-01`;
+}
+
+const ehPerda = (motivo: string) => /perda|extravio/i.test(motivo);
 
 function baixarCsv(nome: string, head: string[], linhas: (string | number)[][]) {
   const sep = ";";
@@ -43,6 +50,32 @@ export function RelatoriosView({
 }) {
   const hoje = hojeIso();
   const [tab, setTab] = useState("trocas");
+
+  // Trocas no período (com custo + filtro por motivo)
+  const [ini, setIni] = useState(inicioAnoIso());
+  const [fim, setFim] = useState(hoje);
+  const [motivo, setMotivo] = useState("todos");
+
+  const motivos = useMemo(
+    () => ["todos", ...Array.from(new Set(entregas.map((e) => e.motivo_entrega).filter(Boolean))).sort()],
+    [entregas],
+  );
+
+  const trocasPeriodo = useMemo(
+    () =>
+      entregas
+        .filter((e) => e.data_entrega >= ini && e.data_entrega <= fim && (motivo === "todos" || e.motivo_entrega === motivo))
+        .map((e) => ({ ...e, custo: e.quantidade * e.preco_unitario }))
+        .sort((a, b) => (a.data_entrega < b.data_entrega ? 1 : -1)),
+    [entregas, ini, fim, motivo],
+  );
+
+  const totQtd = useMemo(() => trocasPeriodo.reduce((s, t) => s + t.quantidade, 0), [trocasPeriodo]);
+  const totCusto = useMemo(() => trocasPeriodo.reduce((s, t) => s + t.custo, 0), [trocasPeriodo]);
+  const custoPerdas = useMemo(
+    () => trocasPeriodo.filter((t) => ehPerda(t.motivo_entrega)).reduce((s, t) => s + t.custo, 0),
+    [trocasPeriodo],
+  );
 
   const trocas = useMemo(
     () =>
@@ -76,9 +109,81 @@ export function RelatoriosView({
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="trocas">Trocas pendentes ({trocas.length})</TabsTrigger>
+          <TabsTrigger value="periodo">Trocas no período ({trocasPeriodo.length})</TabsTrigger>
           <TabsTrigger value="consumo">Consumo por item ({consumo.length})</TabsTrigger>
           <TabsTrigger value="sem">Sem entrega ({semEntrega.length})</TabsTrigger>
         </TabsList>
+
+        {/* Trocas no período (custo + filtro por motivo) */}
+        <TabsContent value="periodo" className="pt-4 space-y-3">
+          <Card><CardContent className="p-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Início</label>
+              <Input type="date" value={ini} onChange={(e) => setIni(e.target.value)} className="h-9 w-40" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Fim</label>
+              <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="h-9 w-40" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Motivo</label>
+              <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="h-9 w-52 rounded-md border border-input bg-background px-3 text-sm">
+                {motivos.map((m) => <option key={m} value={m}>{m === "todos" ? "Todos os motivos" : m}</option>)}
+              </select>
+            </div>
+            <Button variant="outline" size="sm" className="gap-2 ml-auto" disabled={trocasPeriodo.length === 0} onClick={() => baixarCsv(
+              "epi-trocas-periodo",
+              ["Data", "Colaborador", "Item", "Código", "Motivo", "Qtd", "Custo unit.", "Custo total"],
+              trocasPeriodo.map((t) => [formatDateBR(t.data_entrega), t.colaborador_nome, t.item_nome, t.item_codigo, t.motivo_entrega, t.quantidade, t.preco_unitario.toFixed(2).replace(".", ","), t.custo.toFixed(2).replace(".", ",")]),
+            )}>
+              <FileSpreadsheet className="size-4" />Exportar Excel
+            </Button>
+          </CardContent></Card>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card><CardContent className="p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-primary/10 grid place-items-center"><Repeat className="size-5 text-primary" /></div>
+              <div><div className="text-2xl font-bold tabular-nums">{trocasPeriodo.length}</div><div className="text-xs text-muted-foreground">Entregas/trocas</div></div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-primary/10 grid place-items-center"><Boxes className="size-5 text-primary" /></div>
+              <div><div className="text-2xl font-bold tabular-nums">{totQtd}</div><div className="text-xs text-muted-foreground">Itens entregues</div></div>
+            </CardContent></Card>
+            <Card><CardContent className="p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-primary/10 grid place-items-center"><Coins className="size-5 text-primary" /></div>
+              <div>
+                <div className="text-2xl font-bold tabular-nums">{formatBRL(totCusto)}</div>
+                <div className="text-xs text-muted-foreground">Custo total{custoPerdas > 0 ? ` · ${formatBRL(custoPerdas)} em perdas` : ""}</div>
+              </div>
+            </CardContent></Card>
+          </div>
+
+          <Card><CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Data</TableHead><TableHead>Colaborador</TableHead><TableHead>Item</TableHead>
+                <TableHead>Motivo</TableHead><TableHead className="text-center">Qtd</TableHead>
+                <TableHead className="text-right">Custo unit.</TableHead><TableHead className="text-right">Custo total</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {trocasPeriodo.length === 0 ? <TableRow><TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">Sem trocas no período.</TableCell></TableRow>
+                : trocasPeriodo.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="text-xs font-mono">{formatDateBR(t.data_entrega)}</TableCell>
+                    <TableCell className="text-sm font-medium">{t.colaborador_nome}</TableCell>
+                    <TableCell><div className="text-sm">{t.item_nome}</div><div className="text-[11px] text-muted-foreground font-mono">{t.item_codigo}</div></TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={cn("text-xs", ehPerda(t.motivo_entrega) ? "bg-rose-50 text-rose-700" : "bg-muted text-muted-foreground")}>{t.motivo_entrega || "—"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center tabular-nums">{t.quantidade}</TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">{formatBRL(t.preco_unitario)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">{formatBRL(t.custo)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
 
         {/* Trocas */}
         <TabsContent value="trocas" className="pt-4 space-y-3">
