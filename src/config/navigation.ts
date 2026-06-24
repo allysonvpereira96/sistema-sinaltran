@@ -93,6 +93,7 @@ export const navigation: NavSection[] = [
       { label: "Caderno Virtual", href: "/pessoal/caderno-virtual", icon: NotebookPen },
       { label: "Vencimentos", href: "/pessoal/vencimentos", icon: CalendarClock },
       { label: "Catálogo de treinamentos", href: "/pessoal/treinamentos-catalogo", icon: GraduationCap },
+      { label: "Relatórios", href: "/pessoal/relatorios", icon: BarChart3 },
     ],
   },
   {
