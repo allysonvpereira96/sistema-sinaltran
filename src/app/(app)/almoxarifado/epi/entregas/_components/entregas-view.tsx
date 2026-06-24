@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Undo2, AlertTriangle } from "lucide-react";
+import { Plus, Search, Undo2, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -154,11 +154,22 @@ export function EntregasView({ entregas }: { entregas: EpiEntrega[] }) {
                           : <Badge variant="secondary" className="bg-slate-100 text-slate-600">Devolvido {formatDateBR(e.data_devolucao)}</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                        {emUso && (
-                          <Button variant="ghost" size="icon-sm" onClick={() => abrirDev(e)} aria-label="Registrar devolução">
-                            <Undo2 className="size-3.5" />
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-0.5">
+                          <a
+                            href={`/almoxarifado/epi/ficha?colaborador=${e.colaborador_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
+                            title="Imprimir ficha de EPI (em uso)"
+                          >
+                            <FileText className="size-3.5" />
+                          </a>
+                          {emUso && (
+                            <Button variant="ghost" size="icon-sm" onClick={() => abrirDev(e)} aria-label="Registrar devolução">
+                              <Undo2 className="size-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

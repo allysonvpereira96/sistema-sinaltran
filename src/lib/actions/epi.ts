@@ -500,3 +500,44 @@ export async function devolverEpi(input: {
   revalidatePath("/almoxarifado/epi/estoque");
   return { ok: true };
 }
+
+// ── Ficha de comprovação de entrega (PDF) ─────────────────────────────────────
+
+export type EpiFichaItem = {
+  data_entrega: string;
+  data_devolucao: string | null;
+  quantidade: number;
+  nome: string;
+  ca: string | null;
+};
+
+/** Itens de EPI para a ficha de comprovação (por padrão, só os em uso). */
+export async function listEpiFichaItens(
+  colaboradorId: string,
+  somenteEmUso = true,
+): Promise<EpiFichaItem[]> {
+  if (!colaboradorId || !hasSupabase()) return [];
+  const supabase = await createClient();
+  let q = supabase
+    .from("epi_entregas")
+    .select("quantidade, data_entrega, data_devolucao, epi_catalogo(nome, numero_ca)")
+    .eq("colaborador_id", colaboradorId)
+    .order("data_entrega", { ascending: true });
+  if (somenteEmUso) q = q.is("data_devolucao", null);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[listEpiFichaItens]", error.message);
+    return [];
+  }
+  type Row = Record<string, unknown> & { epi_catalogo?: unknown };
+  return ((data ?? []) as Row[]).map((r) => {
+    const cat = (Array.isArray(r.epi_catalogo) ? r.epi_catalogo[0] : r.epi_catalogo) as { nome?: string; numero_ca?: string } | null;
+    return {
+      data_entrega: String(r.data_entrega),
+      data_devolucao: (r.data_devolucao as string | null) ?? null,
+      quantidade: Number(r.quantidade ?? 1),
+      nome: cat?.nome ?? "—",
+      ca: cat?.numero_ca ?? null,
+    };
+  });
+}
