@@ -1,18 +1,10 @@
-import { ShoppingCart } from "lucide-react";
-import { ModulePlaceholder } from "@/components/app/module-placeholder";
+import { listPedidos } from "@/lib/actions/compras";
+import { PedidosLista } from "./_components/pedidos-lista";
 
-export default function ComprasPage() {
-  return (
-    <ModulePlaceholder
-      icon={ShoppingCart}
-      title="Compras"
-      description="Solicitações, cotações e pedidos de compra de materiais e serviços."
-      bullets={[
-        "Solicitação de compra (vinculada à obra)",
-        "Cotação com fornecedores",
-        "Pedido de compra e aprovação",
-        "Recebimento e conferência",
-      ]}
-    />
-  );
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Compras · Produção" };
+
+export default async function ComprasPage() {
+  const pedidos = await listPedidos();
+  return <PedidosLista pedidos={pedidos} />;
 }

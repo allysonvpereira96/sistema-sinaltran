@@ -1,18 +1,16 @@
-import { PackageSearch } from "lucide-react";
-import { ModulePlaceholder } from "@/components/app/module-placeholder";
+import {
+  listEstoqueMateriais,
+  listMovimentacoesMateriais,
+} from "@/lib/actions/almoxarifado-materiais";
+import { AlmoxView } from "./_components/almox-view";
 
-export default function AlmoxarifadoPage() {
-  return (
-    <ModulePlaceholder
-      icon={PackageSearch}
-      title="Almoxarifado"
-      description="Controle de estoque de materiais e equipamentos, com movimentações por obra."
-      bullets={[
-        "Cadastro de itens (tinta, esferas, placas, tachas…)",
-        "Entrada, saída e transferência",
-        "Saldo por almoxarifado",
-        "Reserva e requisição por obra",
-      ]}
-    />
-  );
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Almoxarifado de materiais · Produção" };
+
+export default async function AlmoxarifadoPage() {
+  const [estoque, movimentacoes] = await Promise.all([
+    listEstoqueMateriais(),
+    listMovimentacoesMateriais(100),
+  ]);
+  return <AlmoxView estoque={estoque} movimentacoes={movimentacoes} />;
 }
