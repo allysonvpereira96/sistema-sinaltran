@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { MATERIAIS as MOCK_MATERIAIS } from "@/lib/mocks/cadastros";
+import { getEmpresaAtivaId } from "@/lib/actions/empresas";
 import type { MaterialCategoria, MaterialRow } from "@/lib/types/material";
 
 const TABLE = "materiais";
@@ -35,10 +36,17 @@ function clean<T extends Record<string, unknown>>(obj: T): T {
   return out;
 }
 
-export async function listMateriais(): Promise<MaterialRow[]> {
+/**
+ * Lista materiais. Escopo por empresa: se `empresaId` for omitido usa a empresa
+ * ativa (cookie); passe `"todas"` para trazer de todas as empresas.
+ */
+export async function listMateriais(
+  empresaId?: string | "todas",
+): Promise<MaterialRow[]> {
   if (!hasSupabase()) {
     return MOCK_MATERIAIS.map((m) => ({
       id: m.id,
+      empresa_id: null,
       codigo: m.codigo,
       descricao: m.descricao,
       categoria: m.categoria,
@@ -59,15 +67,18 @@ export async function listMateriais(): Promise<MaterialRow[]> {
     }));
   }
 
+  const escopo = empresaId ?? (await getEmpresaAtivaId());
   const supabase = await createClient();
   const PAGE = 1000;
   const all: MaterialRow[] = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+    let q = supabase
       .from(TABLE)
       .select("*")
       .order("descricao", { ascending: true })
       .range(from, from + PAGE - 1);
+    if (escopo && escopo !== "todas") q = q.eq("empresa_id", escopo);
+    const { data, error } = await q;
     if (error) {
       console.error("[listMateriais]", error.message);
       break;
@@ -145,10 +156,11 @@ export async function createMaterial(
 
   const supabase = await createClient();
   const codigo = codigoBase || (await proximoCodigo());
+  const empresaId = await getEmpresaAtivaId();
 
   const { data, error } = await supabase
     .from(TABLE)
-    .insert({ ...payload(input), codigo })
+    .insert({ ...payload(input), codigo, empresa_id: empresaId })
     .select("id, codigo")
     .single();
   if (error) {

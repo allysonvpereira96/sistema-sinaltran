@@ -5,7 +5,9 @@ import { Bell, Search } from "lucide-react";
 import { navigation } from "@/config/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./theme-toggle";
+import { EmpresaSwitcher } from "./empresa-switcher";
 import type { CurrentProfile } from "@/lib/types/usuario";
+import type { Empresa } from "@/lib/actions/empresas";
 
 function findCrumbs(pathname: string) {
   for (const section of navigation) {
@@ -21,21 +23,32 @@ function findCrumbs(pathname: string) {
   return { section: "Operação", page: "" };
 }
 
-export function AppTopbar({ profile }: { profile?: CurrentProfile | null }) {
+export function AppTopbar({
+  profile,
+  empresas = [],
+  empresaAtivaId = null,
+}: {
+  profile?: CurrentProfile | null;
+  empresas?: Empresa[];
+  empresaAtivaId?: string | null;
+}) {
   const pathname = usePathname();
   const crumbs = findCrumbs(pathname);
 
   return (
     <header className="h-16 border-b bg-background/95 backdrop-blur sticky top-0 z-20 print:hidden">
       <div className="h-full flex items-center justify-between gap-4 px-6">
-        <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground/80">{crumbs.section}</span>
-          {crumbs.page ? (
-            <>
-              <span className="mx-2 text-muted-foreground/50">/</span>
-              <span className="text-foreground font-semibold">{crumbs.page}</span>
-            </>
-          ) : null}
+        <div className="flex items-center gap-4 min-w-0">
+          <EmpresaSwitcher empresas={empresas} ativaId={empresaAtivaId} />
+          <div className="text-sm text-muted-foreground truncate">
+            <span className="font-medium text-foreground/80">{crumbs.section}</span>
+            {crumbs.page ? (
+              <>
+                <span className="mx-2 text-muted-foreground/50">/</span>
+                <span className="text-foreground font-semibold">{crumbs.page}</span>
+              </>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

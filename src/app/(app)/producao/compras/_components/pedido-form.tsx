@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Save, ArrowLeft, Plus, X, Search, Trash2, Boxes } from "lucide-react";
+import { Save, ArrowLeft, Plus, X, Search, Trash2, Boxes, Building2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -21,11 +21,7 @@ import { COMPRA_PRIORIDADE_LABEL, type CompraPrioridade } from "@/lib/types/comp
 import { formatBRL, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/app/searchable-select";
-import type {
-  ObraOption,
-  ColaboradorOption,
-  MaterialOption,
-} from "./opcoes";
+import type { ObraOption, MaterialOption } from "./opcoes";
 
 type ItemLinha = {
   key: string;
@@ -52,17 +48,16 @@ const novaLinha = (): ItemLinha => ({
 
 export function PedidoForm({
   obras,
-  colaboradores,
   materiais,
+  empresaNome,
 }: {
   obras: ObraOption[];
-  colaboradores: ColaboradorOption[];
   materiais: MaterialOption[];
+  empresaNome?: string | null;
 }) {
   const router = useRouter();
   const [titulo, setTitulo] = useState("");
   const [obraId, setObraId] = useState("");
-  const [solicitanteId, setSolicitanteId] = useState("");
   const [prioridade, setPrioridade] = useState<CompraPrioridade>("media");
   const [dataLimite, setDataLimite] = useState("");
   const [justificativa, setJustificativa] = useState("");
@@ -106,7 +101,6 @@ export function PedidoForm({
     const input: PedidoInput = {
       titulo: titulo.trim(),
       obra_id: obraId || null,
-      solicitante_id: solicitanteId || null,
       prioridade,
       data_limite: dataLimite || null,
       justificativa: justificativa || null,
@@ -141,9 +135,18 @@ export function PedidoForm({
           <ArrowLeft className="size-4" />
         </Link>
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Novo pedido de compra</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Novo pedido de compra</h1>
+            {empresaNome ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                <Building2 className="size-3" />
+                {empresaNome}
+              </span>
+            ) : null}
+          </div>
           <p className="text-sm text-muted-foreground">
             Solicitação de materiais/serviços vinculada a uma obra.
+            {empresaNome ? ` O pedido será da empresa ${empresaNome}.` : ""}
           </p>
         </div>
       </header>
@@ -152,7 +155,7 @@ export function PedidoForm({
       <Card>
         <CardHeader>
           <CardTitle>Dados da solicitação</CardTitle>
-          <CardDescription>Obra, solicitante, prioridade e prazo</CardDescription>
+          <CardDescription>Obra, prioridade e prazo</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field label="Título / descrição curta *" className="sm:col-span-2">
@@ -172,17 +175,6 @@ export function PedidoForm({
               value={obraId}
               onChange={setObraId}
               placeholder="Selecione a obra…"
-            />
-          </Field>
-          <Field label="Solicitante">
-            <SearchableSelect
-              options={colaboradores.map((c) => ({
-                value: c.id,
-                label: c.nome_completo,
-                hint: c.cargo ?? undefined,
-              }))}
-              value={solicitanteId}
-              onChange={setSolicitanteId}
             />
           </Field>
           <Field label="Prioridade">

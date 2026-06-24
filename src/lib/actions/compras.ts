@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { getEmpresaAtivaId } from "@/lib/actions/empresas";
+import { getCurrentProfile } from "@/lib/actions/usuarios";
 import type {
   CompraPedidoListRow,
   CompraPedidoDetalhe,
@@ -42,7 +44,6 @@ export type PedidoItemInput = {
 export type PedidoInput = {
   obra_id?: string | null;
   empresa_id?: string | null;
-  solicitante_id?: string | null;
   prioridade: CompraPrioridade;
   titulo: string;
   justificativa?: string | null;
@@ -92,8 +93,11 @@ async function registrarHistorico(
 export async function listPedidos(filtros?: {
   status?: CompraStatus;
   obra_id?: string;
+  /** Empresa do escopo. Omitido = empresa ativa; "todas" = sem filtro. */
+  empresa_id?: string | "todas";
 }): Promise<CompraPedidoListRow[]> {
   if (!hasSupabase()) return [];
+  const escopo = filtros?.empresa_id ?? (await getEmpresaAtivaId());
   const supabase = await createClient();
   let q = supabase
     .from(TABLE)
@@ -101,6 +105,7 @@ export async function listPedidos(filtros?: {
       `*, ${OBRA_SELECT}, ${FORNECEDOR_SELECT}, ${SOLICITANTE_SELECT}, compras_pedido_itens(count)`,
     )
     .order("created_at", { ascending: false });
+  if (escopo && escopo !== "todas") q = q.eq("empresa_id", escopo);
   if (filtros?.status) q = q.eq("status", filtros.status);
   if (filtros?.obra_id) q = q.eq("obra_id", filtros.obra_id);
   const { data, error } = await q;
@@ -119,7 +124,8 @@ export async function listPedidos(filtros?: {
 
 export async function listPedidosByObra(obraId: string): Promise<CompraPedidoListRow[]> {
   if (!obraId) return [];
-  return listPedidos({ obra_id: obraId });
+  // A obra já define a empresa — não escopar pela empresa ativa.
+  return listPedidos({ obra_id: obraId, empresa_id: "todas" });
 }
 
 // ── Detalhe ────────────────────────────────────────────────────────────────────
@@ -199,6 +205,10 @@ export async function createPedido(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sessão expirada. Faça login novamente." };
 
+  const empresaId = input.empresa_id || (await getEmpresaAtivaId());
+  const profile = await getCurrentProfile();
+  const solicitanteNome = profile?.nome ?? user.email ?? null;
+
   for (let tentativa = 0; tentativa < 3; tentativa++) {
     const numero = await proximoNumeroCompra();
     const { data, error } = await supabase
@@ -207,8 +217,8 @@ export async function createPedido(
         clean({
           numero,
           obra_id: input.obra_id || null,
-          empresa_id: input.empresa_id || null,
-          solicitante_id: input.solicitante_id || null,
+          empresa_id: empresaId,
+          solicitante_nome: solicitanteNome,
           prioridade: input.prioridade,
           status: "solicitacao",
           titulo: input.titulo.trim(),
@@ -444,6 +454,13 @@ export async function registrarEntrega(
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: pedido } = await supabase
+    .from(TABLE)
+    .select("empresa_id")
+    .eq("id", id)
+    .maybeSingle();
+  const empresaId = (pedido as { empresa_id: string | null } | null)?.empresa_id ?? null;
+
   // entrada no estoque dos itens de catálogo que foram comprados
   const { data: itens } = await supabase
     .from("compras_pedido_itens")
@@ -457,6 +474,7 @@ export async function registrarEntrega(
     .filter((i) => i.material_id && Number(i.qtd_comprar) > 0)
     .map((i) => ({
       material_id: i.material_id,
+      empresa_id: empresaId,
       tipo: "entrada" as const,
       quantidade: Number(i.qtd_comprar),
       valor_unitario: Number(i.valor_estimado_unit ?? 0),
@@ -493,10 +511,11 @@ export async function registrarRetirada(
 
   const { data: pedido } = await supabase
     .from(TABLE)
-    .select("obra_id")
+    .select("obra_id, empresa_id")
     .eq("id", id)
     .maybeSingle();
   const obraId = (pedido as { obra_id: string | null } | null)?.obra_id ?? null;
+  const empresaId = (pedido as { empresa_id: string | null } | null)?.empresa_id ?? null;
 
   const { data: itens } = await supabase
     .from("compras_pedido_itens")
@@ -510,6 +529,7 @@ export async function registrarRetirada(
     .filter((i) => i.material_id && Number(i.quantidade) > 0)
     .map((i) => ({
       material_id: i.material_id,
+      empresa_id: empresaId,
       tipo: "saida" as const,
       quantidade: Number(i.quantidade),
       valor_unitario: Number(i.valor_estimado_unit ?? 0),

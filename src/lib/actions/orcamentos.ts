@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { getEmpresaAtivaId } from "@/lib/actions/empresas";
 import { EMPRESAS as MOCK_EMPRESAS, MATERIAIS as MOCK_MATERIAIS } from "@/lib/mocks/cadastros";
 import type {
   OrcamentoInput,
@@ -69,12 +70,15 @@ export async function listMateriaisResumo(): Promise<MaterialResumo[]> {
       valor_mao_obra: 0,
     }));
   }
+  const escopo = await getEmpresaAtivaId();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from("materiais")
     .select("id, codigo, descricao, unidade_medida, valor_referencia, valor_mao_obra")
     .eq("ativo", true)
     .order("descricao", { ascending: true });
+  if (escopo) q = q.eq("empresa_id", escopo);
+  const { data, error } = await q;
   if (error) {
     console.error("[listMateriaisResumo]", error.message);
     return [];
@@ -111,13 +115,16 @@ export async function proximoNumero(): Promise<string> {
 
 export async function listOrcamentos(): Promise<OrcamentoListRow[]> {
   if (!hasSupabase()) return [];
+  const escopo = await getEmpresaAtivaId();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from("orcamentos")
     .select(
       "*, cliente:clientes(razao_social, nome_fantasia), empresa:empresas(nome)",
     )
     .order("created_at", { ascending: false });
+  if (escopo) q = q.eq("empresa_id", escopo);
+  const { data, error } = await q;
   if (error) {
     console.error("[listOrcamentos]", error.message);
     return [];

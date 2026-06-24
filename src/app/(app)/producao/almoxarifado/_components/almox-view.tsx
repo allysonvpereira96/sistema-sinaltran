@@ -20,9 +20,11 @@ import { cn } from "@/lib/utils";
 export function AlmoxView({
   estoque,
   movimentacoes,
+  empresaNome,
 }: {
   estoque: MaterialEstoque[];
   movimentacoes: MaterialMovimentacao[];
+  empresaNome?: string | null;
 }) {
   const [busca, setBusca] = useState("");
   const [soAlerta, setSoAlerta] = useState(false);
@@ -50,8 +52,8 @@ export function AlmoxView({
   return (
     <div className="p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6">
       <PageHeader
-        title="Almoxarifado de materiais"
-        description="Saldo de estoque dos materiais. A entrada vem da entrega das compras e a saída é a retirada para a obra."
+        title={empresaNome ? `Almoxarifado · ${empresaNome}` : "Almoxarifado de materiais"}
+        description="Saldo de estoque dos materiais da empresa ativa. A entrada vem da entrega das compras e a saída é a retirada para a obra. Troque a empresa no seletor da topbar."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">

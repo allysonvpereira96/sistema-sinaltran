@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { getEmpresaAtivaId } from "@/lib/actions/empresas";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -43,17 +44,22 @@ const ESTOQUE_PATH = "/producao/almoxarifado";
 
 // ── Saldo de estoque ──────────────────────────────────────────────────────────
 
-/** Saldo do almoxarifado de materiais (com mínimo vindo de `materiais`). */
-export async function listEstoqueMateriais(): Promise<MaterialEstoque[]> {
+/** Saldo do almoxarifado de materiais da empresa (mínimo vindo de `materiais`). */
+export async function listEstoqueMateriais(
+  empresaId?: string,
+): Promise<MaterialEstoque[]> {
   if (!hasSupabase()) return [];
+  const escopo = empresaId ?? (await getEmpresaAtivaId());
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from("materiais")
     .select(
       "id, codigo, descricao, categoria, unidade_medida, valor_referencia, estoque_minimo, ativo, materiais_estoque(quantidade_atual)",
     )
     .eq("ativo", true)
     .order("descricao", { ascending: true });
+  if (escopo) q = q.eq("empresa_id", escopo);
+  const { data, error } = await q;
   if (error) {
     console.error("[listEstoqueMateriais]", error.message);
     return [];
@@ -115,16 +121,20 @@ export async function getSaldosMateriais(
 
 export async function listMovimentacoesMateriais(
   limite = 300,
+  empresaId?: string,
 ): Promise<MaterialMovimentacao[]> {
   if (!hasSupabase()) return [];
+  const escopo = empresaId ?? (await getEmpresaAtivaId());
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from("materiais_movimentacoes")
     .select(
       "id, material_id, tipo, quantidade, valor_unitario, obra_id, pedido_id, motivo, numero_nf, created_at, materiais(descricao, codigo), obras(nome)",
     )
     .order("created_at", { ascending: false })
     .limit(limite);
+  if (escopo) q = q.eq("empresa_id", escopo);
+  const { data, error } = await q;
   if (error) {
     console.error("[listMovimentacoesMateriais]", error.message);
     return [];
@@ -170,8 +180,15 @@ export async function registrarMovimentacaoMaterial(input: {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // empresa derivada do próprio material (catálogo é por empresa)
+  const { data: mat } = await supabase
+    .from("materiais")
+    .select("empresa_id")
+    .eq("id", input.material_id)
+    .maybeSingle();
   const { error } = await supabase.from("materiais_movimentacoes").insert({
     material_id: input.material_id,
+    empresa_id: (mat as { empresa_id: string | null } | null)?.empresa_id ?? null,
     tipo: input.tipo,
     quantidade: input.quantidade,
     valor_unitario: input.valor_unitario ?? 0,

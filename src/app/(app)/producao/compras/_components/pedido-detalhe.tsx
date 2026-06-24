@@ -160,7 +160,7 @@ export function PedidoDetalhe({
         />
         <KpiCard
           label="Solicitante"
-          value={pedido.solicitante?.nome_completo ?? "—"}
+          value={pedido.solicitante_nome ?? pedido.solicitante?.nome_completo ?? "—"}
           detail={`Aberto em ${formatDateBR(pedido.data_solicitacao)}`}
         />
         <KpiCard

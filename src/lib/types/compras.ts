@@ -86,6 +86,8 @@ export type CompraPedidoRow = {
   empresa_id: string | null;
   obra_id: string | null;
   solicitante_id: string | null;
+  /** Nome de quem abriu o pedido (usuário logado) — snapshot. */
+  solicitante_nome: string | null;
   prioridade: CompraPrioridade;
   status: CompraStatus;
   titulo: string;

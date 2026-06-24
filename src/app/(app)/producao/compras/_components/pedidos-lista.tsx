@@ -26,7 +26,13 @@ const STATUS_FILTRO: (CompraStatus | "todos" | "ativos")[] = [
   "cancelado",
 ];
 
-export function PedidosLista({ pedidos }: { pedidos: CompraPedidoListRow[] }) {
+export function PedidosLista({
+  pedidos,
+  empresaNome,
+}: {
+  pedidos: CompraPedidoListRow[];
+  empresaNome?: string | null;
+}) {
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState<CompraStatus | "todos" | "ativos">("ativos");
   const [obraId, setObraId] = useState("todas");
@@ -59,8 +65,8 @@ export function PedidosLista({ pedidos }: { pedidos: CompraPedidoListRow[] }) {
   return (
     <div className="p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6">
       <PageHeader
-        title="Compras"
-        description="Pedidos de compra de materiais e serviços — do pedido à retirada na obra. Solicitação → Triagem → Cotação → Aprovação → Compra → Entrega → Retirada."
+        title={empresaNome ? `Compras · ${empresaNome}` : "Compras"}
+        description="Pedidos de compra da empresa ativa — do pedido à retirada na obra. Solicitação → Triagem → Cotação → Aprovação → Compra → Entrega → Retirada."
         actions={
           <Link
             href="/producao/compras/novo"
@@ -186,8 +192,8 @@ function PedidoCard({ pedido }: { pedido: CompraPedidoListRow }) {
                   <Package className="size-3.5" />
                   {pedido.itens_count} item(ns)
                 </span>
-                {pedido.solicitante ? (
-                  <span>Solicitante: {pedido.solicitante.nome_completo}</span>
+                {pedido.solicitante_nome ? (
+                  <span>Solicitante: {pedido.solicitante_nome}</span>
                 ) : null}
               </div>
             </div>

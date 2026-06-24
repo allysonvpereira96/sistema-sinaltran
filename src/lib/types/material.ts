@@ -17,6 +17,7 @@ export type MaterialCategoria =
 
 export type MaterialRow = {
   id: string;
+  empresa_id: string | null;
   codigo: string | null;
   descricao: string;
   categoria: MaterialCategoria;
