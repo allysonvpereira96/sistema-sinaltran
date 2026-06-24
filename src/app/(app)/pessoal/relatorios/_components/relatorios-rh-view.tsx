@@ -5,17 +5,25 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Colaborador } from "@/lib/mocks/colaboradores";
 import type { EmpresaResumo } from "@/lib/actions/orcamentos";
+import type { VencimentoRow, FeriasRiscoRow } from "@/lib/types/rh";
+import type { EmergenciaGeralRow } from "@/lib/actions/colaboradores";
 import { cn } from "@/lib/utils";
 import { RelAniversariantes } from "./rel-aniversariantes";
 import { RelQuadro } from "./rel-quadro";
 import { RelAdmissoes } from "./rel-admissoes";
 import { RelAbsenteismo } from "./rel-absenteismo";
+import { RelVencimentos } from "./rel-vencimentos";
+import { RelFerias } from "./rel-ferias";
+import { RelEmergencias } from "./rel-emergencias";
 
 const RELATORIOS = [
   { value: "aniversariantes", label: "Aniversariantes do mês" },
   { value: "quadro", label: "Quadro de pessoal" },
   { value: "absenteismo", label: "Absenteísmo (faltas/atrasos/atestados)" },
   { value: "admissoes", label: "Admissões & desligamentos" },
+  { value: "vencimentos", label: "Vencimentos (ASO/CNH/treinamentos)" },
+  { value: "ferias", label: "Férias a vencer" },
+  { value: "emergencias", label: "Contatos de emergência" },
 ] as const;
 type RelatorioTipo = (typeof RELATORIOS)[number]["value"];
 
@@ -29,9 +37,15 @@ export type RelatorioChildProps = {
 export function RelatoriosRhView({
   colaboradores,
   empresas,
+  vencimentos,
+  feriasRisco,
+  emergencias,
 }: {
   colaboradores: Colaborador[];
   empresas: EmpresaResumo[];
+  vencimentos: VencimentoRow[];
+  feriasRisco: FeriasRiscoRow[];
+  emergencias: EmergenciaGeralRow[];
 }) {
   const [relatorio, setRelatorio] = useState<RelatorioTipo>("aniversariantes");
   const [empresaId, setEmpresaId] = useState<string>("todas");
@@ -107,6 +121,9 @@ export function RelatoriosRhView({
       {relatorio === "quadro" && <RelQuadro {...childProps} />}
       {relatorio === "absenteismo" && <RelAbsenteismo {...childProps} />}
       {relatorio === "admissoes" && <RelAdmissoes {...childProps} />}
+      {relatorio === "vencimentos" && <RelVencimentos {...childProps} vencimentos={vencimentos} />}
+      {relatorio === "ferias" && <RelFerias {...childProps} feriasRisco={feriasRisco} />}
+      {relatorio === "emergencias" && <RelEmergencias {...childProps} emergencias={emergencias} />}
     </div>
   );
 }

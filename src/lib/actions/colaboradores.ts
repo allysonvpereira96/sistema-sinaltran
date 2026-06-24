@@ -387,6 +387,79 @@ export async function deleteEmergencia(
   return { ok: true };
 }
 
+/** Contato de emergência + dados do colaborador (para o relatório geral). */
+export type EmergenciaGeralRow = {
+  id: string;
+  colaborador_id: string;
+  colaborador_nome: string;
+  colaborador_cargo: string | null;
+  colaborador_setor: string | null;
+  empresa_id: string | null;
+  nome: string;
+  parentesco: string | null;
+  telefone: string | null;
+};
+
+/** Todos os contatos de emergência (join com colaboradores) — usado no relatório. */
+export async function listEmergenciasGeral(): Promise<EmergenciaGeralRow[]> {
+  if (!hasSupabase()) {
+    const byCol = new Map(COLABORADORES.map((c) => [c.id, c]));
+    return COLABORADOR_EMERGENCIAS.map((e) => {
+      const c = byCol.get(e.colaborador_id);
+      return {
+        id: e.id,
+        colaborador_id: e.colaborador_id,
+        colaborador_nome: c?.nome_completo ?? "—",
+        colaborador_cargo: c?.cargo ?? null,
+        colaborador_setor: c?.setor ?? null,
+        empresa_id: c?.empresa_id ?? null,
+        nome: e.nome,
+        parentesco: e.parentesco,
+        telefone: e.telefone,
+      };
+    }).sort((a, b) => a.colaborador_nome.localeCompare(b.colaborador_nome));
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("colaborador_emergencias")
+    .select(
+      `id, colaborador_id, nome, parentesco, telefone,
+       colaboradores:colaboradores!colaborador_id ( nome_completo, cargo, setor, empresa_id )`,
+    );
+  if (error) {
+    console.error("[listEmergenciasGeral]", error.message);
+    return [];
+  }
+
+  type ColEmbed = { nome_completo: string | null; cargo: string | null; setor: string | null; empresa_id: string | null };
+  type Row = {
+    id: string;
+    colaborador_id: string;
+    nome: string;
+    parentesco: string | null;
+    telefone: string | null;
+    colaboradores: ColEmbed | ColEmbed[] | null;
+  };
+
+  return ((data ?? []) as unknown as Row[])
+    .map((row) => {
+      const col = Array.isArray(row.colaboradores) ? row.colaboradores[0] ?? null : row.colaboradores;
+      return {
+        id: String(row.id),
+        colaborador_id: String(row.colaborador_id),
+        colaborador_nome: col?.nome_completo ?? "—",
+        colaborador_cargo: col?.cargo ?? null,
+        colaborador_setor: col?.setor ?? null,
+        empresa_id: col?.empresa_id ?? null,
+        nome: row.nome,
+        parentesco: row.parentesco ?? null,
+        telefone: row.telefone ?? null,
+      };
+    })
+    .sort((a, b) => a.colaborador_nome.localeCompare(b.colaborador_nome));
+}
+
 export async function listFerias(colaboradorId: string): Promise<ColaboradorFerias[]> {
   if (!hasSupabase()) return COLABORADOR_FERIAS.filter((f) => f.colaborador_id === colaboradorId);
   const supabase = await createClient();
