@@ -126,7 +126,7 @@ export const ASO_TIPO_LABEL: Record<AsoTipoExame, string> = {
   admissional: "Admissional",
   periodico: "Periódico",
   demissional: "Demissional",
-  mudanca_funcao: "Mudança de função",
+  mudanca_funcao: "Troca de função",
   retorno_trabalho: "Retorno ao trabalho",
 };
 
