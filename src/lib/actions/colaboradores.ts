@@ -1090,6 +1090,43 @@ export async function createAso(input: {
   return { ok: true };
 }
 
+export async function updateAso(input: {
+  id: string;
+  colaborador_id: string;
+  tipo_exame: string;
+  data_realizacao: string;
+  periodicidade_meses: number;
+  resultado?: string | null;
+  responsavel?: string | null;
+  observacoes?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.id) return { ok: false, error: "ASO não informado." };
+  if (!input.data_realizacao) return { ok: false, error: "Informe a data de realização." };
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  // vencimento é recalculado pelo banco a partir de data_realizacao + periodicidade.
+  const { error } = await supabase
+    .from("colaborador_aso")
+    .update(
+      clean({
+        tipo_exame: input.tipo_exame,
+        data_realizacao: input.data_realizacao,
+        periodicidade_meses: input.periodicidade_meses || 12,
+        resultado: input.resultado ?? null,
+        responsavel: input.responsavel ?? null,
+        observacoes: input.observacoes ?? null,
+      }),
+    )
+    .eq("id", input.id);
+  if (error) {
+    console.error("[updateAso]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/pessoal/colaboradores/${input.colaborador_id}`);
+  revalidatePath("/pessoal/vencimentos");
+  return { ok: true };
+}
+
 export async function deleteAso(
   id: string,
   colaboradorId: string,

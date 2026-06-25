@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, HeartPulse, Trash2 } from "lucide-react";
+import { Plus, HeartPulse, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ import {
   type ColaboradorAso,
   type AsoTipoExame,
 } from "@/lib/types/rh";
-import { createAso, deleteAso } from "@/lib/actions/colaboradores";
+import { createAso, updateAso, deleteAso } from "@/lib/actions/colaboradores";
 import { formatDateBR } from "@/lib/format";
 import { classificarVencimento, diasAteVencimento, prazoLabel, VENC_LABEL, VENC_TONE } from "@/lib/vencimentos";
 import { cn } from "@/lib/utils";
@@ -61,14 +61,34 @@ export function AsoTab({
   const [saving, setSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState(FORM_INICIAL);
+  const [editId, setEditId] = useState<string | null>(null);
 
-  async function handleAdd() {
+  function abrirNovo() {
+    setForm(FORM_INICIAL);
+    setEditId(null);
+    setOpen(true);
+  }
+
+  function abrirEditar(a: ColaboradorAso) {
+    setForm({
+      tipo_exame: a.tipo_exame,
+      data_realizacao: a.data_realizacao ?? "",
+      periodicidade_meses: a.periodicidade_meses,
+      resultado: a.resultado ?? "",
+      responsavel: a.responsavel ?? "",
+      observacoes: a.observacoes ?? "",
+    });
+    setEditId(a.id);
+    setOpen(true);
+  }
+
+  async function handleSave() {
     if (!form.data_realizacao) {
       toast.error("Informe a data de realização.");
       return;
     }
     setSaving(true);
-    const res = await createAso({
+    const payload = {
       colaborador_id: colaboradorId,
       tipo_exame: form.tipo_exame,
       data_realizacao: form.data_realizacao,
@@ -76,15 +96,17 @@ export function AsoTab({
       resultado: form.resultado || null,
       responsavel: form.responsavel || null,
       observacoes: form.observacoes || null,
-    });
+    };
+    const res = editId ? await updateAso({ id: editId, ...payload }) : await createAso(payload);
     setSaving(false);
     if (res.ok) {
-      toast.success("ASO registrado");
+      toast.success(editId ? "ASO atualizado" : "ASO registrado");
       setForm(FORM_INICIAL);
+      setEditId(null);
       setOpen(false);
       router.refresh();
     } else {
-      toast.error("Erro ao registrar", { description: res.error });
+      toast.error("Erro ao salvar", { description: res.error });
     }
   }
 
@@ -105,7 +127,7 @@ export function AsoTab({
     <div className="space-y-4">
       {!readOnly && (
         <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => setOpen(true)}>
+          <Button className="gap-2" onClick={abrirNovo}>
             <Plus className="size-4" />
             Registrar ASO
           </Button>
@@ -160,9 +182,14 @@ export function AsoTab({
                       </TableCell>
                       {!readOnly && (
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(a)} aria-label="Remover">
-                            <Trash2 className="size-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button variant="ghost" size="icon-sm" onClick={() => abrirEditar(a)} aria-label="Editar">
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon-sm" disabled={isPending} onClick={() => handleDelete(a)} aria-label="Remover">
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -174,11 +201,11 @@ export function AsoTab({
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditId(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar ASO</DialogTitle>
-            <DialogDescription>O vencimento é calculado pela data + periodicidade.</DialogDescription>
+            <DialogTitle>{editId ? "Editar ASO" : "Registrar ASO"}</DialogTitle>
+            <DialogDescription>O vencimento é recalculado pela data + periodicidade.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid grid-cols-2 gap-3">
@@ -235,7 +262,7 @@ export function AsoTab({
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button disabled={saving} onClick={handleAdd}>{saving ? "Salvando…" : "Registrar"}</Button>
+            <Button disabled={saving} onClick={handleSave}>{saving ? "Salvando…" : editId ? "Salvar" : "Registrar"}</Button>
           </div>
         </DialogContent>
       </Dialog>
