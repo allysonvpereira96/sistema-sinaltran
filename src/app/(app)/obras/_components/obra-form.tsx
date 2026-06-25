@@ -38,6 +38,7 @@ const obraStatusValues = [
 
 const obraSchema = z.object({
   numero: z.string().optional().or(z.literal("")),
+  numero_contrato: z.string().optional().or(z.literal("")),
   nome: z.string().min(3, "Informe o nome da obra"),
   cliente_id: z.string().min(1, "Cliente é obrigatório"),
   responsavel: z.string().optional().or(z.literal("")),
@@ -59,6 +60,7 @@ export type ObraFormValues = z.infer<typeof obraSchema>;
 function obraToValues(obra: ObraDetalhe): ObraFormValues {
   return {
     numero: obra.numero,
+    numero_contrato: obra.numero_contrato ?? "",
     nome: obra.nome,
     cliente_id: obra.cliente_id ?? "",
     responsavel: obra.responsavel ?? "",
@@ -101,6 +103,7 @@ export function ObraForm({
       ? obraToValues(initialData)
       : {
           numero: numeroSugerido ?? "",
+          numero_contrato: "",
           nome: "",
           cliente_id: "",
           responsavel: "",
@@ -125,6 +128,7 @@ export function ObraForm({
   const onSubmit: SubmitHandler<ObraFormValues> = async (values) => {
     const input: ObraInput = {
       numero: values.numero || null,
+      numero_contrato: values.numero_contrato || null,
       nome: values.nome,
       cliente_id: values.cliente_id,
       responsavel: values.responsavel || null,
@@ -222,6 +226,15 @@ export function ObraForm({
                   }
                 }}
                 error={errors.cliente_id?.message}
+              />
+            </Field>
+            <Field
+              label="Nº de contrato"
+              error={errors.numero_contrato?.message}
+            >
+              <Input
+                {...register("numero_contrato")}
+                placeholder="Ex.: 045/2026 (após assinatura)"
               />
             </Field>
             <Field label="Responsável" error={errors.responsavel?.message}>

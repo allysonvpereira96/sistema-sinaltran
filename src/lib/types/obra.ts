@@ -12,6 +12,7 @@ export type ObraStatus =
 export type ObraRow = {
   id: string;
   numero: string;
+  numero_contrato: string | null;
   empresa_id: string | null;
   cliente_id: string | null;
   orcamento_id: string | null;

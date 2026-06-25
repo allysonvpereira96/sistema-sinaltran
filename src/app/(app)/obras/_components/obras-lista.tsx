@@ -88,6 +88,7 @@ export function ObrasLista({
         q &&
         !normalizeSearch(obra.nome).includes(q) &&
         !normalizeSearch(obra.numero).includes(q) &&
+        !normalizeSearch(obra.numero_contrato ?? "").includes(q) &&
         !normalizeSearch(obra.responsavel ?? "").includes(q) &&
         !normalizeSearch(clienteNome(obra)).includes(q)
       ) {
@@ -192,7 +193,7 @@ export function ObrasLista({
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por nome, número, responsável ou cliente…"
+                placeholder="Buscar por nome, número, contrato, responsável ou cliente…"
                 className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70"
               />
             </div>
@@ -273,6 +274,9 @@ export function ObrasLista({
                         <div className="font-semibold">{obra.nome}</div>
                         <div className="text-xs text-muted-foreground font-mono">
                           {obra.numero}
+                          {obra.numero_contrato
+                            ? ` · contrato ${obra.numero_contrato}`
+                            : ""}
                         </div>
                       </TableCell>
                       <TableCell>

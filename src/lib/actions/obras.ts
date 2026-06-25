@@ -21,6 +21,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export type ObraInput = {
   numero?: string | null;
+  numero_contrato?: string | null;
   nome: string;
   cliente_id: string;
   responsavel?: string | null;
@@ -137,6 +138,7 @@ export async function getObra(id: string): Promise<ObraDetalhe | null> {
 function dados(input: ObraInput) {
   return clean({
     nome: input.nome.trim(),
+    numero_contrato: input.numero_contrato ?? null,
     cliente_id: input.cliente_id || null,
     responsavel: input.responsavel ?? null,
     endereco: input.endereco ?? null,
