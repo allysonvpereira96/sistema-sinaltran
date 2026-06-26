@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Undo2, AlertTriangle, FileText } from "lucide-react";
+import { Plus, Search, Undo2, AlertTriangle, FileText, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import {
 import { devolverEpi, type EpiEntrega } from "@/lib/actions/epi";
 import { formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { QrAssinaturaDialog } from "../../_components/qr-assinatura-dialog";
 
 type Filtro = "todos" | "em_uso" | "devolvido";
 
@@ -44,6 +45,8 @@ export function EntregasView({ entregas }: { entregas: EpiEntrega[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const hoje = hojeIso();
 
+  const [qrToken, setQrToken] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
   const [dev, setDev] = useState<EpiEntrega | null>(null);
   const [devData, setDevData] = useState(hoje);
   const [devMotivo, setDevMotivo] = useState("");
@@ -121,7 +124,7 @@ export function EntregasView({ entregas }: { entregas: EpiEntrega[] }) {
                 <TableHead>Entrega</TableHead>
                 <TableHead>Troca prevista</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-20 text-right">Ações</TableHead>
+                <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -149,12 +152,22 @@ export function EntregasView({ entregas }: { entregas: EpiEntrega[] }) {
                         ) : "—"}
                       </TableCell>
                       <TableCell>
-                        {emUso
-                          ? <Badge variant="secondary" className={cn(vencida ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>{vencida ? "Troca vencida" : "Em uso"}</Badge>
-                          : <Badge variant="secondary" className="bg-slate-100 text-slate-600">Devolvido {formatDateBR(e.data_devolucao)}</Badge>}
+                        <div className="flex flex-col gap-1 items-start">
+                          {emUso
+                            ? <Badge variant="secondary" className={cn(vencida ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>{vencida ? "Troca vencida" : "Em uso"}</Badge>
+                            : <Badge variant="secondary" className="bg-slate-100 text-slate-600">Devolvido {formatDateBR(e.data_devolucao)}</Badge>}
+                          {e.assinado
+                            ? <span className="text-[10px] text-emerald-600 font-medium">✓ assinado</span>
+                            : e.assinatura_token ? <span className="text-[10px] text-amber-600 font-medium">assinatura pendente</span> : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-0.5">
+                          {e.assinatura_token && !e.assinado && (
+                            <Button variant="ghost" size="icon-sm" onClick={() => { setQrToken(e.assinatura_token); setQrOpen(true); }} aria-label="Assinatura por QR">
+                              <QrCode className="size-3.5" />
+                            </Button>
+                          )}
                           <a
                             href={`/almoxarifado/epi/ficha?colaborador=${e.colaborador_id}`}
                             target="_blank"
@@ -209,6 +222,8 @@ export function EntregasView({ entregas }: { entregas: EpiEntrega[] }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <QrAssinaturaDialog token={qrToken} open={qrOpen} onOpenChange={(o) => { setQrOpen(o); if (!o) setQrToken(null); }} />
     </div>
   );
 }

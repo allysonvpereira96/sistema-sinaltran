@@ -7,6 +7,8 @@ export type FichaEpiItem = {
   quantidade: number;
   nome: string;
   ca: string | null;
+  /** URL pública da assinatura digital (QR), se houver. */
+  assinatura_img?: string | null;
 };
 
 export type FichaEpiProps = {
@@ -52,7 +54,8 @@ const s = StyleSheet.create({
   cQt: { width: "6%", textAlign: "center" },
   cNome: { width: "40%" },
   cCa: { width: "12%", textAlign: "center" },
-  cAss: { width: "16%", borderRightWidth: 0 },
+  cAss: { width: "16%", borderRightWidth: 0, alignItems: "center" },
+  assImg: { width: "92%", height: 16, objectFit: "contain" },
 
   // página 2
   p2title: { fontFamily: "Helvetica-Bold", fontSize: 10, marginBottom: 5 },
@@ -115,7 +118,14 @@ export function FichaEpiDocument({ empregado, funcao, admissao, itens, emissao }
               <Text style={[s.tdCell, s.cQt]}>{it.quantidade ? String(it.quantidade).padStart(2, "0") : ""}</Text>
               <Text style={[s.tdCell, s.cNome]}>{it.nome}</Text>
               <Text style={[s.tdCell, s.cCa]}>{it.ca ?? ""}</Text>
-              <Text style={[s.tdCell, s.cAss]}> </Text>
+              <View style={[s.tdCell, s.cAss]}>
+                {it.assinatura_img ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+                  <Image src={it.assinatura_img} style={s.assImg} />
+                ) : (
+                  <Text> </Text>
+                )}
+              </View>
             </View>
           ))}
         </View>

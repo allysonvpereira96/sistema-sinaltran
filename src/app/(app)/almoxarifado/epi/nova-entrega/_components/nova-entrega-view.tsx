@@ -19,6 +19,7 @@ import {
 } from "@/lib/actions/epi";
 import { formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { QrAssinaturaDialog } from "../../_components/qr-assinatura-dialog";
 
 const MOTIVOS = ["Primeira entrega", "Troca por vencimento", "Troca por desgaste", "Perda/Extravio", "Mudança de função"];
 
@@ -88,6 +89,8 @@ export function NovaEntregaView({
   const [linhas, setLinhas] = useState<LinhaItem[]>([{ uid: 1, catalogo_id: "", quantidade: "1", motivo: "Primeira entrega" }]);
   const [dataEntrega, setDataEntrega] = useState(hojeIso());
   const [salvando, setSalvando] = useState(false);
+  const [tokenGerado, setTokenGerado] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
   const seq = useRef(1);
 
   const itensAtivos = useMemo(() => itens.filter((i) => i.ativo), [itens]);
@@ -179,8 +182,9 @@ export function NovaEntregaView({
     setSalvando(false);
     if (!res.ok) { toast.error("Erro ao registrar", { description: res.error }); return; }
     toast.success(`Entrega registrada (${res.total} item(ns))`);
-    router.push("/almoxarifado/epi/entregas");
-    router.refresh();
+    // mostra o QR para o colaborador assinar; ao fechar, vai para o histórico
+    setTokenGerado(res.token);
+    setQrOpen(true);
   }
 
   const tamanhos = colab
@@ -334,6 +338,18 @@ export function NovaEntregaView({
           </div>
         </CardContent>
       </Card>
+
+      <QrAssinaturaDialog
+        token={tokenGerado}
+        open={qrOpen}
+        onOpenChange={(o) => {
+          setQrOpen(o);
+          if (!o) {
+            router.push("/almoxarifado/epi/entregas");
+            router.refresh();
+          }
+        }}
+      />
     </div>
   );
 }

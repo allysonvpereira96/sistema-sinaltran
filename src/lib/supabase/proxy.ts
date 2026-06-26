@@ -32,7 +32,8 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith("/login");
-  const isPublicRoute = isAuthRoute || pathname === "/";
+  // /assinatura-epi/* é público — o colaborador assina pelo celular, sem login.
+  const isPublicRoute = isAuthRoute || pathname === "/" || pathname.startsWith("/assinatura-epi");
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();

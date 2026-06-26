@@ -344,6 +344,8 @@ export type EpiEntrega = {
   observacoes: string | null;
   /** Preço unitário do item no catálogo (para custo das trocas). */
   preco_unitario: number;
+  assinatura_token: string | null;
+  assinado: boolean;
 };
 
 /** EPIs em uso (não devolvidos) de um colaborador. */
@@ -381,7 +383,7 @@ export async function listEpiEntregas(limite = 500): Promise<EpiEntrega[]> {
   const { data, error } = await supabase
     .from("epi_entregas")
     .select(
-      "id, colaborador_id, quantidade, data_entrega, data_prevista_troca, data_devolucao, motivo_entrega, motivo_devolucao, condicao_devolucao, observacoes, colaboradores(nome_completo), epi_catalogo(nome, codigo, preco_unitario)",
+      "id, colaborador_id, quantidade, data_entrega, data_prevista_troca, data_devolucao, motivo_entrega, motivo_devolucao, condicao_devolucao, observacoes, assinatura_token, assinado, colaboradores(nome_completo), epi_catalogo(nome, codigo, preco_unitario)",
     )
     .order("data_entrega", { ascending: false })
     .limit(limite);
@@ -408,6 +410,8 @@ export async function listEpiEntregas(limite = 500): Promise<EpiEntrega[]> {
       motivo_devolucao: (r.motivo_devolucao as string | null) ?? null,
       condicao_devolucao: (r.condicao_devolucao as string | null) ?? null,
       observacoes: (r.observacoes as string | null) ?? null,
+      assinatura_token: (r.assinatura_token as string | null) ?? null,
+      assinado: Boolean(r.assinado),
     };
   });
 }
@@ -429,12 +433,14 @@ export async function createEntregaEpi(input: {
   data_entrega: string;
   itens: ItemEntrega[];
   devolver_ids?: string[];
-}): Promise<{ ok: true; total: number } | { ok: false; error: string }> {
+}): Promise<{ ok: true; total: number; token: string } | { ok: false; error: string }> {
   if (!input.colaborador_id) return { ok: false, error: "Selecione um colaborador." };
   if (!input.data_entrega) return { ok: false, error: "Informe a data da entrega." };
   const itens = (input.itens ?? []).filter((i) => i.catalogo_id && i.quantidade > 0);
   if (itens.length === 0) return { ok: false, error: "Adicione ao menos um item." };
-  if (!hasSupabase()) return { ok: true, total: itens.length };
+  // token único do lote — usado no QR de assinatura do colaborador
+  const token = crypto.randomUUID();
+  if (!hasSupabase()) return { ok: true, total: itens.length, token };
 
   const supabase = await createClient();
   const {
@@ -461,6 +467,7 @@ export async function createEntregaEpi(input: {
     motivo_entrega: i.motivo || "Primeira entrega",
     observacoes: i.observacoes?.trim() || null,
     usuario_responsavel_id: user?.id ?? null,
+    assinatura_token: token,
   }));
   const { error } = await supabase.from("epi_entregas").insert(linhas);
   if (error) {
@@ -470,7 +477,7 @@ export async function createEntregaEpi(input: {
   revalidatePath("/almoxarifado/epi/entregas");
   revalidatePath("/almoxarifado/epi/estoque");
   revalidatePath(PATH);
-  return { ok: true, total: itens.length };
+  return { ok: true, total: itens.length, token };
 }
 
 /** Registra a devolução de uma entrega. */
@@ -512,6 +519,8 @@ export type EpiFichaItem = {
   quantidade: number;
   nome: string;
   ca: string | null;
+  assinado: boolean;
+  assinatura_url: string | null;
 };
 
 /** Itens de EPI para a ficha de comprovação (por padrão, só os em uso). */
@@ -523,7 +532,7 @@ export async function listEpiFichaItens(
   const supabase = await createClient();
   let q = supabase
     .from("epi_entregas")
-    .select("quantidade, data_entrega, data_devolucao, epi_catalogo(nome, numero_ca)")
+    .select("quantidade, data_entrega, data_devolucao, assinado, assinatura_url, epi_catalogo(nome, numero_ca)")
     .eq("colaborador_id", colaboradorId)
     .order("data_entrega", { ascending: true });
   if (somenteEmUso) q = q.is("data_devolucao", null);
@@ -541,6 +550,8 @@ export async function listEpiFichaItens(
       quantidade: Number(r.quantidade ?? 1),
       nome: cat?.nome ?? "—",
       ca: cat?.numero_ca ?? null,
+      assinado: Boolean(r.assinado),
+      assinatura_url: (r.assinatura_url as string | null) ?? null,
     };
   });
 }
