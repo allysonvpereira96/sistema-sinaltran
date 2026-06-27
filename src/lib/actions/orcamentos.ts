@@ -141,7 +141,8 @@ export async function getOrcamento(id: string): Promise<OrcamentoDetalhe | null>
       `*,
        cliente:clientes(id, razao_social, nome_fantasia, cnpj_cpf, responsavel),
        empresa:empresas(id, nome, razao_social, cnpj, endereco, cidade, estado, telefone, email, responsavel_padrao),
-       itens:orcamento_itens(*)`,
+       itens:orcamento_itens(*),
+       blocos:orcamento_blocos(*, empresa:empresas(nome, cnpj), itens:orcamento_itens(*))`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -153,6 +154,10 @@ export async function getOrcamento(id: string): Promise<OrcamentoDetalhe | null>
   const detalhe = data as unknown as OrcamentoDetalhe;
   // PostgREST não garante ordem do embed — ordenar por `ordem`.
   detalhe.itens = [...(detalhe.itens ?? [])].sort((a, b) => a.ordem - b.ordem);
+  const ordemBloco: Record<string, number> = { servicos: 0, produtos: 1, sinalshop: 2 };
+  detalhe.blocos = [...(detalhe.blocos ?? [])]
+    .map((b) => ({ ...b, itens: [...(b.itens ?? [])].sort((a, c) => a.ordem - c.ordem) }))
+    .sort((a, b) => (ordemBloco[a.tipo] ?? 9) - (ordemBloco[b.tipo] ?? 9));
   return detalhe;
 }
 

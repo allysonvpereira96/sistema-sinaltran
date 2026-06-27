@@ -14,10 +14,13 @@ export type OrcamentoStatus =
 export type OrcamentoItemRow = {
   id: string;
   orcamento_id: string;
+  bloco_id: string | null;
   secao: string | null;
   ordem: number;
   material_id: string | null;
   servico_id: string | null;
+  codigo_omie: string | null;
+  ncm: string | null;
   descricao: string;
   unidade_medida: string;
   quantidade: number;
@@ -30,9 +33,61 @@ export type OrcamentoItemRow = {
   created_at: string;
 };
 
+/** Bloco fiscal do orçamento (espelha um documento do Omie). */
+export type OrcamentoBlocoTipo = "servicos" | "produtos" | "sinalshop";
+export type OrcamentoOmieDocTipo = "ordem_servico" | "pedido_venda" | "orcamento";
+
+export type OrcamentoBlocoRow = {
+  id: string;
+  orcamento_id: string;
+  tipo: OrcamentoBlocoTipo;
+  empresa_id: string | null;
+  omie_doc_tipo: OrcamentoOmieDocTipo | null;
+  omie_numero: string | null;
+  vendedor: string | null;
+  data_documento: string | null;
+  previsao_faturamento: string | null;
+  condicoes_pagamento: string | null;
+  valor_subtotal: number;
+  valor_ipi: number;
+  valor_icms_st: number;
+  valor_iss: number;
+  valor_total: number;
+  observacoes: string | null;
+  created_at: string;
+};
+
+export type OrcamentoBlocoComItens = OrcamentoBlocoRow & {
+  empresa: { nome: string; cnpj: string | null } | null;
+  itens: OrcamentoItemRow[];
+};
+
+export const BLOCO_TIPO_LABEL: Record<OrcamentoBlocoTipo, string> = {
+  servicos: "Serviços (mão de obra)",
+  produtos: "Produtos (material)",
+  sinalshop: "Sinalshop (tintas)",
+};
+
+export const BLOCO_DOC_LABEL: Record<OrcamentoOmieDocTipo, string> = {
+  ordem_servico: "Ordem de Serviço",
+  pedido_venda: "Pedido de Venda",
+  orcamento: "Orçamento",
+};
+
+export const BLOCO_TIPO_TONE: Record<
+  OrcamentoBlocoTipo,
+  { bg: string; text: string; dot: string }
+> = {
+  servicos: { bg: "bg-sky-50", text: "text-sky-700", dot: "bg-sky-500" },
+  produtos: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+  sinalshop: { bg: "bg-violet-50", text: "text-violet-700", dot: "bg-violet-500" },
+};
+
 export type OrcamentoRow = {
   id: string;
   numero: string;
+  origem: "sistema" | "omie_import";
+  obra_nome: string | null;
   empresa_id: string | null;
   cliente_id: string | null;
   responsavel: string | null;
@@ -87,6 +142,8 @@ export type OrcamentoDetalhe = OrcamentoRow & {
     responsavel_padrao: string | null;
   } | null;
   itens: OrcamentoItemRow[];
+  /** Blocos fiscais (presentes quando o orçamento veio do Omie). */
+  blocos: OrcamentoBlocoComItens[];
 };
 
 /** Item enviado pelo formulário (totais calculados no servidor). */

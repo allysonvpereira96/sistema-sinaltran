@@ -24,7 +24,11 @@ import { getOrcamento } from "@/lib/actions/orcamentos";
 import {
   ORCAMENTO_STATUS_LABEL,
   ORCAMENTO_STATUS_TONE,
+  BLOCO_TIPO_LABEL,
+  BLOCO_DOC_LABEL,
+  BLOCO_TIPO_TONE,
   type OrcamentoItemRow,
+  type OrcamentoBlocoComItens,
 } from "@/lib/types/orcamento";
 import { formatBRL, formatDateBR, formatCNPJ, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -44,6 +48,11 @@ export default async function OrcamentoDetalhePage({
   const cliente = orcamento.cliente;
   const empresa = orcamento.empresa;
   const tone = ORCAMENTO_STATUS_TONE[orcamento.status];
+
+  const blocos = orcamento.blocos ?? [];
+  const isImportado = blocos.length > 0;
+  const blocoPorTipo = (t: "servicos" | "produtos" | "sinalshop") =>
+    blocos.find((b) => b.tipo === t)?.valor_total ?? 0;
 
   // Agrupar itens por seção
   const secoes: { secao: string; itens: OrcamentoItemRow[]; subtotal: number }[] = [];
@@ -156,32 +165,65 @@ export default async function OrcamentoDetalhePage({
         <KpiCard
           label="Valor total"
           value={formatBRL(orcamento.valor_total)}
-          detail={`${orcamento.itens.length} itens na proposta`}
-        />
-        <KpiCard
-          label="Data de envio"
-          value={formatDateBR(orcamento.data_envio) || "—"}
           detail={
-            orcamento.data_envio ? "Enviada ao cliente" : "Ainda não enviada"
+            isImportado
+              ? `${blocos.length} blocos · ${orcamento.itens.length} itens`
+              : `${orcamento.itens.length} itens na proposta`
           }
         />
-        <KpiCard
-          label="Validade"
-          value={formatDateBR(orcamento.data_validade) || "—"}
-          detail={
-            orcamento.data_validade ? "Prazo de validade" : "Sem prazo definido"
-          }
-        />
-        <KpiCard
-          label="Aprovação"
-          value={formatDateBR(orcamento.data_aprovacao) || "—"}
-          detail={
-            orcamento.data_aprovacao ? "Cliente aprovou" : "Aguardando decisão"
-          }
-        />
+        {isImportado ? (
+          <>
+            <KpiCard
+              label="Serviços"
+              value={formatBRL(blocoPorTipo("servicos"))}
+              detail="Sinaltran · Ordem de Serviço"
+            />
+            <KpiCard
+              label="Produtos"
+              value={formatBRL(blocoPorTipo("produtos"))}
+              detail="Sinaltran · Pedido de Venda"
+            />
+            <KpiCard
+              label="Sinalshop"
+              value={formatBRL(blocoPorTipo("sinalshop"))}
+              detail="Sinalshop · tintas"
+            />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              label="Data de envio"
+              value={formatDateBR(orcamento.data_envio) || "—"}
+              detail={
+                orcamento.data_envio ? "Enviada ao cliente" : "Ainda não enviada"
+              }
+            />
+            <KpiCard
+              label="Validade"
+              value={formatDateBR(orcamento.data_validade) || "—"}
+              detail={
+                orcamento.data_validade ? "Prazo de validade" : "Sem prazo definido"
+              }
+            />
+            <KpiCard
+              label="Aprovação"
+              value={formatDateBR(orcamento.data_aprovacao) || "—"}
+              detail={
+                orcamento.data_aprovacao ? "Cliente aprovou" : "Aguardando decisão"
+              }
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
+        {isImportado ? (
+          <div className="lg:col-span-2 space-y-4">
+            {blocos.map((bloco) => (
+              <BlocoCard key={bloco.id} bloco={bloco} />
+            ))}
+          </div>
+        ) : (
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Itens da proposta</CardTitle>
@@ -291,6 +333,7 @@ export default async function OrcamentoDetalhePage({
             </table>
           </CardContent>
         </Card>
+        )}
 
         <div className="space-y-4">
           {empresa ? (
@@ -400,6 +443,135 @@ export default async function OrcamentoDetalhePage({
         </div>
       </div>
     </div>
+  );
+}
+
+function BlocoCard({ bloco }: { bloco: OrcamentoBlocoComItens }) {
+  const tone = BLOCO_TIPO_TONE[bloco.tipo];
+  const docLabel = bloco.omie_doc_tipo ? BLOCO_DOC_LABEL[bloco.omie_doc_tipo] : "—";
+  const emissor = bloco.empresa?.nome ?? "—";
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={cn("gap-1.5 font-medium", tone.bg, tone.text)}
+            >
+              <span className={cn("size-1.5 rounded-full", tone.dot)} />
+              {BLOCO_TIPO_LABEL[bloco.tipo]}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {emissor} · {docLabel}
+              {bloco.omie_numero ? (
+                <span className="font-mono"> Nº {bloco.omie_numero}</span>
+              ) : null}
+            </span>
+          </div>
+          <span className="text-base font-bold tabular-nums">
+            {formatBRL(bloco.valor_total)}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b">
+              <th className="text-left font-semibold py-2 px-4 w-20">Código</th>
+              <th className="text-left font-semibold py-2 px-2">Descrição</th>
+              <th className="text-center font-semibold py-2 px-2 w-14">Un.</th>
+              <th className="text-right font-semibold py-2 px-2 w-20">Qtd.</th>
+              <th className="text-right font-semibold py-2 px-2 w-28">Vlr. unit.</th>
+              <th className="text-right font-semibold py-2 px-4 w-32">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bloco.itens.map((item) => {
+              const unit =
+                item.valor_unit_mao_obra > 0
+                  ? item.valor_unit_mao_obra
+                  : item.valor_unit_material;
+              return (
+                <tr key={item.id} className="border-b last:border-b-0 align-top">
+                  <td className="py-2 px-4 text-xs font-mono text-muted-foreground">
+                    {item.codigo_omie ?? "—"}
+                  </td>
+                  <td className="py-2 px-2">
+                    {item.descricao}
+                    {item.ncm ? (
+                      <span className="block text-[10px] text-muted-foreground">
+                        NCM {item.ncm}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-2 px-2 text-center text-xs uppercase">
+                    {item.unidade_medida}
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums text-xs">
+                    {formatNumber(item.quantidade)}
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums text-xs">
+                    {formatBRL(unit)}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular-nums font-semibold">
+                    {formatBRL(item.valor_total)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-foreground/10 text-xs">
+              <td colSpan={5} className="py-1.5 px-4 text-right text-muted-foreground">
+                Subtotal
+              </td>
+              <td className="py-1.5 px-4 text-right tabular-nums">
+                {formatBRL(bloco.valor_subtotal)}
+              </td>
+            </tr>
+            {bloco.valor_ipi > 0 ? (
+              <tr className="text-xs">
+                <td colSpan={5} className="py-1 px-4 text-right text-muted-foreground">
+                  IPI
+                </td>
+                <td className="py-1 px-4 text-right tabular-nums">
+                  {formatBRL(bloco.valor_ipi)}
+                </td>
+              </tr>
+            ) : null}
+            {bloco.valor_icms_st > 0 ? (
+              <tr className="text-xs">
+                <td colSpan={5} className="py-1 px-4 text-right text-muted-foreground">
+                  ICMS ST
+                </td>
+                <td className="py-1 px-4 text-right tabular-nums">
+                  {formatBRL(bloco.valor_icms_st)}
+                </td>
+              </tr>
+            ) : null}
+            {bloco.valor_iss > 0 ? (
+              <tr className="text-xs">
+                <td colSpan={5} className="py-1 px-4 text-right text-muted-foreground">
+                  ISS
+                </td>
+                <td className="py-1 px-4 text-right tabular-nums">
+                  {formatBRL(bloco.valor_iss)}
+                </td>
+              </tr>
+            ) : null}
+            <tr>
+              <td colSpan={5} className="py-2 px-4 text-right text-[10px] uppercase tracking-wider text-muted-foreground">
+                Total do bloco
+              </td>
+              <td className="py-2 px-4 text-right text-base font-bold tabular-nums">
+                {formatBRL(bloco.valor_total)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </CardContent>
+    </Card>
   );
 }
 
