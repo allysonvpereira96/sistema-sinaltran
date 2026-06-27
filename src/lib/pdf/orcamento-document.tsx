@@ -98,7 +98,19 @@ const styles = StyleSheet.create({
 
 const brl = (v: number) => (v > 0 ? formatBRL(v) : "R$ -");
 
-export type ConteudoPdf = "completo" | "servicos" | "produtos" | "sinalshop";
+export type ConteudoPdf =
+  | "completo"
+  | "servicos"
+  | "material"
+  | "produtos"
+  | "sinalshop";
+
+/** Decide se um bloco entra no conteúdo escolhido. */
+function blocoNoConteudo(tipo: OrcamentoBlocoTipo, conteudo: ConteudoPdf): boolean {
+  if (conteudo === "completo") return true;
+  if (conteudo === "material") return tipo === "produtos" || tipo === "sinalshop";
+  return tipo === conteudo;
+}
 
 /** Dados da empresa exibidos no cabeçalho/rodapé (independe da empresa-líder). */
 export type EmpresaPdfHeader = {
@@ -216,9 +228,7 @@ export function OrcamentoDocument({
   const blocos = orcamento.blocos ?? [];
   const temBlocos = blocos.length > 0;
   const blocosExibidos = temBlocos
-    ? conteudo === "completo"
-      ? blocos
-      : blocos.filter((b) => b.tipo === conteudo)
+    ? blocos.filter((b) => blocoNoConteudo(b.tipo, conteudo))
     : [];
   const itensFallback = temBlocos
     ? []

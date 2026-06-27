@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileDown, Files } from "lucide-react";
+import { FileDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,17 +13,14 @@ import {
 import { Button } from "@/components/ui/button";
 import type { OrcamentoBlocoTipo } from "@/lib/types/orcamento";
 
-type Conteudo = "completo" | OrcamentoBlocoTipo;
+type Conteudo = "completo" | "servicos" | "material";
 type EmpresaKey = "sinaltran" | "sinalshop";
 
 const CONTEUDO_LABEL: Record<Conteudo, string> = {
   completo: "Completo (mão de obra + material)",
   servicos: "Só mão de obra",
-  produtos: "Só produtos",
-  sinalshop: "Só tinta (Sinalshop)",
+  material: "Só material",
 };
-
-const ORDEM: OrcamentoBlocoTipo[] = ["servicos", "produtos", "sinalshop"];
 
 const selectCls =
   "h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -39,25 +36,21 @@ export function GerarPdfButton({
   /** Trigger compacto (só ícone) — usado na lista. */
   iconOnly?: boolean;
 }) {
-  const temBlocos = tipos.length > 0;
-  const opcoes: Conteudo[] = ["completo", ...ORDEM.filter((t) => tipos.includes(t))];
+  const temMaterial = tipos.includes("produtos") || tipos.includes("sinalshop");
+  const temServicos = tipos.includes("servicos");
+  const opcoes: Conteudo[] = [
+    "completo",
+    ...(temServicos ? (["servicos"] as const) : []),
+    ...(temMaterial ? (["material"] as const) : []),
+  ];
 
   const [conteudo, setConteudo] = useState<Conteudo>("completo");
   const [empresa, setEmpresa] = useState<EmpresaKey>("sinaltran");
 
   const base = `/comercial/orcamentos/${orcamentoId}/pdf`;
 
-  function trocarConteudo(c: Conteudo) {
-    setConteudo(c);
-    // Default inteligente: tinta sai no nome da Sinalshop; demais, Sinaltran.
-    setEmpresa(c === "sinalshop" ? "sinalshop" : "sinaltran");
-  }
-
   function gerar() {
     window.open(`${base}?conteudo=${conteudo}&empresa=${empresa}`, "_blank", "noopener");
-  }
-  function gerarSeparados() {
-    window.open(`${base}?separados=1`, "_blank", "noopener");
   }
 
   return (
@@ -89,7 +82,7 @@ export function GerarPdfButton({
             <select
               className={selectCls}
               value={conteudo}
-              onChange={(e) => trocarConteudo(e.target.value as Conteudo)}
+              onChange={(e) => setConteudo(e.target.value as Conteudo)}
             >
               {opcoes.map((c) => (
                 <option key={c} value={c}>
@@ -114,13 +107,7 @@ export function GerarPdfButton({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          {temBlocos ? (
-            <Button variant="outline" className="gap-2" onClick={gerarSeparados}>
-              <Files className="size-4" />
-              Gerar separados ({tipos.length})
-            </Button>
-          ) : null}
+        <div className="flex justify-end">
           <Button className="gap-2" onClick={gerar}>
             <FileDown className="size-4" />
             Gerar
