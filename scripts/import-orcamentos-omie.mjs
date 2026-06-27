@@ -119,29 +119,56 @@ function parseHeader(lines) {
   };
 }
 
-// ── Itens de PRODUTO (Pedido de Venda / Orçamento Sinalshop) ─────────────────
-const RE_PROD = /^(\d{1,6})\s+(.+?)\s+(\d[\d.]*,\d{2,4})\s+([A-Za-zÀ-ÿ\d/]{1,12})\s+([\d.]+,\d{2,6})\s+([\d.]+,\d{2})$/;
+// Linhas de "mobília de página" que aparecem repetidas em PDFs multipágina.
+const RE_JUNK = /^(SINALTRAN SINALIZACOES|SINAL ?SHOP|www\.|CNPJ:|Inscri[çc][ãa]o|EST MANOEL|COSTA DO IPIRANGA|Gravata[íi] - RS|AV PLANALTINA|BOM SUCESSO|Telefone:|Email:|Endere[çc]o:|Bairro:|Cidade:|Pedido de Venda N|Ordem de Servi[çc]o N|Or[çc]amento N|Informa[çc][õo]es do Cliente|Gerado em|P[áa]gina \d+ de|Itens d[oa]|C[óo]digo\s+Descri[çc][ãa]o|Descri[çc][ãa]o do Servi[çc]o)/i;
+// Linha composta só de valores (qty/unit/total que "vazaram" da descrição).
+const RE_SO_VALORES = /^(\d[\d.]*,\d{2,6}\s*)+$/;
 const RE_NCM = /^\d{4}\.\d{2}(\.\d{2})?(\.\d{2})?$/;
 
+/** Índice onde começa o rodapé — o valor do rótulo pode estar na linha de cima. */
+function fimItens(lines, reFooter) {
+  const idx = lines.findIndex((l) => reFooter.test(l));
+  if (idx < 0) return -1;
+  if (idx > 0 && RE_SO_VALORES.test(lines[idx - 1])) return idx - 1;
+  return idx;
+}
+
+/** Limpa a região de itens: tira lixo de página e funde linhas só-de-valor. */
+function prepararRegiao(lines, ini, fim) {
+  const bruto = lines.slice(ini + 1, fim < 0 ? undefined : fim).filter((l) => !RE_JUNK.test(l));
+  const out = [];
+  for (const l of bruto) {
+    if (RE_SO_VALORES.test(l) && out.length) out[out.length - 1] += " " + l.trim();
+    else out.push(l);
+  }
+  return out;
+}
+
+// ── Itens de PRODUTO (Pedido de Venda / Orçamento Sinalshop) ─────────────────
+// código  descrição  [ncm]  quant  [unidade]  unit  [desconto]  total
+const RE_PROD =
+  /^(\S{1,25})\s+(.+?)\s+(\d[\d.]*,\d{2,4})(?:\s+([\wÀ-ÿ²³º°/]{1,6}))?\s+([\d.]+,\d{2,6})(?:\s+([\d.]+,\d{2}))?\s+([\d.]+,\d{2})$/;
+
 function parseItensProduto(lines) {
-  const ini = lines.findIndex((l) => /Código\s+Descrição\s+NCM/i.test(l));
-  const fim = lines.findIndex((l) => /Subtotal:/i.test(l));
+  const ini = lines.findIndex((l) => /C[óo]digo\s+Descri[çc][ãa]o\s+NCM/i.test(l));
+  const fim = fimItens(lines, /Subtotal:/i);
   if (ini < 0) return [];
-  const seg = lines.slice(ini + 1, fim < 0 ? undefined : fim);
+  const seg = prepararRegiao(lines, ini, fim);
   const itens = [];
   for (const l of seg) {
     const m = l.match(RE_PROD);
     if (m) {
       let desc = m[2].trim();
       let ncm = null;
-      // NCM pode estar grudado no fim da descrição.
       const partes = desc.split(/\s+/);
       const ult = partes[partes.length - 1];
       if (RE_NCM.test(ult)) { ncm = ult; desc = partes.slice(0, -1).join(" "); }
       itens.push({
         codigo_omie: m[1], descricao: desc, ncm,
-        quantidade: num(m[3]), unidade: m[4],
-        valor_unitario: num(m[5]), valor_total: num(m[6]),
+        quantidade: num(m[3]), unidade: m[4] || "UN",
+        valor_unitario: num(m[5]),
+        valor_desconto: num(m[6]),
+        valor_total: num(m[7]),
       });
     } else if (RE_NCM.test(l) && itens.length) {
       if (!itens[itens.length - 1].ncm) itens[itens.length - 1].ncm = l;
@@ -153,13 +180,13 @@ function parseItensProduto(lines) {
 }
 
 // ── Itens de SERVIÇO (Ordem de Serviço) ──────────────────────────────────────
-const RE_SERV = /^(.+?)\s+(\d[\d.]*,\d{2})\s+([\d.]+,\d{2})\s+([\d.]+,\d{2})$/;
+const RE_SERV = /^(.+?)\s+(\d[\d.]*,\d{2,4})\s+([\d.]+,\d{2})\s+([\d.]+,\d{2})$/;
 
 function parseItensServico(lines) {
-  const ini = lines.findIndex((l) => /Descrição do Serviço\s+Quantidade/i.test(l));
-  const fim = lines.findIndex((l) => /^Total:/i.test(l));
+  const ini = lines.findIndex((l) => /Descri[çc][ãa]o do Servi[çc]o\s+Quantidade/i.test(l));
+  const fim = fimItens(lines, /^Total:/i);
   if (ini < 0) return [];
-  const seg = lines.slice(ini + 1, fim < 0 ? undefined : fim);
+  const seg = prepararRegiao(lines, ini, fim);
   const itens = [];
   for (const l of seg) {
     const m = l.match(RE_SERV);
@@ -167,13 +194,12 @@ function parseItensServico(lines) {
       itens.push({
         codigo_omie: null, descricao: m[1].trim(), ncm: null,
         quantidade: num(m[2]), unidade: "UN",
-        valor_unitario: num(m[3]), valor_total: num(m[4]),
+        valor_unitario: num(m[3]), valor_desconto: 0, valor_total: num(m[4]),
       });
     } else if (itens.length) {
       itens[itens.length - 1].descricao += " " + l.trim();
     }
   }
-  // Extrai "(Cód. 70202)" da descrição → codigo_omie
   for (const it of itens) {
     const m = it.descricao.match(/\(C[óo]d\.?\s*(\d+)\)/i);
     if (m) it.codigo_omie = m[1];
@@ -218,13 +244,18 @@ function parseTotais(lines, isServico) {
   if (isServico) {
     const total = valorTotalGeral(lines);
     const iss = valorRotulado(lines, "Total do ISS");
-    return { valor_subtotal: total, valor_ipi: 0, valor_icms_st: 0, valor_iss: iss, valor_total: total };
+    return {
+      valor_subtotal: total, valor_ipi: 0, valor_icms_st: 0, valor_iss: iss,
+      valor_frete: 0, valor_desconto: 0, valor_total: total,
+    };
   }
   return {
     valor_subtotal: valorRotulado(lines, "Subtotal"),
     valor_ipi: valorRotulado(lines, "IPI"),
     valor_icms_st: valorRotulado(lines, "ICMS ST"),
     valor_iss: 0,
+    valor_frete: valorRotulado(lines, "Frete"),
+    valor_desconto: valorRotulado(lines, "Desconto"),
     valor_total: valorTotalGeral(lines),
   };
 }
@@ -267,7 +298,8 @@ function relatar(obra) {
   console.log(`\n📁 ${obra.obraNome}`);
   let totalObra = 0;
   for (const b of obra.blocos) {
-    const somaItens = b.itens.reduce((s, i) => s + i.valor_total, 0);
+    // Subtotal é BRUTO; item.valor_total é LÍQUIDO → somar de volta o desconto.
+    const somaItens = b.itens.reduce((s, i) => s + i.valor_total + (i.valor_desconto ?? 0), 0);
     const okItens = Math.abs(somaItens - b.totais.valor_subtotal) < 0.05;
     totalObra += b.totais.valor_total;
     console.log(
@@ -373,7 +405,11 @@ for (const obra of parsed) {
 
   const valorTotal = obra.blocos.reduce((s, b) => s + b.totais.valor_total, 0);
   const numero = await proximoNumero();
-  const empresaLead = empresaIdPorCnpj["05336209000144"] ?? null;
+  // Líder = Sinaltran se houver bloco dela; senão a empresa do 1º bloco.
+  const temSinaltran = obra.blocos.some((b) => b.header.empresaCnpj === "05336209000144");
+  const empresaLead = temSinaltran
+    ? empresaIdPorCnpj["05336209000144"] ?? null
+    : empresaIdPorCnpj[obra.blocos[0]?.header.empresaCnpj] ?? null;
   const cab = obra.blocos[0]?.header ?? {};
 
   const { rows: orc } = await db.query(
@@ -392,13 +428,14 @@ for (const obra of parsed) {
       `insert into public.orcamento_blocos
          (orcamento_id, tipo, empresa_id, omie_doc_tipo, omie_numero, vendedor,
           data_documento, previsao_faturamento, valor_subtotal, valor_ipi,
-          valor_icms_st, valor_iss, valor_total, observacoes)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          valor_icms_st, valor_iss, valor_frete, valor_desconto, valor_total, observacoes)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        returning id`,
       [orcamentoId, b.tipo, empresaIdPorCnpj[b.header.empresaCnpj] ?? null,
        b.omie_doc_tipo, b.header.numero, b.header.vendedor, b.header.dataDocumento,
        b.header.previsao, b.totais.valor_subtotal, b.totais.valor_ipi,
-       b.totais.valor_icms_st, b.totais.valor_iss, b.totais.valor_total, b.header.observacoes],
+       b.totais.valor_icms_st, b.totais.valor_iss, b.totais.valor_frete,
+       b.totais.valor_desconto, b.totais.valor_total, b.header.observacoes],
     );
     const blocoId = bl[0].id;
     let ordem = 0;
@@ -408,12 +445,13 @@ for (const obra of parsed) {
         `insert into public.orcamento_itens
            (orcamento_id, bloco_id, ordem, codigo_omie, ncm, descricao,
             unidade_medida, quantidade, valor_unit_mao_obra, valor_unit_material,
-            valor_total_mao_obra, valor_total_material, valor_total)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            valor_total_mao_obra, valor_total_material, valor_desconto, valor_total)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [orcamentoId, blocoId, ++ordem, i.codigo_omie, i.ncm, i.descricao,
          i.unidade, i.quantidade,
          mo ? i.valor_unitario : 0, mo ? 0 : i.valor_unitario,
-         mo ? i.valor_total : 0, mo ? 0 : i.valor_total, i.valor_total],
+         mo ? i.valor_total : 0, mo ? 0 : i.valor_total,
+         i.valor_desconto ?? 0, i.valor_total],
       );
     }
   }

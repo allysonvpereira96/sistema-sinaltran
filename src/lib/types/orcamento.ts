@@ -28,6 +28,7 @@ export type OrcamentoItemRow = {
   valor_unit_material: number;
   valor_total_mao_obra: number;
   valor_total_material: number;
+  valor_desconto: number;
   valor_total: number;
   observacoes: string | null;
   created_at: string;
@@ -52,6 +53,8 @@ export type OrcamentoBlocoRow = {
   valor_ipi: number;
   valor_icms_st: number;
   valor_iss: number;
+  valor_frete: number;
+  valor_desconto: number;
   valor_total: number;
   observacoes: string | null;
   created_at: string;

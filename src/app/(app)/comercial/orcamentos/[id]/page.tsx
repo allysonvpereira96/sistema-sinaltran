@@ -52,7 +52,7 @@ export default async function OrcamentoDetalhePage({
   const blocos = orcamento.blocos ?? [];
   const isImportado = blocos.length > 0;
   const blocoPorTipo = (t: "servicos" | "produtos" | "sinalshop") =>
-    blocos.find((b) => b.tipo === t)?.valor_total ?? 0;
+    blocos.filter((b) => b.tipo === t).reduce((s, b) => s + b.valor_total, 0);
 
   // Agrupar itens por seção
   const secoes: { secao: string; itens: OrcamentoItemRow[]; subtotal: number }[] = [];
@@ -547,6 +547,26 @@ function BlocoCard({ bloco }: { bloco: OrcamentoBlocoComItens }) {
                 </td>
                 <td className="py-1 px-4 text-right tabular-nums">
                   {formatBRL(bloco.valor_icms_st)}
+                </td>
+              </tr>
+            ) : null}
+            {bloco.valor_frete > 0 ? (
+              <tr className="text-xs">
+                <td colSpan={5} className="py-1 px-4 text-right text-muted-foreground">
+                  Frete
+                </td>
+                <td className="py-1 px-4 text-right tabular-nums">
+                  {formatBRL(bloco.valor_frete)}
+                </td>
+              </tr>
+            ) : null}
+            {bloco.valor_desconto > 0 ? (
+              <tr className="text-xs">
+                <td colSpan={5} className="py-1 px-4 text-right text-muted-foreground">
+                  Desconto
+                </td>
+                <td className="py-1 px-4 text-right tabular-nums text-rose-600">
+                  − {formatBRL(bloco.valor_desconto)}
                 </td>
               </tr>
             ) : null}
