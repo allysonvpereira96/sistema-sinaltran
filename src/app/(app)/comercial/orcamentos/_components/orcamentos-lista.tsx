@@ -36,6 +36,7 @@ import {
 import { deleteOrcamento } from "@/lib/actions/orcamentos";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { GerarPdfButton } from "../[id]/_components/gerar-pdf";
 
 type FiltroRapido = "todos" | OrcamentoStatus;
 
@@ -235,7 +236,7 @@ export function OrcamentosLista({
                 <TableHead>Validade</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-32 text-right">Ações</TableHead>
+                <TableHead className="w-40 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -291,6 +292,11 @@ export function OrcamentosLista({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-0.5">
+                          <GerarPdfButton
+                            orcamentoId={o.id}
+                            tipos={(o.blocos ?? []).map((b) => b.tipo)}
+                            iconOnly
+                          />
                           <Button
                             variant="ghost"
                             size="icon-sm"

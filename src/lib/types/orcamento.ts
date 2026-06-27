@@ -121,6 +121,8 @@ export type OrcamentoListRow = OrcamentoRow & {
     nome_fantasia: string | null;
   } | null;
   empresa: { nome: string } | null;
+  /** Tipos de bloco presentes (para montar as opções do PDF na lista). */
+  blocos?: { tipo: OrcamentoBlocoTipo }[];
 };
 
 /** Orçamento completo (dados + itens + relacionados) para detalhe/edição. */

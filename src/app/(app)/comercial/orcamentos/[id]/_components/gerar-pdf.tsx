@@ -31,10 +31,13 @@ const selectCls =
 export function GerarPdfButton({
   orcamentoId,
   tipos,
+  iconOnly = false,
 }: {
   orcamentoId: string;
   /** Tipos de bloco presentes no orçamento (para montar as opções). */
   tipos: OrcamentoBlocoTipo[];
+  /** Trigger compacto (só ícone) — usado na lista. */
+  iconOnly?: boolean;
 }) {
   const temBlocos = tipos.length > 0;
   const opcoes: Conteudo[] = ["completo", ...ORDEM.filter((t) => tipos.includes(t))];
@@ -59,12 +62,19 @@ export function GerarPdfButton({
 
   return (
     <Dialog>
-      <DialogTrigger
-        render={<Button variant="outline" className="gap-2" />}
-      >
-        <FileDown className="size-4" />
-        Gerar PDF
-      </DialogTrigger>
+      {iconOnly ? (
+        <DialogTrigger
+          render={<Button variant="ghost" size="icon-sm" />}
+          aria-label="Gerar PDF"
+        >
+          <FileDown className="size-3.5" />
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger render={<Button variant="outline" className="gap-2" />}>
+          <FileDown className="size-4" />
+          Gerar PDF
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Gerar PDF do orçamento</DialogTitle>

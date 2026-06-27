@@ -120,7 +120,7 @@ export async function listOrcamentos(): Promise<OrcamentoListRow[]> {
   let q = supabase
     .from("orcamentos")
     .select(
-      "*, cliente:clientes(razao_social, nome_fantasia), empresa:empresas(nome)",
+      "*, cliente:clientes(razao_social, nome_fantasia), empresa:empresas(nome), blocos:orcamento_blocos(tipo)",
     )
     .order("created_at", { ascending: false });
   if (escopo) q = q.eq("empresa_id", escopo);
