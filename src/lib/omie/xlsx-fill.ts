@@ -7,18 +7,25 @@
 // ============================================================================
 import JSZip from "jszip";
 
-const esc = (s) =>
-  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export type CellValue = string | number;
+export type RowsMap = Record<number, Record<string, CellValue>>;
+
+const esc = (s: CellValue) =>
+  String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 /** "AC" → índice numérico (para ordenar células na linha). */
-function colIndex(letters) {
+function colIndex(letters: string): number {
   let n = 0;
   for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
   return n;
 }
 
 /** Monta o XML de uma <row> com as células informadas (número ou texto). */
-function buildRow(rowNum, cols) {
+function buildRow(rowNum: string, cols: Record<string, CellValue>): string {
   const cells = Object.entries(cols)
     .filter(([, v]) => v !== null && v !== undefined && v !== "")
     .sort((a, b) => colIndex(a[0]) - colIndex(b[0]))
@@ -32,27 +39,27 @@ function buildRow(rowNum, cols) {
   return `<row r="${rowNum}">${cells}</row>`;
 }
 
-/**
- * Preenche um template .xlsx.
- * @param {Buffer} templateBuffer  conteúdo do .xlsx template
- * @param {string} sheetName       nome da aba (ex: "Omie_Ordens_Servico")
- * @param {Object<number,Object<string,(string|number)>>} rows  { 6: { C: "...", AG: 1 }, ... }
- * @returns {Promise<Buffer>}
- */
-export async function fillXlsx(templateBuffer, sheetName, rows) {
+/** Preenche um template .xlsx substituindo as linhas indicadas em `rows`. */
+export async function fillXlsx(
+  templateBuffer: Buffer,
+  sheetName: string,
+  rows: RowsMap,
+): Promise<Buffer> {
   const zip = await JSZip.loadAsync(templateBuffer);
-  const wbXml = await zip.file("xl/workbook.xml").async("string");
-  const relsXml = await zip.file("xl/_rels/workbook.xml.rels").async("string");
+  const wbXml = await zip.file("xl/workbook.xml")!.async("string");
+  const relsXml = await zip.file("xl/_rels/workbook.xml.rels")!.async("string");
 
   const sheetTag = [...wbXml.matchAll(/<sheet\b[^>]*\/>/g)]
     .map((m) => m[0])
-    .find((t) => new RegExp(`name="${sheetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`).test(t));
+    .find((t) =>
+      new RegExp(`name="${sheetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`).test(t),
+    );
   if (!sheetTag) throw new Error(`Aba não encontrada: ${sheetName}`);
-  const rid = /r:id="([^"]+)"/.exec(sheetTag)[1];
-  const target = new RegExp(`Id="${rid}"[^>]*Target="([^"]+)"`).exec(relsXml)[1];
+  const rid = /r:id="([^"]+)"/.exec(sheetTag)![1];
+  const target = new RegExp(`Id="${rid}"[^>]*Target="([^"]+)"`).exec(relsXml)![1];
   const sheetPath = "xl/" + target.replace(/^\/?xl\//, "");
 
-  let xml = await zip.file(sheetPath).async("string");
+  let xml = await zip.file(sheetPath)!.async("string");
   for (const [rowNum, cols] of Object.entries(rows)) {
     const rowXml = buildRow(rowNum, cols);
     const reFull = new RegExp(`<row r="${rowNum}"[^>]*>[\\s\\S]*?</row>`);

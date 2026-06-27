@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   // @react-pdf/renderer (geração de PDF do orçamento) traz binários/wasm que
   // não devem ser empacotados pelo bundler — carregar do node_modules em runtime.
   serverExternalPackages: ["@react-pdf/renderer"],
+  // Os templates .xlsx do Omie são lidos em runtime pela rota de export — incluí-los
+  // no bundle serverless (não são importados, então o tracing não os pega sozinho).
+  outputFileTracingIncludes: {
+    "/comercial/orcamentos/[id]/omie": ["./src/lib/omie/templates/*.xlsx"],
+  },
   experimental: {
     // Server Actions que recebem arquivo (createOcorrenciaCaderno, ficha PDF…)
     // PDFs escaneados podem chegar facilmente a 10–15 MB. Upload em lote de

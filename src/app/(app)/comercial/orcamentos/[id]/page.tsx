@@ -9,6 +9,7 @@ import {
   User,
   Building2,
   HardHat,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   Card,
@@ -119,6 +120,15 @@ export default async function OrcamentoDetalhePage({
             orcamentoId={orcamento.id}
             tipos={blocos.map((b) => b.tipo)}
           />
+          {isImportado ? (
+            <a
+              href={`/comercial/orcamentos/${orcamento.id}/omie`}
+              className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+            >
+              <FileSpreadsheet className="size-4" />
+              Exportar Omie
+            </a>
+          ) : null}
           <Link
             href={`/comercial/orcamentos/${orcamento.id}/editar`}
             className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
