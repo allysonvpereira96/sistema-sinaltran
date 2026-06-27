@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   TrendingUp,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
@@ -297,6 +298,18 @@ export function OrcamentosLista({
                             tipos={(o.blocos ?? []).map((b) => b.tipo)}
                             iconOnly
                           />
+                          {(o.blocos?.length ?? 0) > 0 ? (
+                            <a
+                              href={`/comercial/orcamentos/${o.id}/omie`}
+                              className={cn(
+                                buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                              )}
+                              aria-label="Exportar Omie"
+                              title="Exportar planilhas para o Omie"
+                            >
+                              <FileSpreadsheet className="size-3.5" />
+                            </a>
+                          ) : null}
                           <Button
                             variant="ghost"
                             size="icon-sm"
