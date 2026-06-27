@@ -6,7 +6,12 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { OrcamentoDetalhe, OrcamentoItemRow } from "@/lib/types/orcamento";
+import type {
+  OrcamentoDetalhe,
+  OrcamentoItemRow,
+  OrcamentoBlocoComItens,
+  OrcamentoBlocoTipo,
+} from "@/lib/types/orcamento";
 import {
   formatBRL,
   formatCNPJ,
@@ -31,30 +36,15 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
     color: "#1a1a1a",
   },
-  // Cabeçalho
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
+  header: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
   headerInfo: { flexGrow: 1, alignItems: "center", paddingTop: 2 },
   headerLine: { fontSize: 7.5, marginBottom: 1.5 },
   headerLineBold: { fontSize: 8.5, fontFamily: "Helvetica-Bold", marginBottom: 2 },
-  logoBox: {
-    width: 140,
-    alignItems: "flex-end",
-  },
+  logoBox: { width: 140, alignItems: "flex-end" },
   logo: { width: 132, height: 36 },
-  // Tabela
-  table: { borderWidth: 0.7, borderColor: BORDA, marginTop: 2 },
-  rowHeader: {
-    flexDirection: "row",
-    backgroundColor: AMARELO,
-  },
-  rowSection: {
-    flexDirection: "row",
-    backgroundColor: AMARELO_SOFT,
-  },
+  table: { borderWidth: 0.7, borderColor: BORDA, marginTop: 6 },
+  rowHeader: { flexDirection: "row", backgroundColor: AMARELO },
+  rowSection: { flexDirection: "row", backgroundColor: AMARELO_SOFT },
   row: { flexDirection: "row" },
   rowAlt: { flexDirection: "row", backgroundColor: "#F6F6F6" },
   cell: {
@@ -66,29 +56,24 @@ const styles = StyleSheet.create({
     borderBottomColor: BORDA,
   },
   cellHeaderTxt: { fontFamily: "Helvetica-Bold", fontSize: 7 },
-  // Larguras de coluna
-  cNum: { width: 28, textAlign: "center" },
+  cNum: { width: 30, textAlign: "center" },
   cDesc: { flexGrow: 1, flexBasis: 0 },
-  cUn: { width: 34, textAlign: "center" },
-  cQtd: { width: 46, textAlign: "right" },
-  cMoney: { width: 58, textAlign: "right" },
-  cMoneyTot: { width: 66, textAlign: "right" },
-  right: { textAlign: "right" },
-  // Total
+  cUn: { width: 38, textAlign: "center" },
+  cQtd: { width: 56, textAlign: "right" },
+  cMoney: { width: 78, textAlign: "right" },
+  cMoneyTot: { width: 88, textAlign: "right" },
+  subRow: { flexDirection: "row", justifyContent: "flex-end" },
+  subLabel: { fontSize: 7, color: CINZA, paddingVertical: 1.5, paddingHorizontal: 6 },
+  subValue: { fontSize: 7, paddingVertical: 1.5, paddingHorizontal: 6, width: 88, textAlign: "right" },
   totalRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 6,
+    marginTop: 8,
     alignItems: "center",
     gap: 12,
   },
   totalLabel: { fontFamily: "Helvetica-Bold", fontSize: 10 },
-  totalValue: {
-    fontFamily: "Helvetica-Bold",
-    fontSize: 11,
-    color: "#111",
-  },
-  // Condições
+  totalValue: { fontFamily: "Helvetica-Bold", fontSize: 11, color: "#111" },
   condBox: {
     marginTop: 14,
     borderWidth: 0.7,
@@ -113,31 +98,144 @@ const styles = StyleSheet.create({
 
 const brl = (v: number) => (v > 0 ? formatBRL(v) : "R$ -");
 
-type Secao = { titulo: string; itens: OrcamentoItemRow[] };
+export type ConteudoPdf = "completo" | "servicos" | "produtos" | "sinalshop";
 
-function agruparSecoes(itens: OrcamentoItemRow[]): Secao[] {
-  const out: Secao[] = [];
-  for (const it of itens) {
-    const titulo = it.secao?.trim() || "GERAL";
-    let s = out.find((x) => x.titulo === titulo);
-    if (!s) {
-      s = { titulo, itens: [] };
-      out.push(s);
-    }
-    s.itens.push(it);
-  }
-  return out;
+/** Dados da empresa exibidos no cabeçalho/rodapé (independe da empresa-líder). */
+export type EmpresaPdfHeader = {
+  razao_social: string;
+  cnpj: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  estado: string | null;
+  telefone: string | null;
+  email: string | null;
+};
+
+const TITULO_BLOCO: Record<OrcamentoBlocoTipo, string> = {
+  servicos: "MÃO DE OBRA",
+  produtos: "MATERIAL — PRODUTOS",
+  sinalshop: "MATERIAL — TINTA",
+};
+
+const itemUnit = (i: OrcamentoItemRow) =>
+  i.valor_unit_mao_obra > 0 ? i.valor_unit_mao_obra : i.valor_unit_material;
+
+// ── Cabeçalho de colunas (simples: Descrição · Un · Qtd · Vlr unit · Total) ──
+function ColunasHeader() {
+  return (
+    <View style={styles.rowHeader}>
+      <Text style={[styles.cell, styles.cNum, styles.cellHeaderTxt]}>#</Text>
+      <Text style={[styles.cell, styles.cDesc, styles.cellHeaderTxt]}>Descrição</Text>
+      <Text style={[styles.cell, styles.cUn, styles.cellHeaderTxt]}>Un.</Text>
+      <Text style={[styles.cell, styles.cQtd, styles.cellHeaderTxt]}>Qtd.</Text>
+      <Text style={[styles.cell, styles.cMoney, styles.cellHeaderTxt]}>Vlr. unit.</Text>
+      <Text style={[styles.cell, styles.cMoneyTot, styles.cellHeaderTxt, { borderRightWidth: 0 }]}>
+        Total
+      </Text>
+    </View>
+  );
 }
 
-export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }) {
-  const empresa = orcamento.empresa;
+function LinhaItem({ item, n, alt }: { item: OrcamentoItemRow; n: string; alt: boolean }) {
+  return (
+    <View style={alt ? styles.rowAlt : styles.row}>
+      <Text style={[styles.cell, styles.cNum]}>{n}</Text>
+      <Text style={[styles.cell, styles.cDesc]}>{item.descricao}</Text>
+      <Text style={[styles.cell, styles.cUn]}>{item.unidade_medida}</Text>
+      <Text style={[styles.cell, styles.cQtd]}>{formatNumber(item.quantidade)}</Text>
+      <Text style={[styles.cell, styles.cMoney]}>{brl(itemUnit(item))}</Text>
+      <Text style={[styles.cell, styles.cMoneyTot, { borderRightWidth: 0, fontFamily: "Helvetica-Bold" }]}>
+        {formatBRL(item.valor_total)}
+      </Text>
+    </View>
+  );
+}
+
+function SubLinha({ label, valor }: { label: string; valor: string }) {
+  return (
+    <View style={styles.subRow}>
+      <Text style={styles.subLabel}>{label}</Text>
+      <Text style={styles.subValue}>{valor}</Text>
+    </View>
+  );
+}
+
+// ── Render por BLOCO (orçamentos unificados) ─────────────────────────────────
+function SecaoBloco({ bloco, indice }: { bloco: OrcamentoBlocoComItens; indice: number }) {
+  return (
+    <View style={styles.table} wrap={false}>
+      <View style={styles.rowSection}>
+        <Text style={[styles.cell, { flexGrow: 1, fontFamily: "Helvetica-Bold", fontSize: 8, borderRightWidth: 0 }]}>
+          {TITULO_BLOCO[bloco.tipo]}
+        </Text>
+      </View>
+      <ColunasHeader />
+      {bloco.itens.map((item, ii) => (
+        <LinhaItem key={item.id} item={item} n={`${indice}.${ii + 1}`} alt={ii % 2 === 1} />
+      ))}
+      <SubLinha label="Subtotal" valor={formatBRL(bloco.valor_subtotal)} />
+      {bloco.valor_ipi > 0 ? <SubLinha label="IPI" valor={formatBRL(bloco.valor_ipi)} /> : null}
+      {bloco.valor_icms_st > 0 ? <SubLinha label="ICMS ST" valor={formatBRL(bloco.valor_icms_st)} /> : null}
+      {bloco.valor_iss > 0 ? <SubLinha label="ISS" valor={formatBRL(bloco.valor_iss)} /> : null}
+      {bloco.valor_frete > 0 ? <SubLinha label="Frete" valor={formatBRL(bloco.valor_frete)} /> : null}
+      {bloco.valor_desconto > 0 ? <SubLinha label="Desconto" valor={`- ${formatBRL(bloco.valor_desconto)}`} /> : null}
+      <SubLinha label="Total do bloco" valor={formatBRL(bloco.valor_total)} />
+    </View>
+  );
+}
+
+export function OrcamentoDocument({
+  orcamento,
+  empresa,
+  conteudo = "completo",
+  logo,
+}: {
+  orcamento: OrcamentoDetalhe;
+  empresa?: EmpresaPdfHeader | null;
+  conteudo?: ConteudoPdf;
+  logo?: string | null;
+}) {
+  const cabecalho: EmpresaPdfHeader =
+    empresa ??
+    (orcamento.empresa
+      ? {
+          razao_social: orcamento.empresa.razao_social,
+          cnpj: orcamento.empresa.cnpj,
+          endereco: orcamento.empresa.endereco,
+          cidade: orcamento.empresa.cidade,
+          estado: orcamento.empresa.estado,
+          telefone: orcamento.empresa.telefone,
+          email: orcamento.empresa.email,
+        }
+      : { razao_social: "Sinaltran", cnpj: null, endereco: null, cidade: null, estado: null, telefone: null, email: null });
+
   const cliente = orcamento.cliente;
-  const secoes = agruparSecoes(orcamento.itens);
+  const logoSrc = logo === undefined ? LOGO_SINALTRAN : logo;
+
+  // Conteúdo: blocos filtrados (modelo unificado) ou itens (modelo antigo).
+  const blocos = orcamento.blocos ?? [];
+  const temBlocos = blocos.length > 0;
+  const blocosExibidos = temBlocos
+    ? conteudo === "completo"
+      ? blocos
+      : blocos.filter((b) => b.tipo === conteudo)
+    : [];
+  const itensFallback = temBlocos
+    ? []
+    : conteudo === "completo"
+      ? orcamento.itens
+      : conteudo === "servicos"
+        ? orcamento.itens.filter((i) => i.valor_total_mao_obra > 0)
+        : orcamento.itens.filter((i) => i.valor_total_material > 0);
+
+  const totalGeral = temBlocos
+    ? blocosExibidos.reduce((s, b) => s + b.valor_total, 0)
+    : itensFallback.reduce((s, i) => s + i.valor_total, 0);
 
   const contatoResp = [
     orcamento.responsavel,
-    empresa?.telefone ? formatTelefone(empresa.telefone) : null,
-    empresa?.email,
+    cabecalho.telefone ? formatTelefone(cabecalho.telefone) : null,
+    cabecalho.email,
   ]
     .filter(Boolean)
     .join("  ·  ");
@@ -152,32 +250,29 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
     ? `${orcamento.engenheiro_responsavel}${orcamento.crea_engenheiro ? ` — ${orcamento.crea_engenheiro}` : ""}`
     : null;
 
+  const titulo = orcamento.obra_nome || orcamento.descricao || `Orçamento ${orcamento.numero}`;
+
   return (
-    <Document
-      title={`Orçamento ${orcamento.numero}`}
-      author={empresa?.razao_social ?? "Sinaltran"}
-    >
+    <Document title={`Orçamento ${orcamento.numero}`} author={cabecalho.razao_social}>
       <Page size="A4" orientation="landscape" style={styles.page}>
         {/* Cabeçalho */}
         <View style={styles.header}>
           <View style={{ width: 140 }} />
           <View style={styles.headerInfo}>
             <Text style={styles.headerLineBold}>
-              ORÇAMENTO FORNECIDO POR: {empresa?.razao_social ?? "—"}
+              ORÇAMENTO FORNECIDO POR: {cabecalho.razao_social}
             </Text>
-            {empresa?.cnpj ? (
-              <Text style={styles.headerLine}>CNPJ: {formatCNPJ(empresa.cnpj)}</Text>
+            {cabecalho.cnpj ? (
+              <Text style={styles.headerLine}>CNPJ: {formatCNPJ(cabecalho.cnpj)}</Text>
             ) : null}
-            {empresa?.endereco ? (
+            {cabecalho.endereco ? (
               <Text style={styles.headerLine}>
-                {empresa.endereco}
-                {empresa.cidade ? ` — ${empresa.cidade}/${empresa.estado ?? ""}` : ""}
+                {cabecalho.endereco}
+                {cabecalho.cidade ? ` — ${cabecalho.cidade}/${cabecalho.estado ?? ""}` : ""}
               </Text>
             ) : null}
             {contatoResp ? (
-              <Text style={styles.headerLine}>
-                RESPONSÁVEL ORÇAMENTO: {contatoResp}
-              </Text>
+              <Text style={styles.headerLine}>RESPONSÁVEL ORÇAMENTO: {contatoResp}</Text>
             ) : null}
             <Text style={styles.headerLine}>
               DADOS CLIENTE: {cliente?.razao_social ?? "—"}
@@ -185,127 +280,41 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
             </Text>
             <Text style={styles.headerLine}>
               Nº {orcamento.numero}
-              {"   ·   "}
-              DATA: {formatDateBR(orcamento.data_envio || orcamento.created_at)}
-              {"   ·   "}
-              VALIDADE:{" "}
-              {orcamento.data_validade
-                ? formatDateBR(orcamento.data_validade)
-                : "—"}
+              {"   ·   "}DATA: {formatDateBR(orcamento.data_envio || orcamento.created_at)}
+              {"   ·   "}VALIDADE:{" "}
+              {orcamento.data_validade ? formatDateBR(orcamento.data_validade) : "—"}
             </Text>
           </View>
           <View style={styles.logoBox}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={LOGO_SINALTRAN} style={styles.logo} />
+            {logoSrc ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={logoSrc} style={styles.logo} />
+            ) : null}
           </View>
         </View>
 
-        {orcamento.descricao ? (
-          <Text
-            style={{
-              fontFamily: "Helvetica-Bold",
-              fontSize: 9,
-              marginBottom: 4,
-            }}
-          >
-            {orcamento.descricao}
-          </Text>
-        ) : null}
+        <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, marginBottom: 2 }}>
+          {titulo}
+        </Text>
 
-        {/* Tabela de itens */}
-        <View style={styles.table}>
-          {/* Cabeçalho de colunas */}
-          <View style={styles.rowHeader}>
-            <Text style={[styles.cell, styles.cNum, styles.cellHeaderTxt]}>#</Text>
-            <Text style={[styles.cell, styles.cDesc, styles.cellHeaderTxt]}>
-              Descrição
-            </Text>
-            <Text style={[styles.cell, styles.cUn, styles.cellHeaderTxt]}>Un.</Text>
-            <Text style={[styles.cell, styles.cQtd, styles.cellHeaderTxt]}>Qtd.</Text>
-            <Text style={[styles.cell, styles.cMoney, styles.cellHeaderTxt]}>
-              Mão de obra
-            </Text>
-            <Text style={[styles.cell, styles.cMoney, styles.cellHeaderTxt]}>
-              Material
-            </Text>
-            <Text style={[styles.cell, styles.cMoneyTot, styles.cellHeaderTxt]}>
-              Total MO
-            </Text>
-            <Text style={[styles.cell, styles.cMoneyTot, styles.cellHeaderTxt]}>
-              Total Mat.
-            </Text>
-            <Text
-              style={[
-                styles.cell,
-                styles.cMoneyTot,
-                styles.cellHeaderTxt,
-                { borderRightWidth: 0 },
-              ]}
-            >
-              Total Geral
-            </Text>
+        {/* Itens */}
+        {temBlocos ? (
+          blocosExibidos.map((bloco, bi) => (
+            <SecaoBloco key={bloco.id} bloco={bloco} indice={bi + 1} />
+          ))
+        ) : (
+          <View style={styles.table}>
+            <ColunasHeader />
+            {itensFallback.map((item, ii) => (
+              <LinhaItem key={item.id} item={item} n={`${ii + 1}`} alt={ii % 2 === 1} />
+            ))}
           </View>
-
-          {secoes.map((secao, si) => (
-            <View key={secao.titulo} wrap={false}>
-              {/* Faixa da seção */}
-              <View style={styles.rowSection}>
-                <Text
-                  style={[
-                    styles.cell,
-                    { flexGrow: 1, fontFamily: "Helvetica-Bold", fontSize: 7.5 },
-                  ]}
-                >
-                  {si + 1}.0 {secao.titulo}
-                </Text>
-              </View>
-
-              {secao.itens.map((item, ii) => (
-                <View
-                  key={item.id}
-                  style={ii % 2 === 1 ? styles.rowAlt : styles.row}
-                >
-                  <Text style={[styles.cell, styles.cNum]}>
-                    {si + 1}.{ii + 1}
-                  </Text>
-                  <Text style={[styles.cell, styles.cDesc]}>{item.descricao}</Text>
-                  <Text style={[styles.cell, styles.cUn]}>
-                    {item.unidade_medida}
-                  </Text>
-                  <Text style={[styles.cell, styles.cQtd]}>
-                    {formatNumber(item.quantidade)}
-                  </Text>
-                  <Text style={[styles.cell, styles.cMoney]}>
-                    {brl(item.valor_unit_mao_obra)}
-                  </Text>
-                  <Text style={[styles.cell, styles.cMoney]}>
-                    {brl(item.valor_unit_material)}
-                  </Text>
-                  <Text style={[styles.cell, styles.cMoneyTot]}>
-                    {brl(item.valor_total_mao_obra)}
-                  </Text>
-                  <Text style={[styles.cell, styles.cMoneyTot]}>
-                    {brl(item.valor_total_material)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.cell,
-                      styles.cMoneyTot,
-                      { borderRightWidth: 0, fontFamily: "Helvetica-Bold" },
-                    ]}
-                  >
-                    {formatBRL(item.valor_total)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
+        )}
 
         {/* Total geral */}
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>TOTAL GERAL</Text>
-          <Text style={styles.totalValue}>{formatBRL(orcamento.valor_total)}</Text>
+          <Text style={styles.totalValue}>{formatBRL(totalGeral)}</Text>
         </View>
 
         {/* Condições de fornecimento */}
@@ -313,19 +322,13 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
           <Text style={styles.condTitle}>Condições de fornecimento</Text>
           <Text style={styles.condLine}>Obra: {localObra}</Text>
           {orcamento.condicoes_pagamento ? (
-            <Text style={styles.condLine}>
-              Pagamento: {orcamento.condicoes_pagamento}
-            </Text>
+            <Text style={styles.condLine}>Pagamento: {orcamento.condicoes_pagamento}</Text>
           ) : null}
           {orcamento.prazo_execucao ? (
-            <Text style={styles.condLine}>
-              Prazo de execução: {orcamento.prazo_execucao}
-            </Text>
+            <Text style={styles.condLine}>Prazo de execução: {orcamento.prazo_execucao}</Text>
           ) : null}
           {engenheiro ? (
-            <Text style={styles.condLine}>
-              Engenheiro responsável: {engenheiro}
-            </Text>
+            <Text style={styles.condLine}>Engenheiro responsável: {engenheiro}</Text>
           ) : null}
           {orcamento.observacoes ? (
             <Text style={[styles.condLine, { marginTop: 3, color: CINZA }]}>
@@ -336,14 +339,10 @@ export function OrcamentoDocument({ orcamento }: { orcamento: OrcamentoDetalhe }
 
         <View style={styles.footer} fixed>
           <Text>
-            {empresa?.razao_social ?? "Sinaltran"}
-            {empresa?.cnpj ? ` — CNPJ ${formatCNPJ(empresa.cnpj)}` : ""}
+            {cabecalho.razao_social}
+            {cabecalho.cnpj ? ` — CNPJ ${formatCNPJ(cabecalho.cnpj)}` : ""}
           </Text>
-          <Text
-            render={({ pageNumber, totalPages }) =>
-              `Pág. ${pageNumber}/${totalPages}`
-            }
-          />
+          <Text render={({ pageNumber, totalPages }) => `Pág. ${pageNumber}/${totalPages}`} />
         </View>
       </Page>
     </Document>

@@ -14,6 +14,35 @@ export type Empresa = {
   razao_social: string;
 };
 
+/** Dados completos de uma empresa para o cabeçalho do PDF (por nome). */
+export type EmpresaPdf = {
+  id: string;
+  nome: string;
+  razao_social: string;
+  cnpj: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  estado: string | null;
+  telefone: string | null;
+  email: string | null;
+};
+
+export async function getEmpresaParaPdf(nome: string): Promise<EmpresaPdf | null> {
+  if (!hasSupabase()) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("empresas")
+    .select("id, nome, razao_social, cnpj, endereco, cidade, estado, telefone, email")
+    .ilike("nome", nome)
+    .eq("ativa", true)
+    .maybeSingle();
+  if (error) {
+    console.error("[getEmpresaParaPdf]", error.message);
+    return null;
+  }
+  return (data as EmpresaPdf) ?? null;
+}
+
 /** Empresas ativas (Sinaltran / Sinalshop), ordenadas com a Sinaltran primeiro. */
 export async function listEmpresas(): Promise<Empresa[]> {
   if (!hasSupabase()) return [];
