@@ -229,7 +229,7 @@ export function OrcamentosLista({
             <TableHeader>
               <TableRow>
                 <TableHead>Nº / Descrição</TableHead>
-                <TableHead>Cliente</TableHead>
+                <TableHead className="w-[220px]">Cliente</TableHead>
                 <TableHead>Responsável</TableHead>
                 <TableHead>Envio</TableHead>
                 <TableHead>Validade</TableHead>
@@ -262,7 +262,14 @@ export function OrcamentosLista({
                           {o.descricao ?? "—"}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{clienteNome(o)}</TableCell>
+                      <TableCell className="text-sm">
+                        <span
+                          className="block max-w-[220px] truncate"
+                          title={clienteNome(o)}
+                        >
+                          {clienteNome(o)}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-sm">{o.responsavel ?? "—"}</TableCell>
                       <TableCell className="text-xs font-mono">
                         {formatDateBR(o.data_envio)}
