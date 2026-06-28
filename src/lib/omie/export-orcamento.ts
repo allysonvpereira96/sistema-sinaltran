@@ -18,7 +18,9 @@ import type {
 
 // Valores padrão da Sinaltran no Omie (não vêm do orçamento).
 const CFG = {
-  contaCorrente: "Itaú Unibanco",
+  // Conta Corrente é lookup do Omie (conta cadastrada). Em branco por enquanto —
+  // preencher com o nome exato da conta no Omie quando definido.
+  contaCorrente: "",
   produtos: { categoria: "Receita de Vendas", estoque: "Sinaltran" },
   sinalshop: { categoria: "Receita de Vendas", estoque: "Sinalshop" },
 };
