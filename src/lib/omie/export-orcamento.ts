@@ -19,7 +19,6 @@ import type {
 // Valores padrão da Sinaltran no Omie (não vêm do orçamento).
 const CFG = {
   contaCorrente: "Itaú Unibanco",
-  servicos: { categoria: "Receita de Serviços" },
   produtos: { categoria: "Receita de Vendas", estoque: "Sinaltran" },
   sinalshop: { categoria: "Receita de Vendas", estoque: "Sinalshop" },
 };
@@ -30,6 +29,7 @@ const NUM_PARCELAS = "1 Parcela";
 // Perfil fiscal usado quando o item não casa com nenhum serviço do catálogo
 // (o mais comum dos serviços Sinaltran). Município vem do próprio item.
 const SERVICO_PADRAO = {
+  categoria: "SERVIÇO DE SINALIZAÇÃO VIÁRIA HORIZONTAL",
   codigo_municipio: null as string | null,
   codigo_lc116: "7.02",
   codigo_nbs: null as string | null,
@@ -111,7 +111,7 @@ async function gerarServicos(
       D: previsao, // Previsão de Faturamento *
       E: NUM_PARCELAS, // Número de Parcelas *
       F: bloco.vendedor || "", // Vendedor
-      H: CFG.servicos.categoria, // Categoria *
+      H: sv.categoria || SERVICO_PADRAO.categoria, // Categoria * (do serviço)
       I: CFG.contaCorrente, // Conta Corrente *
       X: idx === 0 ? bloco.observacoes || "" : "", // Observações (1ª linha)
       AC: sv.tributacao || SERVICO_PADRAO.tributacao, // Tributação do Serviço *

@@ -61,6 +61,7 @@ export type ServicoFiscal = {
   id: string;
   codigo: string;
   descricao: string;
+  categoria: string | null;
   codigo_municipio: string | null;
   codigo_lc116: string | null;
   codigo_nbs: string | null;
@@ -77,7 +78,7 @@ export async function listServicosFiscais(): Promise<ServicoFiscal[]> {
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      "id, codigo, descricao, codigo_municipio, codigo_lc116, codigo_nbs, aliquota_iss, retem_iss, aliquota_inss, retem_inss, tributacao",
+      "id, codigo, descricao, categoria, codigo_municipio, codigo_lc116, codigo_nbs, aliquota_iss, retem_iss, aliquota_inss, retem_inss, tributacao",
     )
     .eq("ativo", true);
   if (error) {
