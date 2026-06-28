@@ -23,7 +23,9 @@ const CFG = {
   produtos: { categoria: "Receita de Vendas", estoque: "Sinaltran" },
   sinalshop: { categoria: "Receita de Vendas", estoque: "Sinalshop" },
 };
-const PARCELAS = 1; // padrão p/ orçamentos importados (futura tela de criação terá o campo)
+// "Número de Parcelas" no Omie é uma LISTA (descrição do parcelamento), não um
+// número. Valor padrão; vira campo editável por orçamento na tela de criação.
+const NUM_PARCELAS = "1 Parcela";
 
 // Perfil fiscal usado quando o item não casa com nenhum serviço do catálogo
 // (o mais comum dos serviços Sinaltran). Município vem do próprio item.
@@ -107,7 +109,7 @@ async function gerarServicos(
       B: orc.numero, // Código de Integração (agrupa a OS)
       C: cliente, // Cliente *
       D: previsao, // Previsão de Faturamento *
-      E: PARCELAS, // Número de Parcelas *
+      E: NUM_PARCELAS, // Número de Parcelas *
       F: bloco.vendedor || "", // Vendedor
       H: CFG.servicos.categoria, // Categoria *
       I: CFG.contaCorrente, // Conta Corrente *
@@ -151,7 +153,7 @@ async function gerarPedido(
       D: cliente, // Cliente *
       E: dataBR(bloco.previsao_faturamento || bloco.data_documento), // Previsão *
       F: cfg.categoria, // Categoria *
-      G: PARCELAS, // Número de Parcelas *
+      G: NUM_PARCELAS, // Número de Parcelas *
       H: bloco.vendedor || "", // Vendedor
       J: CFG.contaCorrente, // Conta Corrente *
       N: bloco.observacoes || "", // Observações do Pedido
