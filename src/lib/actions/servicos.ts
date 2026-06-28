@@ -56,6 +56,40 @@ export async function listServicosResumo(): Promise<ServicoResumo[]> {
   return (data ?? []) as ServicoResumo[];
 }
 
+/** Dados fiscais do serviço (espelham o cadastro do Omie) p/ o export de O.S. */
+export type ServicoFiscal = {
+  id: string;
+  codigo: string;
+  descricao: string;
+  codigo_municipio: string | null;
+  codigo_lc116: string | null;
+  codigo_nbs: string | null;
+  aliquota_iss: number;
+  retem_iss: boolean;
+  aliquota_inss: number;
+  retem_inss: boolean;
+  tributacao: string | null;
+};
+
+export async function listServicosFiscais(): Promise<ServicoFiscal[]> {
+  if (!hasSupabase()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select(
+      "id, codigo, descricao, codigo_municipio, codigo_lc116, codigo_nbs, aliquota_iss, retem_iss, aliquota_inss, retem_inss, tributacao",
+    )
+    .eq("ativo", true);
+  if (error) {
+    console.error("[listServicosFiscais]", error.message);
+    return [];
+  }
+  return (data ?? []).map((s) => {
+    const r = s as ServicoFiscal;
+    return { ...r, aliquota_iss: Number(r.aliquota_iss) || 0, aliquota_inss: Number(r.aliquota_inss) || 0 };
+  });
+}
+
 export async function listServicos(): Promise<ServicoRow[]> {
   if (!hasSupabase()) return [];
   const supabase = await createClient();

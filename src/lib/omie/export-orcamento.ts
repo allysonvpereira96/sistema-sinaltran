@@ -9,20 +9,76 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fillXlsx, type RowsMap } from "./xlsx-fill";
-import type { OrcamentoDetalhe, OrcamentoBlocoComItens } from "@/lib/types/orcamento";
+import { listServicosFiscais, type ServicoFiscal } from "@/lib/actions/servicos";
+import type {
+  OrcamentoDetalhe,
+  OrcamentoBlocoComItens,
+  OrcamentoItemRow,
+} from "@/lib/types/orcamento";
 
 // Valores padrão da Sinaltran no Omie (não vêm do orçamento).
 const CFG = {
   contaCorrente: "Itaú Unibanco",
-  servicos: {
-    categoria: "Receita de Serviços",
-    tributacao: "Tributada Integralmente com ISS",
-    lc116: "7.02",
-  },
+  servicos: { categoria: "Receita de Serviços" },
   produtos: { categoria: "Receita de Vendas", estoque: "Sinaltran" },
   sinalshop: { categoria: "Receita de Vendas", estoque: "Sinalshop" },
 };
 const PARCELAS = 1; // padrão p/ orçamentos importados (futura tela de criação terá o campo)
+
+// Perfil fiscal usado quando o item não casa com nenhum serviço do catálogo
+// (o mais comum dos serviços Sinaltran). Município vem do próprio item.
+const SERVICO_PADRAO = {
+  codigo_municipio: null as string | null,
+  codigo_lc116: "7.02",
+  codigo_nbs: null as string | null,
+  aliquota_iss: 4,
+  retem_iss: true,
+  aliquota_inss: 11,
+  retem_inss: true,
+  tributacao: "TRIBUTADA INTEGRALMENTE COM ISSRF",
+};
+
+const norm = (s: string) =>
+  (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+// Palavra-chave da descrição → código do serviço do catálogo (ordem importa:
+// "MANUTENÇÃO HORIZONTAL" antes de "HORIZONTAL", etc.).
+const REGRAS: [RegExp, string][] = [
+  [/MANUTEN/, "SRV00012"],
+  [/SEMAF/, "SRV00011"],
+  [/RETORREFLET/, "SRV00008"],
+  [/DEFENSA/, "SRV00005"],
+  [/EPOXI/, "SRV00004"],
+  [/[OÓ]PTICA|TACH/, "SRV00003"],
+  [/VERTICAL|PLACA/, "SRV00002"],
+  [/HORIZONTAL|PINTURA|FAIXA|EIXO/, "SRV00001"],
+  [/MOBILIZA/, "SRV00009"],
+  [/LOCA[CÇ]AO/, "SRV00010"],
+  [/DIARIA|EQUIPE/, "SRV00013"],
+  [/INDUSTRIA|APARELHO|MONTAGEM/, "SRV00007"],
+  [/PROJETO/, "SRV00006"],
+];
+
+/** Resolve o serviço fiscal de um item (por servico_id; senão pela descrição). */
+function resolverServico(
+  item: OrcamentoItemRow,
+  servicos: ServicoFiscal[],
+): ServicoFiscal | null {
+  if (item.servico_id) {
+    const s = servicos.find((x) => x.id === item.servico_id);
+    if (s) return s;
+  }
+  const d = norm(item.descricao);
+  for (const [re, codigo] of REGRAS) {
+    if (re.test(d)) {
+      const s = servicos.find((x) => x.codigo === codigo);
+      if (s) return s;
+    }
+  }
+  return null;
+}
+
+const simNao = (b: boolean) => (b ? "Sim" : "Não");
 
 const TPL_DIR = join(process.cwd(), "src", "lib", "omie", "templates");
 
@@ -41,10 +97,12 @@ async function gerarServicos(
   orc: OrcamentoDetalhe,
   bloco: OrcamentoBlocoComItens,
   cliente: string,
+  servicos: ServicoFiscal[],
 ): Promise<ArquivoOmie> {
   const previsao = dataBR(bloco.previsao_faturamento || bloco.data_documento);
   const rows: RowsMap = {};
   bloco.itens.forEach((it, idx) => {
+    const sv = resolverServico(it, servicos) ?? SERVICO_PADRAO;
     rows[6 + idx] = {
       B: orc.numero, // Código de Integração (agrupa a OS)
       C: cliente, // Cliente *
@@ -54,12 +112,26 @@ async function gerarServicos(
       H: CFG.servicos.categoria, // Categoria *
       I: CFG.contaCorrente, // Conta Corrente *
       X: idx === 0 ? bloco.observacoes || "" : "", // Observações (1ª linha)
-      AC: CFG.servicos.tributacao, // Tributação do Serviço *
-      AD: it.codigo_omie || "", // Código do Serviço Município *
-      AE: CFG.servicos.lc116, // Código LC116 *
+      AC: sv.tributacao || SERVICO_PADRAO.tributacao, // Tributação do Serviço *
+      AD: sv.codigo_municipio || it.codigo_omie || "", // Cód. Serviço Município *
+      AE: sv.codigo_lc116 || SERVICO_PADRAO.codigo_lc116, // Código LC116 *
+      AF: sv.codigo_nbs || "", // Código NBS
       AG: Number(it.quantidade), // Quantidade *
       AH: Number(it.valor_unit_mao_obra), // Valor Unitário *
       AK: it.descricao, // Descrição do Serviço
+      AM: sv.aliquota_iss, // % Alíquota do ISS
+      AN: simNao(sv.retem_iss), // Reter ISS
+      AO: 0, // % Alíquota do PIS
+      AP: "Não", // Reter PIS
+      AQ: 0, // % Alíquota do COFINS
+      AR: "Não", // Reter COFINS
+      AS: 0, // % Alíquota do CSLL
+      AT: "Não", // Reter CSLL
+      AU: 0, // % Alíquota do IR
+      AV: "Não", // Reter IR
+      AW: sv.aliquota_inss, // % Alíquota do INSS
+      AX: simNao(sv.retem_inss), // Reter INSS
+      AY: 0, // % Redução Base Cálc. INSS
       BB: cliente, // Destinatário *
     };
   });
@@ -100,14 +172,19 @@ async function gerarPedido(
 }
 
 /** Gera 1 arquivo Omie por bloco do orçamento. */
-export async function gerarArquivosOmie(orc: OrcamentoDetalhe): Promise<ArquivoOmie[]> {
+export async function gerarArquivosOmie(
+  orc: OrcamentoDetalhe,
+  servicosArg?: ServicoFiscal[],
+): Promise<ArquivoOmie[]> {
   const cliente = orc.cliente?.razao_social ?? orc.cliente?.cnpj_cpf ?? "";
+  const temServicos = (orc.blocos ?? []).some((b) => b.tipo === "servicos");
+  const servicos = servicosArg ?? (temServicos ? await listServicosFiscais() : []);
   const arquivos: ArquivoOmie[] = [];
   for (const bloco of orc.blocos ?? []) {
     if (!bloco.itens?.length) continue;
     arquivos.push(
       bloco.tipo === "servicos"
-        ? await gerarServicos(orc, bloco, cliente)
+        ? await gerarServicos(orc, bloco, cliente, servicos)
         : await gerarPedido(orc, bloco, cliente),
     );
   }
