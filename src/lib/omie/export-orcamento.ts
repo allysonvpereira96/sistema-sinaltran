@@ -19,7 +19,7 @@ import type {
 // Valores padrão da Sinaltran no Omie (não vêm do orçamento).
 const CFG = {
   // Conta Corrente é lookup do Omie (conta cadastrada no Omie de vocês).
-  contaCorrente: "Sicredi",
+  contaCorrente: "Banco do Brasil",
   produtos: { categoria: "Receita de Vendas", estoque: "Sinaltran" },
   sinalshop: { categoria: "Receita de Vendas", estoque: "Sinalshop" },
 };
