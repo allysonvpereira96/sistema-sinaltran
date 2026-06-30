@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { getReciboCesta, getReciboCombustivel } from "@/lib/actions/beneficios";
+import { getReciboCesta, getReciboCombustivel, getReciboVr } from "@/lib/actions/beneficios";
 import { ReciboBeneficioDocument } from "@/lib/pdf/recibo-beneficio-document";
 
 function brl(n: number) {
@@ -63,6 +63,29 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="Recibo-Combustivel-${competencia}.pdf"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  if (tipo === "alimentacao") {
+    const r = await getReciboVr(colaboradorId, competencia);
+    if (!r) return new Response("Lançamento não encontrado.", { status: 404 });
+    const elemento = createElement(ReciboBeneficioDocument, {
+      titulo: "RECIBO DE VALE-REFEIÇÃO / ALIMENTAÇÃO",
+      empregado: r.empregado,
+      funcao: r.funcao,
+      competencia: r.competencia,
+      declaracao: `Declaro que recebi, da empresa, o valor referente ao auxílio alimentação (vale-refeição) da competência ${r.competencia}, conforme detalhamento semanal abaixo, para os devidos fins.`,
+      linhas: r.semanas.map((s) => ({ label: s.label, valor: brl(s.saldo) })),
+      total: brl(r.total),
+      emissao,
+    }) as unknown as Parameters<typeof renderToBuffer>[0];
+    const buffer = await renderToBuffer(elemento);
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="Recibo-ValeRefeicao-${competencia}.pdf"`,
         "Cache-Control": "no-store",
       },
     });

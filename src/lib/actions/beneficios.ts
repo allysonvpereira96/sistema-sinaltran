@@ -4,6 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { getEmpresaAtivaId } from "@/lib/actions/empresas";
+import {
+  VR_CONFIG_PADRAO,
+  saldoSemana,
+  semanaVazia,
+  totalVrLinha,
+  type VrConfig,
+  type VrSemana,
+} from "@/lib/beneficios/vr-calc";
 
 /** "YYYY-MM" → intervalo do mês + 1º dia (para a coluna competencia). */
 function mesRange(competencia: string) {
@@ -309,4 +317,173 @@ export async function getReciboCombustivel(colaboradorId: string, competencia: s
     valor_dia: det?.valor_dia ?? 0,
     total: Number(l?.valor_total ?? 0),
   };
+}
+
+// ── Vale-refeição / Alimentação (semanal, consolidado no mês) ───────────────────
+
+export type VrLinha = {
+  colaborador_id: string;
+  nome: string;
+  matricula: string | null;
+  valor_dia_padrao: number;
+  semanas: VrSemana[];
+  total: number;
+  lancado: boolean;
+  assinado: boolean;
+};
+
+type VrDetalhes = { valor_dia_padrao?: number; semanas?: VrSemana[]; config?: Partial<VrConfig> } | null;
+
+export async function listVrCompetencia(competencia: string): Promise<{ config: VrConfig; linhas: VrLinha[] }> {
+  const config: VrConfig = { ...VR_CONFIG_PADRAO };
+  if (!hasSupabase()) return { config, linhas: [] };
+  const empresaId = await getEmpresaAtivaId();
+  const supabase = await createClient();
+  const { primeiroDia } = mesRange(competencia);
+
+  let colsQ = supabase
+    .from("colaboradores")
+    .select("id, nome_completo, matricula")
+    .eq("status", "ativo")
+    .order("nome_completo", { ascending: true });
+  if (empresaId) colsQ = colsQ.eq("empresa_id", empresaId);
+  const { data: cols } = await colsQ;
+
+  // lançamentos do mês atual
+  let lancQ = supabase
+    .from("beneficio_lancamentos")
+    .select("colaborador_id, valor_total, assinado, detalhes")
+    .eq("tipo", "alimentacao")
+    .eq("competencia", primeiroDia);
+  if (empresaId) lancQ = lancQ.eq("empresa_id", empresaId);
+  const { data: lanc } = await lancQ;
+  type LancRow = { colaborador_id: string; valor_total: number; assinado: boolean; detalhes: VrDetalhes };
+  const lancArr = (lanc ?? []) as LancRow[];
+  const lancMap = new Map(lancArr.map((l) => [l.colaborador_id, l]));
+  const comCfg = lancArr.find((l) => l.detalhes?.config?.num_semanas != null);
+  if (comCfg?.detalhes?.config) Object.assign(config, comCfg.detalhes.config);
+
+  // padrão por colaborador: último mês anterior com lançamento
+  let prevQ = supabase
+    .from("beneficio_lancamentos")
+    .select("colaborador_id, detalhes, competencia")
+    .eq("tipo", "alimentacao")
+    .lt("competencia", primeiroDia)
+    .order("competencia", { ascending: false });
+  if (empresaId) prevQ = prevQ.eq("empresa_id", empresaId);
+  const { data: prev } = await prevQ;
+  const padraoPrev = new Map<string, number>();
+  for (const p of (prev ?? []) as { colaborador_id: string; detalhes: VrDetalhes }[]) {
+    if (!padraoPrev.has(p.colaborador_id) && p.detalhes?.valor_dia_padrao != null) {
+      padraoPrev.set(p.colaborador_id, p.detalhes.valor_dia_padrao);
+    }
+  }
+
+  const linhas = ((cols ?? []) as { id: string; nome_completo: string; matricula: string | null }[]).map((c) => {
+    const l = lancMap.get(c.id);
+    const valorPadrao = l?.detalhes?.valor_dia_padrao ?? padraoPrev.get(c.id) ?? config.valor_dia_padrao_geral;
+    let semanas = l?.detalhes?.semanas ?? [];
+    // normaliza p/ num_semanas slots
+    if (semanas.length < config.num_semanas) {
+      semanas = [...semanas, ...Array.from({ length: config.num_semanas - semanas.length }, () => semanaVazia(valorPadrao))];
+    } else if (semanas.length > config.num_semanas) {
+      semanas = semanas.slice(0, config.num_semanas);
+    }
+    return {
+      colaborador_id: c.id,
+      nome: c.nome_completo,
+      matricula: c.matricula,
+      valor_dia_padrao: valorPadrao,
+      semanas,
+      total: l ? Number(l.valor_total) : totalVrLinha(semanas, config),
+      lancado: !!l,
+      assinado: l?.assinado ?? false,
+    };
+  });
+  return { config, linhas };
+}
+
+export async function salvarVr(
+  competencia: string,
+  config: VrConfig,
+  itens: { colaborador_id: string; valor_dia_padrao: number; semanas: VrSemana[] }[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const empresaId = await getEmpresaAtivaId();
+  const supabase = await createClient();
+  const { primeiroDia } = mesRange(competencia);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const rows = itens.map((i) => {
+    const total = totalVrLinha(i.semanas, config);
+    const faltas = i.semanas.reduce((s, sem) => s + sem.faltas, 0);
+    return {
+      empresa_id: empresaId,
+      tipo: "alimentacao",
+      competencia: primeiroDia,
+      colaborador_id: i.colaborador_id,
+      recebe: total > 0,
+      faltas,
+      valor_total: total,
+      detalhes: { valor_dia_padrao: i.valor_dia_padrao, semanas: i.semanas, config },
+      created_by: user?.id ?? null,
+    };
+  });
+  const { error } = await supabase
+    .from("beneficio_lancamentos")
+    .upsert(rows, { onConflict: "empresa_id,tipo,competencia,colaborador_id" });
+  if (error) {
+    console.error("[salvarVr]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/pessoal/beneficios/vale-refeicao");
+  return { ok: true };
+}
+
+export type ReciboVr = {
+  empregado: string;
+  funcao: string;
+  competencia: string;
+  semanas: { label: string; saldo: number }[];
+  total: number;
+};
+
+export async function getReciboVr(colaboradorId: string, competencia: string): Promise<ReciboVr | null> {
+  if (!hasSupabase()) return null;
+  const empresaId = await getEmpresaAtivaId();
+  const supabase = await createClient();
+  const { primeiroDia } = mesRange(competencia);
+  const { data: col } = await supabase.from("colaboradores").select("nome_completo, cargo").eq("id", colaboradorId).maybeSingle();
+  if (!col) return null;
+  let q = supabase
+    .from("beneficio_lancamentos")
+    .select("valor_total, detalhes")
+    .eq("tipo", "alimentacao")
+    .eq("competencia", primeiroDia)
+    .eq("colaborador_id", colaboradorId);
+  if (empresaId) q = q.eq("empresa_id", empresaId);
+  const { data: l } = await q.maybeSingle();
+  const det = (l?.detalhes ?? {}) as VrDetalhes;
+  const cfg: VrConfig = { ...VR_CONFIG_PADRAO, ...(det?.config ?? {}) };
+  const semanas = det?.semanas ?? [];
+  const [y, m] = competencia.split("-");
+  return {
+    empregado: (col as { nome_completo: string }).nome_completo,
+    funcao: (col as { cargo: string }).cargo,
+    competencia: `${m}/${y}`,
+    semanas: semanas
+      .map((s, i) => ({ idx: i + 1, s }))
+      .filter(({ s }) => s.dias > 0 || s.extra_almoco_janta > 0 || s.extra_lanche > 0 || s.extra_viagem > 0)
+      .map(({ idx, s }) => ({
+        label: `Semana ${idx}${s.em_viagem ? " (viagem)" : ""} — ${Math.max(0, s.dias - s.faltas)} dia(s) × ${brlNum(s.valor_dia)}`,
+        saldo: saldoSemana(s, cfg),
+      })),
+    total: Number(l?.valor_total ?? 0),
+  };
+}
+
+function brlNum(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }

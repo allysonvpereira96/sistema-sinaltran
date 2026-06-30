@@ -9,7 +9,7 @@ export const metadata = { title: "Benefícios · Departamento Pessoal" };
 
 const cards = [
   { titulo: "Cesta básica", desc: "Quem recebe a cesta no mês; perde por falta/atestado.", icon: ShoppingBasket, href: "/pessoal/beneficios/cesta" },
-  { titulo: "Vale-refeição (VR)", desc: "Alimentação semanal, extras e descontos.", icon: UtensilsCrossed, href: undefined },
+  { titulo: "Vale-refeição (VR)", desc: "Alimentação semanal, extras e descontos.", icon: UtensilsCrossed, href: "/pessoal/beneficios/vale-refeicao" },
   { titulo: "Combustível", desc: "Dias úteis × valor/dia, com descontos.", icon: Fuel, href: "/pessoal/beneficios/combustivel" },
 ];
 
