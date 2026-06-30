@@ -34,6 +34,7 @@ import { formatBRL, formatDateBR, formatCNPJ, formatNumber } from "@/lib/format"
 import { cn } from "@/lib/utils";
 import { ConverterEmObraButton } from "./_components/converter-em-obra";
 import { GerarPdfButton } from "./_components/gerar-pdf";
+import { NfRegimeToggle } from "./_components/nf-regime-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +225,10 @@ export default async function OrcamentoDetalhePage({
       <div className="grid gap-4 lg:grid-cols-3">
         {isImportado ? (
           <div className="lg:col-span-2 space-y-4">
+            <NfRegimeToggle
+              orcamentoId={orcamento.id}
+              notaUnica={orcamento.emite_nota_unica_servico}
+            />
             {blocos.map((bloco) => (
               <BlocoCard key={bloco.id} bloco={bloco} />
             ))}

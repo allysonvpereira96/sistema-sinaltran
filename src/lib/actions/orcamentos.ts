@@ -366,3 +366,23 @@ export async function deleteOrcamento(
   revalidatePath(BASE_PATH);
   return { ok: true };
 }
+
+/** Liga/desliga a emissão como NFS única (material entra como serviço no Omie). */
+export async function setEmiteNotaUnica(
+  id: string,
+  valor: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!hasSupabase()) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("orcamentos")
+    .update({ emite_nota_unica_servico: valor })
+    .eq("id", id);
+  if (error) {
+    console.error("[setEmiteNotaUnica]", error.message);
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(BASE_PATH);
+  revalidatePath(`${BASE_PATH}/${id}`);
+  return { ok: true };
+}

@@ -56,8 +56,8 @@ const REGRAS: [RegExp, string][] = [
   [/DEFENSA/, "SRV00005"],
   [/EPOXI/, "SRV00004"],
   [/[OÓ]PTICA|TACH/, "SRV00003"],
-  [/VERTICAL|PLACA/, "SRV00002"],
-  [/HORIZONTAL|PINTURA|FAIXA|EIXO/, "SRV00001"],
+  [/VERTICAL|PLACA|SUPORTE|COLUNA/, "SRV00002"],
+  [/HORIZONTAL|PINTURA|FAIXA|EIXO|TINTA|ACRILIC|DEMARCA|ESFERA/, "SRV00001"],
   [/MOBILIZA/, "SRV00009"],
   [/LOCA[CÇ]AO/, "SRV00010"],
   [/DIARIA|EQUIPE/, "SRV00013"],
@@ -99,31 +99,41 @@ function dataBR(d: string | null): string {
 
 export type ArquivoOmie = { filename: string; buffer: Buffer };
 
+type MetaOS = {
+  previsao_faturamento: string | null;
+  data_documento: string | null;
+  vendedor: string | null;
+  observacoes: string | null;
+};
+
 async function gerarServicos(
   orc: OrcamentoDetalhe,
-  bloco: OrcamentoBlocoComItens,
+  itens: OrcamentoItemRow[],
+  meta: MetaOS,
   cliente: string,
   servicos: ServicoFiscal[],
 ): Promise<ArquivoOmie> {
-  const previsao = dataBR(bloco.previsao_faturamento || bloco.data_documento);
+  const previsao = dataBR(meta.previsao_faturamento || meta.data_documento);
   const rows: RowsMap = {};
-  bloco.itens.forEach((it, idx) => {
+  itens.forEach((it, idx) => {
     const sv = resolverServico(it, servicos) ?? SERVICO_PADRAO;
+    // Valor efetivo do item (serviço usa MO; material — em nota única — usa material).
+    const unit = it.valor_unit_mao_obra > 0 ? it.valor_unit_mao_obra : it.valor_unit_material;
     rows[6 + idx] = {
       B: orc.numero, // Código de Integração (agrupa a OS)
       C: cliente, // Cliente *
       D: previsao, // Previsão de Faturamento *
       E: NUM_PARCELAS, // Número de Parcelas *
-      F: bloco.vendedor || "", // Vendedor
+      F: meta.vendedor || "", // Vendedor
       H: sv.categoria || SERVICO_PADRAO.categoria, // Categoria * (do serviço)
       I: CFG.contaCorrente, // Conta Corrente *
-      X: idx === 0 ? bloco.observacoes || "" : "", // Observações (1ª linha)
+      X: idx === 0 ? meta.observacoes || "" : "", // Observações (1ª linha)
       AC: sv.tributacao || SERVICO_PADRAO.tributacao, // Tributação do Serviço *
       AD: sv.codigo_municipio || it.codigo_omie || "", // Cód. Serviço Município *
       AE: sv.codigo_lc116 || SERVICO_PADRAO.codigo_lc116, // Código LC116 *
       AF: sv.codigo_nbs || "", // Código NBS
       AG: Number(it.quantidade), // Quantidade *
-      AH: Number(it.valor_unit_mao_obra), // Valor Unitário *
+      AH: Number(unit), // Valor Unitário *
       AK: it.descricao, // Descrição do Serviço
       AM: sv.aliquota_iss, // % Alíquota do ISS
       AN: simNao(sv.retem_iss), // Reter ISS
@@ -183,14 +193,32 @@ export async function gerarArquivosOmie(
   servicosArg?: ServicoFiscal[],
 ): Promise<ArquivoOmie[]> {
   const cliente = orc.cliente?.razao_social ?? orc.cliente?.cnpj_cpf ?? "";
-  const temServicos = (orc.blocos ?? []).some((b) => b.tipo === "servicos");
-  const servicos = servicosArg ?? (temServicos ? await listServicosFiscais() : []);
+  const blocos = (orc.blocos ?? []).filter((b) => b.itens?.length);
+  const notaUnica = orc.emite_nota_unica_servico === true;
+  // Em nota única, TODOS os itens viram serviço → precisa do catálogo de serviços.
+  const precisaServicos = notaUnica || blocos.some((b) => b.tipo === "servicos");
+  const servicos = servicosArg ?? (precisaServicos ? await listServicosFiscais() : []);
+
+  // ── NFS única: material entra como serviço → 1 Ordem de Serviço com tudo ──
+  if (notaUnica) {
+    if (blocos.length === 0) return [];
+    const ref = blocos.find((b) => b.tipo === "servicos") ?? blocos[0];
+    const meta: MetaOS = {
+      previsao_faturamento: ref.previsao_faturamento,
+      data_documento: ref.data_documento,
+      vendedor: ref.vendedor,
+      observacoes: ref.observacoes,
+    };
+    const itens = blocos.flatMap((b) => b.itens);
+    return [await gerarServicos(orc, itens, meta, cliente, servicos)];
+  }
+
+  // ── Padrão: 1 arquivo por bloco (OS + Pedidos de Venda) ──
   const arquivos: ArquivoOmie[] = [];
-  for (const bloco of orc.blocos ?? []) {
-    if (!bloco.itens?.length) continue;
+  for (const bloco of blocos) {
     arquivos.push(
       bloco.tipo === "servicos"
-        ? await gerarServicos(orc, bloco, cliente, servicos)
+        ? await gerarServicos(orc, bloco.itens, bloco, cliente, servicos)
         : await gerarPedido(orc, bloco, cliente),
     );
   }

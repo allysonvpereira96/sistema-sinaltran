@@ -91,6 +91,7 @@ export type OrcamentoRow = {
   numero: string;
   origem: "sistema" | "omie_import";
   obra_nome: string | null;
+  emite_nota_unica_servico: boolean;
   empresa_id: string | null;
   cliente_id: string | null;
   responsavel: string | null;
