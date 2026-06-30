@@ -62,6 +62,8 @@ export default async function DashboardPage() {
 
   // Card de aniversariantes só para quem tem o módulo Pessoal (admin vê tudo).
   const podePessoal = profile?.role === "admin" || (profile?.modulos.includes("pessoal") ?? false);
+  const podeFinanceiro =
+    profile?.role === "admin" || (profile?.modulos.includes("financeiro") ?? false);
   const mesAtual = new Date().getMonth() + 1;
   const aniversariantesMes = colaboradores
     .filter((c) => c.status !== "desligado" && Number((c.data_nascimento ?? "").slice(5, 7)) === mesAtual)
@@ -303,6 +305,7 @@ export default async function DashboardPage() {
             </Card>
           )}
 
+          {podeFinanceiro && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
@@ -359,6 +362,7 @@ export default async function DashboardPage() {
               ) : null}
             </CardContent>
           </Card>
+          )}
 
           <Card>
             <CardHeader>
