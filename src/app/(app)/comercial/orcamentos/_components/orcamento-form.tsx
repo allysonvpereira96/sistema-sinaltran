@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useForm,
   useFieldArray,
@@ -9,7 +9,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Save, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Save, ArrowLeft, Plus, Trash2, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,7 @@ import {
   type MaterialResumo,
 } from "@/lib/actions/orcamentos";
 import type { ServicoResumo } from "@/lib/actions/servicos";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 import {
   ORCAMENTO_STATUS_LABEL,
   type OrcamentoDetalhe,
@@ -174,7 +175,7 @@ export function OrcamentoForm({
     reset,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<OrcamentoFormValues>({
     resolver: zodResolver(orcamentoSchema),
     defaultValues: initialData
@@ -219,6 +220,36 @@ export function OrcamentoForm({
   useEffect(() => {
     if (initialData) reset(detalheToValues(initialData));
   }, [initialData, reset]);
+
+  // Rede de segurança: rascunho automático no navegador + aviso ao sair.
+  const storageKey = `orcamento:draft:${isEdit && initialData ? initialData.id : "novo"}`;
+  const {
+    draft: rascunho,
+    clear: limparRascunho,
+    dismiss: ignorarRascunho,
+    discard: descartarRascunho,
+  } = useFormDraft<OrcamentoFormValues>({
+    storageKey,
+    dirty: isDirty,
+    subscribe: useCallback(
+      (cb: (v: OrcamentoFormValues) => void) => {
+        const sub = watch((v) => cb(v as OrcamentoFormValues));
+        return () => sub.unsubscribe();
+      },
+      [watch],
+    ),
+  });
+
+  function restaurarRascunho() {
+    if (!rascunho) return;
+    try {
+      reset(rascunho);
+      toast.success("Rascunho restaurado");
+    } catch {
+      toast.error("Não foi possível restaurar o rascunho");
+    }
+    ignorarRascunho();
+  }
 
   const watchedItens = useWatch({ control, name: "itens" });
 
@@ -363,6 +394,7 @@ export function OrcamentoForm({
       toast.error("Erro ao salvar", { description: res.error });
       return;
     }
+    limparRascunho();
     toast.success(isEdit ? "Orçamento atualizado" : "Orçamento criado");
     const destino =
       isEdit && initialData
@@ -395,6 +427,46 @@ export function OrcamentoForm({
           </p>
         </div>
       </header>
+
+      {rascunho ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="size-9 shrink-0 rounded-md bg-amber-100 text-amber-700 grid place-items-center">
+              <RotateCcw className="size-4" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-amber-900">
+                Rascunho não salvo encontrado
+              </div>
+              <p className="text-xs text-amber-700/90">
+                Você tem alterações desta proposta que não chegaram a ser
+                salvas. Deseja restaurá-las?
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={descartarRascunho}
+              className="gap-1.5 border-amber-300 bg-transparent hover:bg-amber-100"
+            >
+              <X className="size-3.5" />
+              Descartar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={restaurarRascunho}
+              className="gap-1.5 bg-amber-600 text-white hover:bg-amber-700"
+            >
+              <RotateCcw className="size-3.5" />
+              Restaurar
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
