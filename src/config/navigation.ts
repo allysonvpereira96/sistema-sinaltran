@@ -22,6 +22,7 @@ import {
   ListChecks,
   UserCog,
   NotebookPen,
+  HandCoins,
 } from "lucide-react";
 import type { ModuloKey } from "@/lib/types/usuario";
 
@@ -98,6 +99,7 @@ export const navigation: NavSection[] = [
     items: [
       { label: "Colaboradores", href: "/pessoal/colaboradores", icon: Users },
       { label: "Caderno Virtual", href: "/pessoal/caderno-virtual", icon: NotebookPen },
+      { label: "Benefícios", href: "/pessoal/beneficios", icon: HandCoins },
       { label: "Vencimentos", href: "/pessoal/vencimentos", icon: CalendarClock },
       { label: "Catálogo de treinamentos", href: "/pessoal/treinamentos-catalogo", icon: GraduationCap },
       { label: "Relatórios", href: "/pessoal/relatorios", icon: BarChart3 },
