@@ -22,8 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getOrcamento } from "@/lib/actions/orcamentos";
 import {
-  ORCAMENTO_STATUS_LABEL,
-  ORCAMENTO_STATUS_TONE,
   BLOCO_TIPO_LABEL,
   BLOCO_DOC_LABEL,
   BLOCO_TIPO_TONE,
@@ -35,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { ConverterEmObraButton } from "./_components/converter-em-obra";
 import { GerarPdfButton } from "./_components/gerar-pdf";
 import { NfRegimeToggle } from "./_components/nf-regime-toggle";
+import { StatusSelect } from "../_components/status-select";
 
 export const dynamic = "force-dynamic";
 
@@ -49,8 +48,6 @@ export default async function OrcamentoDetalhePage({
 
   const cliente = orcamento.cliente;
   const empresa = orcamento.empresa;
-  const tone = ORCAMENTO_STATUS_TONE[orcamento.status];
-
   const blocos = orcamento.blocos ?? [];
   const isImportado = blocos.length > 0;
   const blocoPorTipo = (t: "servicos" | "produtos" | "sinalshop") =>
@@ -97,13 +94,11 @@ export default async function OrcamentoDetalhePage({
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="secondary"
-                className={cn("gap-1.5 font-medium", tone.bg, tone.text)}
-              >
-                <span className={cn("size-1.5 rounded-full", tone.dot)} />
-                {ORCAMENTO_STATUS_LABEL[orcamento.status]}
-              </Badge>
+              <StatusSelect
+                orcamentoId={orcamento.id}
+                status={orcamento.status}
+                size="md"
+              />
               <span className="text-xs font-mono text-muted-foreground">
                 {orcamento.numero}
               </span>

@@ -15,11 +15,11 @@ import {
   TrendingUp,
   FileSpreadsheet,
   HardHat,
+  KanbanSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
@@ -30,8 +30,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  ORCAMENTO_STATUS_LABEL,
-  ORCAMENTO_STATUS_TONE,
   type OrcamentoListRow,
   type OrcamentoStatus,
 } from "@/lib/types/orcamento";
@@ -41,6 +39,8 @@ import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { GerarPdfButton } from "../[id]/_components/gerar-pdf";
 import { NfRegimeMini } from "../[id]/_components/nf-regime-mini";
+import { StatusSelect } from "./status-select";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type FiltroRapido = "todos" | OrcamentoStatus;
 
@@ -157,13 +157,22 @@ export function OrcamentosLista({
         title="Orçamentos"
         description="Propostas comerciais — itens, valores e prazos. Orçamento aprovado vira obra em 1 clique."
         actions={
-          <Link
-            href="/comercial/orcamentos/novo"
-            className={cn(buttonVariants({ size: "default" }), "gap-2")}
-          >
-            <Plus className="size-4" />
-            Novo orçamento
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/comercial/orcamentos/funil"
+              className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+            >
+              <KanbanSquare className="size-4" />
+              Funil
+            </Link>
+            <Link
+              href="/comercial/orcamentos/novo"
+              className={cn(buttonVariants({ size: "default" }), "gap-2")}
+            >
+              <Plus className="size-4" />
+              Novo orçamento
+            </Link>
+          </div>
         }
       />
 
@@ -274,7 +283,6 @@ export function OrcamentosLista({
                 </TableRow>
               ) : (
                 filtrados.map((o) => {
-                  const tone = ORCAMENTO_STATUS_TONE[o.status];
                   return (
                     <TableRow key={o.id}>
                       <TableCell>
@@ -306,13 +314,7 @@ export function OrcamentosLista({
                         {formatBRL(o.valor_total)}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn("gap-1.5 font-medium", tone.bg, tone.text)}
-                        >
-                          <span className={cn("size-1.5 rounded-full", tone.dot)} />
-                          {ORCAMENTO_STATUS_LABEL[o.status]}
-                        </Badge>
+                        <StatusSelect orcamentoId={o.id} status={o.status} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-0.5">
@@ -340,27 +342,29 @@ export function OrcamentosLista({
                             </>
                           ) : null}
                           {o.obra_id ? (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => router.push(`/obras/${o.obra_id}`)}
-                              aria-label="Ir para a obra"
-                              title="Ir para a obra gerada"
-                              className="text-emerald-600 hover:text-emerald-700"
-                            >
-                              <HardHat className="size-3.5" />
-                            </Button>
+                            <Tooltip content="Ir para a obra gerada">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => router.push(`/obras/${o.obra_id}`)}
+                                aria-label="Ir para a obra"
+                                className="text-emerald-600 hover:text-emerald-700"
+                              >
+                                <HardHat className="size-3.5" />
+                              </Button>
+                            </Tooltip>
                           ) : o.status !== "rejeitado" && o.status !== "perdido" ? (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleConverter(o)}
-                              disabled={convertendoId === o.id}
-                              aria-label="Aprovar e gerar obra"
-                              title="Aprovar e gerar obra"
-                            >
-                              <HardHat className="size-3.5" />
-                            </Button>
+                            <Tooltip content="Aprovar e gerar obra">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => handleConverter(o)}
+                                disabled={convertendoId === o.id}
+                                aria-label="Aprovar e gerar obra"
+                              >
+                                <HardHat className="size-3.5" />
+                              </Button>
+                            </Tooltip>
                           ) : null}
                           <Button
                             variant="ghost"
