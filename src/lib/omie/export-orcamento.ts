@@ -22,8 +22,9 @@ const CFG = {
   contaCorrente: "Banco do Brasil",
   // Categoria do Pedido = categoria do Omie por tipo (placas → vertical, tinta →
   // horizontal). "Categoria do Item" não é preenchida — o Omie deriva do produto.
-  produtos: { categoria: "SINALIZAÇÃO VERTICAL", estoque: "Sinaltran" },
-  sinalshop: { categoria: "SINALIZAÇÃO HORIZONTAL", estoque: "Sinalshop" },
+  // Local de Estoque = código "PADRAO" (Local de Estoque Padrão do Omie).
+  produtos: { categoria: "SINALIZAÇÃO VERTICAL", estoque: "PADRAO" },
+  sinalshop: { categoria: "SINALIZAÇÃO HORIZONTAL", estoque: "PADRAO" },
 };
 // "Número de Parcelas" no Omie é uma LISTA (descrição do parcelamento), não um
 // número. Valor padrão; vira campo editável por orçamento na tela de criação.
