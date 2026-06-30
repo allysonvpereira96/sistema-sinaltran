@@ -487,3 +487,83 @@ export async function getReciboVr(colaboradorId: string, competencia: string): P
 function brlNum(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+// ── Relação mensal consolidada (quanto foi pago a cada um) ───────────────────────
+
+export type RelacaoLinha = {
+  colaborador_id: string;
+  nome: string;
+  matricula: string | null;
+  vr: number; // R$
+  combustivel: number; // R$
+  cesta: boolean | null; // recebe cesta (em espécie); null = não lançado
+  cesta_obs: string | null;
+  total_dinheiro: number; // vr + combustivel
+};
+
+export type RelacaoMensal = {
+  linhas: RelacaoLinha[];
+  totais: { vr: number; combustivel: number; cestas: number; total_dinheiro: number };
+};
+
+/** Consolida, por colaborador da empresa ativa, o pago no mês em cada benefício. */
+export async function listRelacaoMensal(competencia: string): Promise<RelacaoMensal> {
+  const vazio: RelacaoMensal = { linhas: [], totais: { vr: 0, combustivel: 0, cestas: 0, total_dinheiro: 0 } };
+  if (!hasSupabase()) return vazio;
+  const empresaId = await getEmpresaAtivaId();
+  const supabase = await createClient();
+  const { primeiroDia } = mesRange(competencia);
+
+  let colsQ = supabase
+    .from("colaboradores")
+    .select("id, nome_completo, matricula")
+    .eq("status", "ativo")
+    .order("nome_completo", { ascending: true });
+  if (empresaId) colsQ = colsQ.eq("empresa_id", empresaId);
+  const { data: cols } = await colsQ;
+
+  let lancQ = supabase
+    .from("beneficio_lancamentos")
+    .select("colaborador_id, tipo, recebe, observacao, valor_total")
+    .eq("competencia", primeiroDia);
+  if (empresaId) lancQ = lancQ.eq("empresa_id", empresaId);
+  const { data: lanc } = await lancQ;
+  type LancRow = { colaborador_id: string; tipo: string; recebe: boolean; observacao: string | null; valor_total: number };
+  const porCol = new Map<string, LancRow[]>();
+  for (const l of (lanc ?? []) as LancRow[]) {
+    const arr = porCol.get(l.colaborador_id) ?? [];
+    arr.push(l);
+    porCol.set(l.colaborador_id, arr);
+  }
+
+  const linhas: RelacaoLinha[] = ((cols ?? []) as { id: string; nome_completo: string; matricula: string | null }[]).map((c) => {
+    const arr = porCol.get(c.id) ?? [];
+    const vrRow = arr.find((l) => l.tipo === "alimentacao");
+    const combRow = arr.find((l) => l.tipo === "combustivel");
+    const cestaRow = arr.find((l) => l.tipo === "cesta");
+    const vr = Number(vrRow?.valor_total ?? 0);
+    const combustivel = Number(combRow?.valor_total ?? 0);
+    return {
+      colaborador_id: c.id,
+      nome: c.nome_completo,
+      matricula: c.matricula,
+      vr,
+      combustivel,
+      cesta: cestaRow ? cestaRow.recebe : null,
+      cesta_obs: cestaRow?.observacao ?? null,
+      total_dinheiro: vr + combustivel,
+    };
+  });
+
+  const totais = linhas.reduce(
+    (t, l) => ({
+      vr: t.vr + l.vr,
+      combustivel: t.combustivel + l.combustivel,
+      cestas: t.cestas + (l.cesta ? 1 : 0),
+      total_dinheiro: t.total_dinheiro + l.total_dinheiro,
+    }),
+    { vr: 0, combustivel: 0, cestas: 0, total_dinheiro: 0 },
+  );
+
+  return { linhas, totais };
+}

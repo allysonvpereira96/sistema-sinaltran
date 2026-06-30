@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShoppingBasket, UtensilsCrossed, Fuel } from "lucide-react";
+import { ShoppingBasket, UtensilsCrossed, Fuel, FileSpreadsheet, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,19 @@ export default function BeneficiosPage() {
           return c.href ? <Link key={c.titulo} href={c.href} className="block">{inner}</Link> : <div key={c.titulo}>{inner}</div>;
         })}
       </div>
+
+      <Link href="/pessoal/beneficios/relacao" className="block">
+        <Card className="transition-colors hover:border-primary/50 hover:bg-muted/40">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="size-10 shrink-0 rounded-md bg-primary/10 text-primary grid place-items-center"><FileSpreadsheet className="size-5" /></div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Relação mensal (quanto paguei a cada um)</h3>
+              <p className="text-sm text-muted-foreground">Consolidado do mês por colaborador — vale-refeição + combustível + cesta, com exportação para Excel.</p>
+            </div>
+            <ArrowRight className="size-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }
