@@ -14,6 +14,7 @@ import {
   Trash2,
   TrendingUp,
   FileSpreadsheet,
+  HardHat,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
@@ -35,6 +36,7 @@ import {
   type OrcamentoStatus,
 } from "@/lib/types/orcamento";
 import { deleteOrcamento } from "@/lib/actions/orcamentos";
+import { converterOrcamentoEmObra } from "@/lib/actions/obras";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { GerarPdfButton } from "../[id]/_components/gerar-pdf";
@@ -62,6 +64,7 @@ export function OrcamentosLista({
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroRapido>("todos");
   const [clienteId, setClienteId] = useState<string>("todos");
+  const [convertendoId, setConvertendoId] = useState<string | null>(null);
 
   // Clientes distintos presentes nos orçamentos (para o filtro)
   const clientesFiltro = useMemo(() => {
@@ -112,6 +115,25 @@ export function OrcamentosLista({
       taxaAprovacao,
     };
   }, [orcamentos]);
+
+  async function handleConverter(o: OrcamentoListRow) {
+    if (
+      !confirm(
+        `Aprovar o orçamento "${o.numero}" e gerar a obra? O orçamento ficará marcado como aprovado e vinculado à nova obra.`,
+      )
+    )
+      return;
+    setConvertendoId(o.id);
+    const res = await converterOrcamentoEmObra(o.id);
+    setConvertendoId(null);
+    if (res.ok) {
+      toast.success("Obra criada a partir do orçamento");
+      router.push(`/obras/${res.obraId}`);
+      router.refresh();
+    } else {
+      toast.error("Não foi possível gerar a obra", { description: res.error });
+    }
+  }
 
   async function handleDelete(o: OrcamentoListRow) {
     if (
@@ -316,6 +338,29 @@ export function OrcamentosLista({
                                 <FileSpreadsheet className="size-3.5" />
                               </a>
                             </>
+                          ) : null}
+                          {o.obra_id ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => router.push(`/obras/${o.obra_id}`)}
+                              aria-label="Ir para a obra"
+                              title="Ir para a obra gerada"
+                              className="text-emerald-600 hover:text-emerald-700"
+                            >
+                              <HardHat className="size-3.5" />
+                            </Button>
+                          ) : o.status !== "rejeitado" && o.status !== "perdido" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleConverter(o)}
+                              disabled={convertendoId === o.id}
+                              aria-label="Aprovar e gerar obra"
+                              title="Aprovar e gerar obra"
+                            >
+                              <HardHat className="size-3.5" />
+                            </Button>
                           ) : null}
                           <Button
                             variant="ghost"

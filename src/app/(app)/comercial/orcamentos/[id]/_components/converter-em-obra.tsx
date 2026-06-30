@@ -9,18 +9,23 @@ import { converterOrcamentoEmObra } from "@/lib/actions/obras";
 
 export function ConverterEmObraButton({
   orcamentoId,
+  aprovado = false,
 }: {
   orcamentoId: string;
+  /** Se o orçamento já está aprovado, o botão só "converte"; senão, aprova e gera. */
+  aprovado?: boolean;
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const label = aprovado ? "Converter em obra" : "Aprovar e gerar obra";
+
   function handleConvert() {
     startTransition(async () => {
       const res = await converterOrcamentoEmObra(orcamentoId);
       if (!res.ok) {
-        toast.error("Não foi possível converter", { description: res.error });
+        toast.error("Não foi possível gerar a obra", { description: res.error });
         return;
       }
       toast.success("Obra criada a partir do orçamento", {
@@ -35,7 +40,7 @@ export function ConverterEmObraButton({
     return (
       <Button onClick={() => setConfirming(true)} className="gap-2">
         <HardHat className="size-4" />
-        Converter em obra
+        {label}
       </Button>
     );
   }
@@ -43,7 +48,7 @@ export function ConverterEmObraButton({
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-muted-foreground hidden sm:inline">
-        Confirmar conversão?
+        {aprovado ? "Confirmar conversão?" : "Aprovar e gerar a obra?"}
       </span>
       <Button
         size="sm"
@@ -55,7 +60,7 @@ export function ConverterEmObraButton({
       </Button>
       <Button size="sm" onClick={handleConvert} disabled={pending} className="gap-2">
         <HardHat className="size-4" />
-        {pending ? "Convertendo…" : "Sim, converter"}
+        {pending ? "Gerando…" : aprovado ? "Sim, converter" : "Sim, aprovar e gerar"}
       </Button>
     </div>
   );

@@ -77,7 +77,12 @@ export default async function OrcamentoDetalhePage({
     (acc, i) => acc + i.valor_total_material,
     0,
   );
-  const podeConverter = orcamento.status === "aprovado" && !orcamento.obra_id;
+  // Pode gerar obra enquanto não houver obra vinculada e o orçamento não tiver
+  // sido descartado. A conversão já aprova o orçamento automaticamente.
+  const podeConverter =
+    !orcamento.obra_id &&
+    orcamento.status !== "rejeitado" &&
+    orcamento.status !== "perdido";
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
@@ -138,7 +143,10 @@ export default async function OrcamentoDetalhePage({
             Editar
           </Link>
           {podeConverter ? (
-            <ConverterEmObraButton orcamentoId={orcamento.id} />
+            <ConverterEmObraButton
+              orcamentoId={orcamento.id}
+              aprovado={orcamento.status === "aprovado"}
+            />
           ) : null}
         </div>
       </header>
