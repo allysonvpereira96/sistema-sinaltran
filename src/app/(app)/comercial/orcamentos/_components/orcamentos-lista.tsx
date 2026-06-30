@@ -37,7 +37,6 @@ import { converterOrcamentoEmObra } from "@/lib/actions/obras";
 import { formatBRL, formatDateBR, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { GerarPdfButton } from "../[id]/_components/gerar-pdf";
-import { NfRegimeMini } from "../[id]/_components/nf-regime-mini";
 import { StatusSelect } from "./status-select";
 import { ViewToggle } from "./view-toggle";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -263,7 +262,7 @@ export function OrcamentosLista({
                 <TableHead>Validade</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-52 text-right">Ações</TableHead>
+                <TableHead className="w-40 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -318,22 +317,16 @@ export function OrcamentosLista({
                             iconOnly
                           />
                           {(o.blocos?.length ?? 0) > 0 ? (
-                            <>
-                              <NfRegimeMini
-                                orcamentoId={o.id}
-                                notaUnica={o.emite_nota_unica_servico}
-                              />
-                              <a
-                                href={`/comercial/orcamentos/${o.id}/omie`}
-                                className={cn(
-                                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
-                                )}
-                                aria-label="Exportar Omie"
-                                title="Exportar planilhas para o Omie"
-                              >
-                                <FileSpreadsheet className="size-3.5" />
-                              </a>
-                            </>
+                            <a
+                              href={`/comercial/orcamentos/${o.id}/omie`}
+                              className={cn(
+                                buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                              )}
+                              aria-label="Exportar Omie"
+                              title="Exportar planilhas para o Omie"
+                            >
+                              <FileSpreadsheet className="size-3.5" />
+                            </a>
                           ) : null}
                           {o.obra_id ? (
                             <Tooltip content="Ir para a obra gerada">

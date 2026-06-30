@@ -212,6 +212,7 @@ function dadosOrcamento(input: OrcamentoInput, valorTotal: number) {
     data_aprovacao:
       input.status === "aprovado" ? today() : null,
     observacoes: input.observacoes || null,
+    emite_nota_unica_servico: input.emite_nota_unica_servico ?? false,
     valor_total: valorTotal,
   };
 }
@@ -296,13 +297,29 @@ export async function updateOrcamento(
 
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("orcamentos")
-    .update(dadosOrcamento(input, valorTotal))
-    .eq("id", id);
+  // Orçamentos unificados (importados do Omie) têm blocos: o formulário legado
+  // não os edita. Nesse caso atualiza só o cabeçalho (inclui o flag de NFS única)
+  // e PRESERVA itens/total/blocos — não reescreve.
+  const { count: nBlocos } = await supabase
+    .from("orcamento_blocos")
+    .select("id", { count: "exact", head: true })
+    .eq("orcamento_id", id);
+  const temBlocos = (nBlocos ?? 0) > 0;
+
+  const header = dadosOrcamento(input, valorTotal);
+  if (temBlocos) delete (header as { valor_total?: number }).valor_total;
+
+  const { error } = await supabase.from("orcamentos").update(header).eq("id", id);
   if (error) {
     console.error("[updateOrcamento]", error.message);
     return { ok: false, error: error.message };
+  }
+
+  if (temBlocos) {
+    revalidatePath(BASE_PATH);
+    revalidatePath(`${BASE_PATH}/${id}`);
+    revalidatePath(`${BASE_PATH}/${id}/editar`);
+    return { ok: true };
   }
 
   // Substitui os itens (delete + re-insert) — mais simples que diff incremental.
@@ -367,22 +384,3 @@ export async function deleteOrcamento(
   return { ok: true };
 }
 
-/** Liga/desliga a emissão como NFS única (material entra como serviço no Omie). */
-export async function setEmiteNotaUnica(
-  id: string,
-  valor: boolean,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!hasSupabase()) return { ok: true };
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("orcamentos")
-    .update({ emite_nota_unica_servico: valor })
-    .eq("id", id);
-  if (error) {
-    console.error("[setEmiteNotaUnica]", error.message);
-    return { ok: false, error: error.message };
-  }
-  revalidatePath(BASE_PATH);
-  revalidatePath(`${BASE_PATH}/${id}`);
-  return { ok: true };
-}

@@ -183,6 +183,7 @@ export type OrcamentoInput = {
   data_envio?: string | null;
   data_validade?: string | null;
   observacoes?: string | null;
+  emite_nota_unica_servico?: boolean;
   itens: OrcamentoItemInput[];
 };
 

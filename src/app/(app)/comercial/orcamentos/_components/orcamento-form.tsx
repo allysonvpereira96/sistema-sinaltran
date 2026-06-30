@@ -55,7 +55,7 @@ const orcamentoStatusValues = [
 ] as const;
 
 const itemSchema = z.object({
-  secao: z.string().min(1, "Seção é obrigatória"),
+  secao: z.string().optional().or(z.literal("")),
   material_id: z.string().nullable().optional(),
   servico_id: z.string().nullable().optional(),
   descricao: z.string().min(1, "Descrição é obrigatória"),
@@ -82,6 +82,7 @@ const orcamentoSchema = z.object({
   data_envio: z.string().optional().or(z.literal("")),
   data_validade: z.string().optional().or(z.literal("")),
   observacoes: z.string().optional().or(z.literal("")),
+  emite_nota_unica_servico: z.boolean().optional(),
   itens: z.array(itemSchema).min(1, "Adicione pelo menos um item"),
 });
 
@@ -133,6 +134,7 @@ function detalheToValues(o: OrcamentoDetalhe): OrcamentoFormValues {
     data_envio: o.data_envio ?? "",
     data_validade: o.data_validade ?? "",
     observacoes: o.observacoes ?? "",
+    emite_nota_unica_servico: o.emite_nota_unica_servico ?? false,
     itens: o.itens.map((i) => ({
       secao: i.secao ?? "",
       material_id: i.material_id,
@@ -197,6 +199,7 @@ export function OrcamentoForm({
           data_envio: "",
           data_validade: "",
           observacoes: "",
+          emite_nota_unica_servico: false,
           itens: [
             {
               secao: "SINALIZAÇÃO HORIZONTAL",
@@ -373,8 +376,9 @@ export function OrcamentoForm({
       data_envio: values.data_envio || null,
       data_validade: values.data_validade || null,
       observacoes: values.observacoes || null,
+      emite_nota_unica_servico: values.emite_nota_unica_servico ?? false,
       itens: values.itens.map((i) => ({
-        secao: i.secao,
+        secao: i.secao ?? "",
         material_id: i.material_id || null,
         servico_id: i.servico_id || null,
         descricao: i.descricao,
@@ -614,6 +618,34 @@ export function OrcamentoForm({
                 placeholder="ex.: Boleto 30 dias"
               />
             </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Emissão fiscal (Omie)</CardTitle>
+            <CardDescription>
+              Como a nota será emitida ao fechar a obra
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register("emite_nota_unica_servico")}
+                className="mt-0.5 size-4 rounded border-input accent-primary"
+              />
+              <span className="space-y-0.5">
+                <span className="block text-sm font-medium">
+                  Emitir como NFS única (material como serviço)
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Quando marcado, o export pro Omie sai como uma única Ordem de
+                  Serviço, com o material lançado como serviço — em vez de NFS + NF
+                  (Ordem de Serviço + Pedido de Venda) separadas.
+                </span>
+              </span>
+            </label>
           </CardContent>
         </Card>
 
