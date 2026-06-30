@@ -1,7 +1,11 @@
 import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { getReciboCesta } from "@/lib/actions/beneficios";
+import { getReciboCesta, getReciboCombustivel } from "@/lib/actions/beneficios";
 import { ReciboBeneficioDocument } from "@/lib/pdf/recibo-beneficio-document";
+
+function brl(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +37,32 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="Recibo-Cesta-${competencia}.pdf"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  if (tipo === "combustivel") {
+    const r = await getReciboCombustivel(colaboradorId, competencia);
+    if (!r) return new Response("Lançamento não encontrado.", { status: 404 });
+    const elemento = createElement(ReciboBeneficioDocument, {
+      titulo: "RECIBO DE VALE-COMBUSTÍVEL",
+      empregado: r.empregado,
+      funcao: r.funcao,
+      competencia: r.competencia,
+      declaracao: `Declaro que recebi, da empresa, o valor referente ao vale-combustível da competência ${r.competencia}, conforme detalhamento abaixo, para os devidos fins.`,
+      linhas: [
+        { label: "Dias trabalhados", valor: String(r.dias_trabalhados) },
+        { label: "Valor por dia", valor: brl(r.valor_dia) },
+      ],
+      total: brl(r.total),
+      emissao,
+    }) as unknown as Parameters<typeof renderToBuffer>[0];
+    const buffer = await renderToBuffer(elemento);
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="Recibo-Combustivel-${competencia}.pdf"`,
         "Cache-Control": "no-store",
       },
     });
