@@ -11,6 +11,7 @@ import {
   Receipt,
   Wallet,
   CreditCard,
+  FileDown,
 } from "lucide-react";
 import {
   Card,
@@ -29,9 +30,10 @@ import {
   FORMA_RECEBIMENTO_LABEL,
   medicaoSituacao,
   medicaoFaturada,
+  itemPrecoUnit,
 } from "@/lib/types/medicao";
 import { calcularSaldo } from "@/lib/types/obra";
-import { formatBRL, formatDateBR } from "@/lib/format";
+import { formatBRL, formatDateBR, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ReceberButton } from "./_components/receber-button";
 
@@ -115,6 +117,15 @@ export default async function MedicaoDetalhePage({
               formaPadrao={medicao.forma_recebimento}
             />
           ) : null}
+          <a
+            href={`/financeiro/receber/${medicao.id}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+          >
+            <FileDown className="size-4" />
+            Exportar PDF
+          </a>
           <Link
             href={`/financeiro/receber/${medicao.id}/editar`}
             className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
@@ -253,6 +264,80 @@ export default async function MedicaoDetalhePage({
           </Card>
         ) : null}
       </div>
+
+      {medicao.itens.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Itens medidos</CardTitle>
+            <CardDescription>Planilha medida neste boletim</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b">
+                  <th className="text-left font-semibold py-2 px-4">Item</th>
+                  <th className="text-center font-semibold py-2 px-2 w-14">Un.</th>
+                  <th className="text-right font-semibold py-2 px-2 w-24">Contratado</th>
+                  <th className="text-right font-semibold py-2 px-2 w-24">Medido</th>
+                  <th className="text-center font-semibold py-2 px-2 w-16">%</th>
+                  <th className="text-right font-semibold py-2 px-2 w-24">Vlr unit.</th>
+                  <th className="text-right font-semibold py-2 px-4 w-28">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {medicao.itens.map((it) => {
+                  const pct = it.quantidade_contratada
+                    ? (it.quantidade_medida / it.quantidade_contratada) * 100
+                    : 0;
+                  return (
+                    <tr key={it.id} className="border-b last:border-b-0">
+                      <td className="py-2 px-4">
+                        <span className="font-medium">{it.descricao}</span>
+                        <span
+                          className={cn(
+                            "ml-2 inline-block rounded px-1 py-px text-[9px] font-semibold uppercase align-middle",
+                            it.tipo === "material"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-sky-100 text-sky-700",
+                          )}
+                        >
+                          {it.tipo === "material" ? "Material" : "Serviço"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-center text-xs">{it.unidade_medida}</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-xs">
+                        {formatNumber(it.quantidade_contratada)}
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums font-medium">
+                        {formatNumber(it.quantidade_medida)}
+                      </td>
+                      <td className="py-2 px-2 text-center text-xs tabular-nums">
+                        {pct.toFixed(0)}%
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums text-xs">
+                        {formatBRL(itemPrecoUnit(it))}
+                      </td>
+                      <td className="py-2 px-4 text-right tabular-nums font-semibold">
+                        {formatBRL(it.valor_total)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t bg-muted/40">
+                  <td colSpan={6} className="py-2.5 px-4 text-right font-semibold">
+                    Total da medição
+                  </td>
+                  <td className="py-2.5 px-4 text-right tabular-nums font-bold">
+                    {formatBRL(medicao.valor_total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {medicao.outras.length > 0 ? (
         <Card>

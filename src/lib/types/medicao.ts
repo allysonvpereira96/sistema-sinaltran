@@ -60,7 +60,63 @@ export type MedicaoDetalhe = MedicaoRow & {
   obra_valor_medido: number;
   /** outras medições da mesma obra. */
   outras: MedicaoRow[];
+  /** linhas medidas (itens da planilha). */
+  itens: MedicaoItemRow[];
 };
+
+// ── Itens da medição (boletim por item da planilha) ────────────────────────
+export type MedicaoItemTipo = "material" | "servico";
+
+export type MedicaoItemRow = {
+  id: string;
+  medicao_id: string;
+  orcamento_item_id: string | null;
+  ordem: number;
+  tipo: MedicaoItemTipo;
+  descricao: string;
+  unidade_medida: string;
+  quantidade_contratada: number;
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+  quantidade_medida: number;
+  valor_total: number;
+  created_at: string;
+};
+
+/** Item enviado pelo formulário (valor_total recalculado no servidor). */
+export type MedicaoItemInput = {
+  orcamento_item_id: string | null;
+  ordem: number;
+  tipo: MedicaoItemTipo;
+  descricao: string;
+  unidade_medida: string;
+  quantidade_contratada: number;
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+  quantidade_medida: number;
+};
+
+/** Linha da planilha do orçamento pronta para medir (com saldo acumulado). */
+export type ItemParaMedicao = {
+  orcamento_item_id: string;
+  secao: string | null;
+  tipo: MedicaoItemTipo;
+  descricao: string;
+  unidade_medida: string;
+  quantidade_contratada: number;
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+  /** acumulado medido em medições anteriores (não rejeitadas). */
+  ja_medido: number;
+  /** quantidade_contratada − ja_medido. */
+  saldo: number;
+};
+
+/** Preço unitário do item = mão de obra + material. */
+export const itemPrecoUnit = (i: {
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+}) => Number(i.valor_unit_mao_obra || 0) + Number(i.valor_unit_material || 0);
 
 export const MEDICAO_STATUS_LABEL: Record<MedicaoStatus, string> = {
   rascunho: "Rascunho",

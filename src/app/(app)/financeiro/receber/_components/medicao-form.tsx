@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,6 +35,7 @@ import {
 import { calcularSaldo, type ObraListRow } from "@/lib/types/obra";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { MedicaoItensEditor, type PlanilhaResumo } from "./medicao-itens-editor";
 
 const medicaoStatusValues = [
   "rascunho",
@@ -146,6 +147,20 @@ export function MedicaoForm({
   const watchedValor = useWatch({ control, name: "valor_total" }) ?? 0;
   const watchedPercentual = useWatch({ control, name: "percentual_executado" }) ?? 0;
 
+  // Planilha de itens (preenchida pelo editor a partir do orçamento da obra).
+  const [planilha, setPlanilha] = useState<PlanilhaResumo>({
+    itens: [],
+    total: 0,
+    temPlanilha: false,
+  });
+  const handlePlanilha = useCallback(
+    (r: PlanilhaResumo) => {
+      setPlanilha(r);
+      if (r.temPlanilha) setValue("valor_total", r.total);
+    },
+    [setValue],
+  );
+
   const obraSelecionada = useMemo(
     () => obras.find((o) => o.id === watchedObraId),
     [obras, watchedObraId],
@@ -187,6 +202,8 @@ export function MedicaoForm({
       data_vencimento: values.data_vencimento || null,
       forma_recebimento: (values.forma_recebimento || null) as FormaRecebimento | null,
       observacoes: values.observacoes || null,
+      // Itens medidos (vazio = obra sem planilha → usa valor manual no servidor).
+      itens: planilha.itens,
     };
 
     const res =
@@ -287,43 +304,69 @@ export function MedicaoForm({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Valores</CardTitle>
-            <CardDescription>
-              Valor medido no período e percentual executado da obra
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
-            <Field label="Valor da medição *" error={errors.valor_total?.message}>
-              <Input
-                type="number"
-                step="0.01"
-                {...register("valor_total", { valueAsNumber: true })}
-              />
-            </Field>
-            <Field label="% Executado *" error={errors.percentual_executado?.message}>
-              <Input
-                type="number"
-                step="0.1"
-                min={0}
-                max={100}
-                {...register("percentual_executado", { valueAsNumber: true })}
-              />
-            </Field>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-                Resumo
-              </Label>
-              <div className="h-9 px-3 rounded-md border bg-muted/40 text-sm flex items-center justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold tabular-nums">
-                  {formatBRL(watchedValor)} ({watchedPercentual.toFixed(0)}%)
-                </span>
+        {watchedObraId ? (
+          <MedicaoItensEditor
+            obraId={watchedObraId}
+            excludeMedicaoId={isEdit ? initialData?.id : undefined}
+            initialItens={initialData?.itens}
+            onChange={handlePlanilha}
+          />
+        ) : null}
+
+        {planilha.temPlanilha ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Valores</CardTitle>
+              <CardDescription>
+                Calculados automaticamente a partir da planilha de medição
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-10 px-3 rounded-md border bg-muted/40 text-sm flex items-center justify-between">
+                <span className="text-muted-foreground">Total da medição</span>
+                <span className="font-semibold tabular-nums">{formatBRL(planilha.total)}</span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Valores</CardTitle>
+              <CardDescription>
+                Obra sem orçamento vinculado — lance o valor medido manualmente
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-3">
+              <Field label="Valor da medição *" error={errors.valor_total?.message}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register("valor_total", { valueAsNumber: true })}
+                />
+              </Field>
+              <Field label="% Executado *" error={errors.percentual_executado?.message}>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  max={100}
+                  {...register("percentual_executado", { valueAsNumber: true })}
+                />
+              </Field>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                  Resumo
+                </Label>
+                <div className="h-9 px-3 rounded-md border bg-muted/40 text-sm flex items-center justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold tabular-nums">
+                    {formatBRL(watchedValor)} ({watchedPercentual.toFixed(0)}%)
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

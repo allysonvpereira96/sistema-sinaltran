@@ -7,11 +7,16 @@ import { listObras } from "@/lib/actions/obras";
 import type { ObraListRow } from "@/lib/types/obra";
 import {
   medicaoSituacao,
+  itemPrecoUnit,
   type MedicaoStatus,
   type FormaRecebimento,
   type MedicaoRow,
   type MedicaoListRow,
   type MedicaoDetalhe,
+  type MedicaoItemRow,
+  type MedicaoItemInput,
+  type MedicaoItemTipo,
+  type ItemParaMedicao,
 } from "@/lib/types/medicao";
 
 const TABLE = "medicoes";
@@ -39,7 +44,29 @@ export type MedicaoInput = {
   forma_recebimento?: FormaRecebimento | null;
   valor_recebido?: number | null;
   observacoes?: string | null;
+  /**
+   * Itens medidos. `undefined` = não mexe nos itens; array (mesmo vazio) =
+   * substitui. Quando há itens com quantidade > 0, valor_total e percentual
+   * são derivados deles (ignora os valores manuais).
+   */
+  itens?: MedicaoItemInput[];
 };
+
+const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
+function deriveTipoItem(it: {
+  material_id: string | null;
+  servico_id: string | null;
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+}): MedicaoItemTipo {
+  if (it.servico_id) return "servico";
+  if (it.material_id) return "material";
+  if (Number(it.valor_unit_material || 0) > 0 && Number(it.valor_unit_mao_obra || 0) === 0) {
+    return "material";
+  }
+  return "servico";
+}
 
 function clean<T extends Record<string, unknown>>(obj: T): T {
   const out = { ...obj };
@@ -108,7 +135,106 @@ export async function getMedicao(id: string): Promise<MedicaoDetalhe | null> {
   medicao.obra_valor_medido = todas
     .filter((m) => m.status !== "rejeitada")
     .reduce((acc, m) => acc + Number(m.valor_total || 0), 0);
+
+  const { data: itens } = await supabase
+    .from("medicao_itens")
+    .select("*")
+    .eq("medicao_id", id)
+    .order("ordem", { ascending: true });
+  medicao.itens = (itens ?? []) as MedicaoItemRow[];
   return medicao;
+}
+
+/**
+ * Itens da planilha do orçamento da obra prontos para medir, já com o saldo
+ * (quantidade contratada − acumulado medido em medições não rejeitadas).
+ * Retorna apenas itens com saldo > 0. `excludeMedicaoId` ignora a própria
+ * medição em edição (para não descontar o que ela já mediu do saldo).
+ */
+export async function getItensParaMedicao(
+  obraId: string,
+  excludeMedicaoId?: string,
+): Promise<ItemParaMedicao[]> {
+  if (!obraId || !hasSupabase()) return [];
+  const supabase = await createClient();
+
+  const { data: obra } = await supabase
+    .from("obras")
+    .select("orcamento_id")
+    .eq("id", obraId)
+    .maybeSingle();
+  const orcamentoId = (obra as { orcamento_id: string | null } | null)?.orcamento_id;
+  if (!orcamentoId) return [];
+
+  const { data: itensRaw } = await supabase
+    .from("orcamento_itens")
+    .select(
+      "id, secao, ordem, material_id, servico_id, descricao, unidade_medida, quantidade, valor_unit_mao_obra, valor_unit_material",
+    )
+    .eq("orcamento_id", orcamentoId)
+    .order("ordem", { ascending: true });
+  const itens = (itensRaw ?? []) as {
+    id: string;
+    secao: string | null;
+    ordem: number;
+    material_id: string | null;
+    servico_id: string | null;
+    descricao: string;
+    unidade_medida: string;
+    quantidade: number;
+    valor_unit_mao_obra: number;
+    valor_unit_material: number;
+  }[];
+  if (itens.length === 0) return [];
+
+  // Medições não rejeitadas da obra (exceto a que está sendo editada).
+  const { data: medsRaw } = await supabase
+    .from(TABLE)
+    .select("id")
+    .eq("obra_id", obraId)
+    .neq("status", "rejeitada");
+  const medIds = ((medsRaw ?? []) as { id: string }[])
+    .map((m) => m.id)
+    .filter((id) => id !== excludeMedicaoId);
+
+  const jaMap = new Map<string, number>();
+  if (medIds.length > 0) {
+    const { data: miRaw } = await supabase
+      .from("medicao_itens")
+      .select("orcamento_item_id, quantidade_medida")
+      .in("medicao_id", medIds);
+    for (const mi of (miRaw ?? []) as {
+      orcamento_item_id: string | null;
+      quantidade_medida: number;
+    }[]) {
+      if (!mi.orcamento_item_id) continue;
+      jaMap.set(
+        mi.orcamento_item_id,
+        (jaMap.get(mi.orcamento_item_id) ?? 0) + Number(mi.quantidade_medida || 0),
+      );
+    }
+  }
+
+  const out: ItemParaMedicao[] = [];
+  for (const it of itens) {
+    const contratada = Number(it.quantidade || 0);
+    const ja = jaMap.get(it.id) ?? 0;
+    const saldo = round2(contratada - ja);
+    if (saldo <= 0.0005) continue;
+    out.push({
+      orcamento_item_id: it.id,
+      secao: it.secao,
+      tipo: deriveTipoItem(it),
+      descricao: it.descricao,
+      unidade_medida: it.unidade_medida,
+      quantidade_contratada: contratada,
+      valor_unit_mao_obra: Number(it.valor_unit_mao_obra || 0),
+      valor_unit_material: Number(it.valor_unit_material || 0),
+      ja_medido: ja,
+      saldo,
+    });
+  }
+  return out;
 }
 
 function dados(input: MedicaoInput) {
@@ -143,6 +269,86 @@ function validar(input: MedicaoInput): string | null {
   return null;
 }
 
+type ItemRowInsert = {
+  orcamento_item_id: string | null;
+  ordem: number;
+  tipo: MedicaoItemTipo;
+  descricao: string;
+  unidade_medida: string;
+  quantidade_contratada: number;
+  valor_unit_mao_obra: number;
+  valor_unit_material: number;
+  quantidade_medida: number;
+  valor_total: number;
+};
+
+/**
+ * Calcula valor_total e percentual da medição. Quando há itens com quantidade
+ * medida > 0, ambos são derivados deles; senão usa os valores manuais do input.
+ * `itensRows === null` significa "não mexer nos itens" (input.itens undefined).
+ */
+async function calcularTotais(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: MedicaoInput,
+): Promise<{ valor_total: number; percentual: number; itensRows: ItemRowInsert[] | null }> {
+  if (input.itens === undefined) {
+    return {
+      valor_total: input.valor_total ?? 0,
+      percentual: input.percentual_executado ?? 0,
+      itensRows: null,
+    };
+  }
+  const itens: ItemRowInsert[] = input.itens
+    .filter((i) => Number(i.quantidade_medida || 0) > 0)
+    .map((i, idx) => ({
+      orcamento_item_id: i.orcamento_item_id ?? null,
+      ordem: i.ordem ?? idx,
+      tipo: i.tipo,
+      descricao: i.descricao,
+      unidade_medida: i.unidade_medida,
+      quantidade_contratada: Number(i.quantidade_contratada || 0),
+      valor_unit_mao_obra: Number(i.valor_unit_mao_obra || 0),
+      valor_unit_material: Number(i.valor_unit_material || 0),
+      quantidade_medida: Number(i.quantidade_medida || 0),
+      valor_total: round2(Number(i.quantidade_medida || 0) * itemPrecoUnit(i)),
+    }));
+  if (itens.length === 0) {
+    return {
+      valor_total: input.valor_total ?? 0,
+      percentual: input.percentual_executado ?? 0,
+      itensRows: [],
+    };
+  }
+  const valor_total = round2(itens.reduce((s, i) => s + i.valor_total, 0));
+  const { data: obra } = await supabase
+    .from("obras")
+    .select("valor_total")
+    .eq("id", input.obra_id)
+    .maybeSingle();
+  const contrato = Number((obra as { valor_total: number } | null)?.valor_total || 0);
+  const percentual =
+    contrato > 0 ? Math.min(100, round2((valor_total / contrato) * 100)) : input.percentual_executado ?? 0;
+  return { valor_total, percentual, itensRows: itens };
+}
+
+async function gravarItens(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  medicaoId: string,
+  itensRows: ItemRowInsert[] | null,
+  substituir: boolean,
+): Promise<void> {
+  if (itensRows === null) return;
+  if (substituir) {
+    await supabase.from("medicao_itens").delete().eq("medicao_id", medicaoId);
+  }
+  if (itensRows.length > 0) {
+    const { error } = await supabase
+      .from("medicao_itens")
+      .insert(itensRows.map((r) => ({ ...r, medicao_id: medicaoId })));
+    if (error) console.error("[gravarItens]", error.message);
+  }
+}
+
 export async function createMedicao(
   input: MedicaoInput,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
@@ -156,9 +362,16 @@ export async function createMedicao(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sessão expirada. Faça login novamente." };
 
+  const { valor_total, percentual, itensRows } = await calcularTotais(supabase, input);
+
   const { data, error } = await supabase
     .from(TABLE)
-    .insert({ ...dados(input), user_id: user.id })
+    .insert({
+      ...dados(input),
+      valor_total,
+      percentual_executado: percentual,
+      user_id: user.id,
+    })
     .select("id")
     .single();
   if (error) {
@@ -168,9 +381,12 @@ export async function createMedicao(
     console.error("[createMedicao]", error.message);
     return { ok: false, error: error.message };
   }
+  const id = (data as { id: string }).id;
+  await gravarItens(supabase, id, itensRows, false);
+
   revalidatePath(BASE_PATH);
   revalidatePath(`/obras/${input.obra_id}`);
-  return { ok: true, id: (data as { id: string }).id };
+  return { ok: true, id };
 }
 
 export async function updateMedicao(
@@ -182,7 +398,12 @@ export async function updateMedicao(
   if (!hasSupabase()) return { ok: true };
 
   const supabase = await createClient();
-  const { error } = await supabase.from(TABLE).update(dados(input)).eq("id", id);
+  const { valor_total, percentual, itensRows } = await calcularTotais(supabase, input);
+
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ ...dados(input), valor_total, percentual_executado: percentual })
+    .eq("id", id);
   if (error) {
     if (error.code === "23505") {
       return { ok: false, error: "Já existe uma medição com este número nesta obra." };
@@ -190,6 +411,8 @@ export async function updateMedicao(
     console.error("[updateMedicao]", error.message);
     return { ok: false, error: error.message };
   }
+  await gravarItens(supabase, id, itensRows, true);
+
   revalidatePath(BASE_PATH);
   revalidatePath(`${BASE_PATH}/${id}`);
   revalidatePath(`${BASE_PATH}/${id}/editar`);
@@ -243,6 +466,46 @@ export async function marcarRecebida(
   revalidatePath(BASE_PATH);
   revalidatePath(`${BASE_PATH}/${id}`);
   return { ok: true };
+}
+
+/**
+ * Soma medida por item nas medições ANTERIORES (numero menor, não rejeitadas)
+ * da mesma obra. Usado no boletim em PDF (coluna "acumulado anterior").
+ */
+export async function getAcumuladoAnteriorItens(
+  medicaoId: string,
+): Promise<Record<string, number>> {
+  if (!medicaoId || !hasSupabase()) return {};
+  const supabase = await createClient();
+  const { data: med } = await supabase
+    .from(TABLE)
+    .select("obra_id, numero")
+    .eq("id", medicaoId)
+    .maybeSingle();
+  if (!med) return {};
+  const { obra_id, numero } = med as { obra_id: string; numero: number };
+  const { data: meds } = await supabase
+    .from(TABLE)
+    .select("id")
+    .eq("obra_id", obra_id)
+    .neq("status", "rejeitada")
+    .lt("numero", numero);
+  const ids = ((meds ?? []) as { id: string }[]).map((m) => m.id);
+  if (ids.length === 0) return {};
+  const { data: mi } = await supabase
+    .from("medicao_itens")
+    .select("orcamento_item_id, quantidade_medida")
+    .in("medicao_id", ids);
+  const map: Record<string, number> = {};
+  for (const r of (mi ?? []) as {
+    orcamento_item_id: string | null;
+    quantidade_medida: number;
+  }[]) {
+    if (!r.orcamento_item_id) continue;
+    map[r.orcamento_item_id] =
+      (map[r.orcamento_item_id] ?? 0) + Number(r.quantidade_medida || 0);
+  }
+  return map;
 }
 
 export type ResumoRecebiveis = {

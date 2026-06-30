@@ -16,6 +16,7 @@ import {
   BadgeCheck,
   Undo2,
   Download,
+  FileDown,
   List,
   Building2,
   CalendarRange,
@@ -584,6 +585,18 @@ export function MedicoesLista({ medicoes }: { medicoes: MedicaoListRow[] }) {
                                   <Undo2 className="size-3.5 text-muted-foreground" />
                                 </Button>
                               ) : null}
+                              <a
+                                href={`/financeiro/receber/${m.id}/pdf`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                                )}
+                                title="Exportar boletim em PDF"
+                                aria-label="Exportar PDF"
+                              >
+                                <FileDown className="size-3.5" />
+                              </a>
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
