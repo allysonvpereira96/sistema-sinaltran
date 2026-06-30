@@ -6,43 +6,55 @@ import { BadgeCheck, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { marcarRecebida } from "@/lib/actions/medicoes";
+import type { FormaRecebimento } from "@/lib/types/medicao";
+import { BaixaDialog } from "../../_components/baixa-dialog";
 
 export function ReceberButton({
   medicaoId,
   recebida,
+  valorTotal,
+  formaPadrao,
 }: {
   medicaoId: string;
   recebida: boolean;
+  valorTotal: number;
+  formaPadrao?: FormaRecebimento | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  function toggle() {
+  function desfazer() {
     startTransition(async () => {
-      const res = await marcarRecebida(medicaoId, !recebida);
+      const res = await marcarRecebida(medicaoId, false);
       if (!res.ok) {
         toast.error("Erro", { description: res.error });
         return;
       }
-      toast.success(recebida ? "Baixa desfeita" : "Recebimento registrado");
+      toast.success("Baixa desfeita");
       router.refresh();
     });
   }
 
+  if (recebida) {
+    return (
+      <Button type="button" variant="outline" onClick={desfazer} disabled={pending} className="gap-2">
+        <Undo2 className="size-4" />
+        {pending ? "Salvando…" : "Desfazer recebimento"}
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      type="button"
-      variant={recebida ? "outline" : "default"}
-      onClick={toggle}
-      disabled={pending}
-      className="gap-2"
-    >
-      {recebida ? <Undo2 className="size-4" /> : <BadgeCheck className="size-4" />}
-      {pending
-        ? "Salvando…"
-        : recebida
-          ? "Desfazer recebimento"
-          : "Marcar como recebida"}
-    </Button>
+    <BaixaDialog
+      medicaoId={medicaoId}
+      valorTotal={valorTotal}
+      formaPadrao={formaPadrao}
+      trigger={
+        <Button type="button" className="gap-2">
+          <BadgeCheck className="size-4" />
+          Marcar como recebida
+        </Button>
+      }
+    />
   );
 }

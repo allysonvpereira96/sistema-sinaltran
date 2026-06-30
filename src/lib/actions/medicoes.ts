@@ -5,11 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { listObras } from "@/lib/actions/obras";
 import type { ObraListRow } from "@/lib/types/obra";
-import type {
-  MedicaoStatus,
-  MedicaoRow,
-  MedicaoListRow,
-  MedicaoDetalhe,
+import {
+  medicaoSituacao,
+  type MedicaoStatus,
+  type FormaRecebimento,
+  type MedicaoRow,
+  type MedicaoListRow,
+  type MedicaoDetalhe,
 } from "@/lib/types/medicao";
 
 const TABLE = "medicoes";
@@ -31,6 +33,11 @@ export type MedicaoInput = {
   data_envio?: string | null;
   data_aprovacao?: string | null;
   data_previsao_recebimento?: string | null;
+  data_faturamento?: string | null;
+  numero_nf?: string | null;
+  data_vencimento?: string | null;
+  forma_recebimento?: FormaRecebimento | null;
+  valor_recebido?: number | null;
   observacoes?: string | null;
 };
 
@@ -118,6 +125,11 @@ function dados(input: MedicaoInput) {
       input.data_aprovacao ||
       (input.status === "aprovada" ? today() : null),
     data_previsao_recebimento: input.data_previsao_recebimento || null,
+    data_faturamento: input.data_faturamento || null,
+    numero_nf: input.numero_nf?.trim() || null,
+    data_vencimento: input.data_vencimento || null,
+    forma_recebimento: input.forma_recebimento || null,
+    valor_recebido: input.valor_recebido ?? null,
     observacoes: input.observacoes || null,
   });
 }
@@ -199,17 +211,31 @@ export async function deleteMedicao(
   return { ok: true };
 }
 
-/** Baixa do recebível: marca a medição como recebida (ou desfaz a baixa). */
+/**
+ * Baixa do recebível: marca a medição como recebida (ou desfaz a baixa).
+ * Aceita data e valor recebido (recebimento parcial). Ao desfazer, limpa ambos.
+ */
 export async function marcarRecebida(
   id: string,
   recebida: boolean,
+  opts?: {
+    valor_recebido?: number | null;
+    data_recebimento?: string | null;
+    forma_recebimento?: FormaRecebimento | null;
+  },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!hasSupabase()) return { ok: true };
   const supabase = await createClient();
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ data_recebimento: recebida ? today() : null })
-    .eq("id", id);
+  const payload = recebida
+    ? {
+        data_recebimento: opts?.data_recebimento || today(),
+        valor_recebido: opts?.valor_recebido ?? null,
+        ...(opts?.forma_recebimento
+          ? { forma_recebimento: opts.forma_recebimento }
+          : {}),
+      }
+    : { data_recebimento: null, valor_recebido: null };
+  const { error } = await supabase.from(TABLE).update(payload).eq("id", id);
   if (error) {
     console.error("[marcarRecebida]", error.message);
     return { ok: false, error: error.message };
@@ -217,4 +243,73 @@ export async function marcarRecebida(
   revalidatePath(BASE_PATH);
   revalidatePath(`${BASE_PATH}/${id}`);
   return { ok: true };
+}
+
+export type ResumoRecebiveis = {
+  aReceberTotal: number;
+  aReceberQtd: number;
+  vencidoTotal: number;
+  vencidoQtd: number;
+  aFaturarTotal: number;
+  aFaturarQtd: number;
+  recebidoMesTotal: number;
+  recebidoMesQtd: number;
+};
+
+/** Resumo da carteira de recebíveis para o dashboard gerencial. */
+export async function getResumoRecebiveis(): Promise<ResumoRecebiveis> {
+  const vazio: ResumoRecebiveis = {
+    aReceberTotal: 0,
+    aReceberQtd: 0,
+    vencidoTotal: 0,
+    vencidoQtd: 0,
+    aFaturarTotal: 0,
+    aFaturarQtd: 0,
+    recebidoMesTotal: 0,
+    recebidoMesQtd: 0,
+  };
+  if (!hasSupabase()) return vazio;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select(
+      "valor_total, valor_recebido, status, data_recebimento, data_vencimento, data_faturamento, numero_nf",
+    );
+  if (error) {
+    console.error("[getResumoRecebiveis]", error.message);
+    return vazio;
+  }
+  const hoje = today();
+  const mesAtual = hoje.slice(0, 7);
+  const rows = (data ?? []) as Pick<
+    MedicaoRow,
+    | "valor_total"
+    | "valor_recebido"
+    | "status"
+    | "data_recebimento"
+    | "data_vencimento"
+    | "data_faturamento"
+    | "numero_nf"
+  >[];
+  const acc = { ...vazio };
+  for (const m of rows) {
+    const situacao = medicaoSituacao(m, hoje);
+    const valor = Number(m.valor_total || 0);
+    if (situacao === "a_receber" || situacao === "vencida") {
+      acc.aReceberTotal += valor;
+      acc.aReceberQtd += 1;
+      if (situacao === "vencida") {
+        acc.vencidoTotal += valor;
+        acc.vencidoQtd += 1;
+      }
+      if (!m.data_faturamento && !m.numero_nf) {
+        acc.aFaturarTotal += valor;
+        acc.aFaturarQtd += 1;
+      }
+    } else if (situacao === "recebida" && m.data_recebimento?.slice(0, 7) === mesAtual) {
+      acc.recebidoMesTotal += Number(m.valor_recebido ?? m.valor_total ?? 0);
+      acc.recebidoMesQtd += 1;
+    }
+  }
+  return acc;
 }

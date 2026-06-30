@@ -8,6 +8,9 @@ import {
   User,
   HardHat,
   TrendingUp,
+  Receipt,
+  Wallet,
+  CreditCard,
 } from "lucide-react";
 import {
   Card,
@@ -21,8 +24,11 @@ import { Progress } from "@/components/ui/progress";
 import { buttonVariants } from "@/components/ui/button";
 import { getMedicao } from "@/lib/actions/medicoes";
 import {
-  MEDICAO_STATUS_LABEL,
-  MEDICAO_STATUS_TONE,
+  MEDICAO_SITUACAO_LABEL,
+  MEDICAO_SITUACAO_TONE,
+  FORMA_RECEBIMENTO_LABEL,
+  medicaoSituacao,
+  medicaoFaturada,
 } from "@/lib/types/medicao";
 import { calcularSaldo } from "@/lib/types/obra";
 import { formatBRL, formatDateBR } from "@/lib/format";
@@ -42,11 +48,15 @@ export default async function MedicaoDetalhePage({
 
   const obra = medicao.obra;
   const cliente = obra?.cliente;
-  const tone = MEDICAO_STATUS_TONE[medicao.status];
+  const situacao = medicaoSituacao(medicao);
+  const tone = MEDICAO_SITUACAO_TONE[situacao];
   const saldoObra = obra
     ? calcularSaldo(obra.valor_total, medicao.obra_valor_medido)
     : null;
-  const recebida = !!medicao.data_recebimento;
+  const recebida = situacao === "recebida";
+  const faturada = medicaoFaturada(medicao);
+  const valorRecebido = medicao.valor_recebido ?? medicao.valor_total;
+  const parcial = recebida && medicao.valor_recebido != null && medicao.valor_recebido < medicao.valor_total;
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
@@ -66,11 +76,17 @@ export default async function MedicaoDetalhePage({
                 className={cn("gap-1.5 font-medium", tone.bg, tone.text)}
               >
                 <span className={cn("size-1.5 rounded-full", tone.dot)} />
-                {MEDICAO_STATUS_LABEL[medicao.status]}
+                {MEDICAO_SITUACAO_LABEL[situacao]}
               </Badge>
+              {faturada && !recebida ? (
+                <Badge variant="secondary" className="bg-sky-50 text-sky-700">
+                  Faturada{medicao.numero_nf ? ` · NFS-e ${medicao.numero_nf}` : ""}
+                </Badge>
+              ) : null}
               {recebida ? (
                 <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
-                  Recebida em {formatDateBR(medicao.data_recebimento)}
+                  {parcial ? "Recebida parcial" : "Recebida"} em{" "}
+                  {formatDateBR(medicao.data_recebimento)}
                 </Badge>
               ) : null}
               <span className="text-xs font-mono text-muted-foreground">
@@ -92,7 +108,12 @@ export default async function MedicaoDetalhePage({
         </div>
         <div className="flex items-center gap-2">
           {medicao.status === "aprovada" ? (
-            <ReceberButton medicaoId={medicao.id} recebida={recebida} />
+            <ReceberButton
+              medicaoId={medicao.id}
+              recebida={recebida}
+              valorTotal={medicao.valor_total}
+              formaPadrao={medicao.forma_recebimento}
+            />
           ) : null}
           <Link
             href={`/financeiro/receber/${medicao.id}/editar`}
@@ -127,18 +148,26 @@ export default async function MedicaoDetalhePage({
           }
         />
         <KpiCard
-          label={recebida ? "Recebido em" : "Prev. recebimento"}
+          label={recebida ? "Recebido em" : "Vencimento"}
           value={
             recebida
               ? formatDateBR(medicao.data_recebimento) || "—"
-              : formatDateBR(medicao.data_previsao_recebimento) || "—"
+              : formatDateBR(medicao.data_vencimento) ||
+                formatDateBR(medicao.data_previsao_recebimento) ||
+                "—"
           }
           detail={
             recebida
-              ? "Baixa registrada"
-              : medicao.data_previsao_recebimento
-                ? "Data esperada de pagamento"
-                : "Sem previsão"
+              ? parcial
+                ? `Recebido ${formatBRL(valorRecebido)} (parcial)`
+                : "Baixa registrada"
+              : situacao === "vencida"
+                ? "Título vencido"
+                : medicao.data_vencimento
+                  ? "Vencimento do título"
+                  : medicao.data_previsao_recebimento
+                    ? "Previsão (sem faturamento)"
+                    : "Sem vencimento"
           }
         />
       </div>
@@ -152,6 +181,19 @@ export default async function MedicaoDetalhePage({
           <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
             <InfoRow icon={CalendarRange} label="Data de envio" value={formatDateBR(medicao.data_envio) || "—"} />
             <InfoRow icon={CalendarRange} label="Data de aprovação" value={formatDateBR(medicao.data_aprovacao) || "—"} />
+            <InfoRow icon={Receipt} label="NFS-e" value={medicao.numero_nf || "—"} />
+            <InfoRow icon={CalendarRange} label="Faturamento" value={formatDateBR(medicao.data_faturamento) || "—"} />
+            <InfoRow icon={CalendarRange} label="Vencimento" value={formatDateBR(medicao.data_vencimento) || "—"} />
+            <InfoRow
+              icon={CreditCard}
+              label="Forma de recebimento"
+              value={medicao.forma_recebimento ? FORMA_RECEBIMENTO_LABEL[medicao.forma_recebimento] : "—"}
+            />
+            <InfoRow
+              icon={Wallet}
+              label="Valor recebido"
+              value={recebida ? formatBRL(valorRecebido) : "—"}
+            />
             <InfoRow icon={TrendingUp} label="% Executado no período" value={`${medicao.percentual_executado.toFixed(1)}%`} />
             <InfoRow icon={CalendarRange} label="Criada em" value={formatDateBR(medicao.created_at)} />
             {medicao.observacoes ? (
@@ -232,7 +274,8 @@ export default async function MedicaoDetalhePage({
               </thead>
               <tbody>
                 {medicao.outras.map((m) => {
-                  const tn = MEDICAO_STATUS_TONE[m.status];
+                  const sm = medicaoSituacao(m);
+                  const tn = MEDICAO_SITUACAO_TONE[sm];
                   return (
                     <tr key={m.id} className="border-b last:border-b-0">
                       <td className="py-2 px-4 font-mono text-xs">
@@ -253,7 +296,7 @@ export default async function MedicaoDetalhePage({
                       <td className="py-2 px-4">
                         <Badge variant="secondary" className={cn("gap-1.5 text-xs", tn.bg, tn.text)}>
                           <span className={cn("size-1.5 rounded-full", tn.dot)} />
-                          {MEDICAO_STATUS_LABEL[m.status]}
+                          {MEDICAO_SITUACAO_LABEL[sm]}
                         </Badge>
                       </td>
                     </tr>

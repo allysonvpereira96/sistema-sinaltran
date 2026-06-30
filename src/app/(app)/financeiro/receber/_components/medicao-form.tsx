@@ -27,8 +27,10 @@ import {
 } from "@/lib/actions/medicoes";
 import {
   MEDICAO_STATUS_LABEL,
+  FORMA_RECEBIMENTO_LABEL,
   type MedicaoDetalhe,
   type MedicaoStatus,
+  type FormaRecebimento,
 } from "@/lib/types/medicao";
 import { calcularSaldo, type ObraListRow } from "@/lib/types/obra";
 import { formatBRL } from "@/lib/format";
@@ -39,6 +41,14 @@ const medicaoStatusValues = [
   "enviada",
   "aprovada",
   "rejeitada",
+] as const;
+
+const formaRecebimentoValues = [
+  "boleto",
+  "transferencia",
+  "pix",
+  "cheque",
+  "dinheiro",
 ] as const;
 
 const medicaoSchema = z
@@ -53,6 +63,10 @@ const medicaoSchema = z
     data_envio: z.string().optional().or(z.literal("")),
     data_aprovacao: z.string().optional().or(z.literal("")),
     data_previsao_recebimento: z.string().optional().or(z.literal("")),
+    data_faturamento: z.string().optional().or(z.literal("")),
+    numero_nf: z.string().optional().or(z.literal("")),
+    data_vencimento: z.string().optional().or(z.literal("")),
+    forma_recebimento: z.enum(formaRecebimentoValues).optional().or(z.literal("")),
     observacoes: z.string().optional().or(z.literal("")),
   })
   .refine((v) => v.data_fim >= v.data_inicio, {
@@ -74,6 +88,10 @@ function medicaoToValues(m: MedicaoDetalhe): MedicaoFormValues {
     data_envio: m.data_envio ?? "",
     data_aprovacao: m.data_aprovacao ?? "",
     data_previsao_recebimento: m.data_previsao_recebimento ?? "",
+    data_faturamento: m.data_faturamento ?? "",
+    numero_nf: m.numero_nf ?? "",
+    data_vencimento: m.data_vencimento ?? "",
+    forma_recebimento: m.forma_recebimento ?? "",
     observacoes: m.observacoes ?? "",
   };
 }
@@ -112,6 +130,10 @@ export function MedicaoForm({
           data_envio: "",
           data_aprovacao: "",
           data_previsao_recebimento: "",
+          data_faturamento: "",
+          numero_nf: "",
+          data_vencimento: "",
+          forma_recebimento: "",
           observacoes: "",
         },
   });
@@ -160,6 +182,10 @@ export function MedicaoForm({
       data_envio: values.data_envio || null,
       data_aprovacao: values.data_aprovacao || null,
       data_previsao_recebimento: values.data_previsao_recebimento || null,
+      data_faturamento: values.data_faturamento || null,
+      numero_nf: values.numero_nf || null,
+      data_vencimento: values.data_vencimento || null,
+      forma_recebimento: (values.forma_recebimento || null) as FormaRecebimento | null,
       observacoes: values.observacoes || null,
     };
 
@@ -327,6 +353,40 @@ export function MedicaoForm({
               error={errors.data_previsao_recebimento?.message}
             >
               <Input type="date" {...register("data_previsao_recebimento")} />
+            </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Faturamento</CardTitle>
+            <CardDescription>
+              Emissão da NFS-e (ou transferência) e vencimento do título a receber
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Nº da NFS-e / nota" error={errors.numero_nf?.message}>
+              <Input
+                {...register("numero_nf")}
+                placeholder="Ex.: 1234"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Data de faturamento" error={errors.data_faturamento?.message}>
+              <Input type="date" {...register("data_faturamento")} />
+            </Field>
+            <Field label="Vencimento" error={errors.data_vencimento?.message}>
+              <Input type="date" {...register("data_vencimento")} />
+            </Field>
+            <Field label="Forma de recebimento" error={errors.forma_recebimento?.message}>
+              <NativeSelect {...register("forma_recebimento")}>
+                <option value="">—</option>
+                {formaRecebimentoValues.map((f) => (
+                  <option key={f} value={f}>
+                    {FORMA_RECEBIMENTO_LABEL[f as FormaRecebimento]}
+                  </option>
+                ))}
+              </NativeSelect>
             </Field>
           </CardContent>
         </Card>

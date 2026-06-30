@@ -9,6 +9,7 @@ import {
   Truck,
   Boxes,
   Cake,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -31,6 +32,7 @@ import { listClientes } from "@/lib/actions/clientes";
 import { listFornecedores } from "@/lib/actions/fornecedores";
 import { listMateriais } from "@/lib/actions/materiais";
 import { listOrcamentos } from "@/lib/actions/orcamentos";
+import { getResumoRecebiveis } from "@/lib/actions/medicoes";
 import { getCurrentProfile } from "@/lib/actions/usuarios";
 
 const MESES = [
@@ -46,7 +48,7 @@ const toneClasses: Record<string, { dot: string; text: string; bg: string }> = {
 };
 
 export default async function DashboardPage() {
-  const [profile, colaboradores, vencimentos, clientes, fornecedores, materiais, orcamentos] =
+  const [profile, colaboradores, vencimentos, clientes, fornecedores, materiais, orcamentos, recebiveis] =
     await Promise.all([
       getCurrentProfile(),
       listColaboradores(),
@@ -55,6 +57,7 @@ export default async function DashboardPage() {
       listFornecedores(),
       listMateriais(),
       listOrcamentos(),
+      getResumoRecebiveis(),
     ]);
 
   // Card de aniversariantes só para quem tem o módulo Pessoal (admin vê tudo).
@@ -299,6 +302,63 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="size-4 text-primary" />
+                  Contas a receber
+                </CardTitle>
+                <CardDescription>Carteira de medições</CardDescription>
+              </div>
+              <Link
+                href="/financeiro/receber"
+                className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline shrink-0"
+              >
+                Abrir <ArrowUpRight className="size-3" />
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">A receber</div>
+                <div className="text-right">
+                  <div className="font-bold tabular-nums">{formatBRL(recebiveis.aReceberTotal)}</div>
+                  <div className="text-[11px] text-muted-foreground">{recebiveis.aReceberQtd} título(s)</div>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "flex items-center justify-between rounded-md px-3 py-2",
+                  recebiveis.vencidoQtd ? "bg-rose-50" : "bg-muted/40",
+                )}
+              >
+                <div className={cn("text-sm font-medium", recebiveis.vencidoQtd ? "text-rose-700" : "text-muted-foreground")}>
+                  Vencido
+                </div>
+                <div className="text-right">
+                  <div className={cn("font-bold tabular-nums", recebiveis.vencidoQtd && "text-rose-700")}>
+                    {formatBRL(recebiveis.vencidoTotal)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{recebiveis.vencidoQtd} em atraso</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">Recebido no mês</div>
+                <div className="text-right">
+                  <div className="font-bold tabular-nums text-emerald-700">
+                    {formatBRL(recebiveis.recebidoMesTotal)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{recebiveis.recebidoMesQtd} baixa(s)</div>
+                </div>
+              </div>
+              {recebiveis.aFaturarQtd ? (
+                <div className="text-xs text-amber-700 bg-amber-50 rounded-md px-3 py-2">
+                  {recebiveis.aFaturarQtd} aprovada(s) sem NFS-e · {formatBRL(recebiveis.aFaturarTotal)} a faturar
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
