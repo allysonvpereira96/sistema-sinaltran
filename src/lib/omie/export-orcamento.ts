@@ -20,8 +20,10 @@ import type {
 const CFG = {
   // Conta Corrente é lookup do Omie (conta cadastrada no Omie de vocês).
   contaCorrente: "Banco do Brasil",
-  produtos: { categoria: "Receita de Vendas", estoque: "Sinaltran" },
-  sinalshop: { categoria: "Receita de Vendas", estoque: "Sinalshop" },
+  // Categoria do Pedido = categoria do Omie por tipo (placas → vertical, tinta →
+  // horizontal). "Categoria do Item" não é preenchida — o Omie deriva do produto.
+  produtos: { categoria: "SINALIZAÇÃO VERTICAL", estoque: "Sinaltran" },
+  sinalshop: { categoria: "SINALIZAÇÃO HORIZONTAL", estoque: "Sinalshop" },
 };
 // "Número de Parcelas" no Omie é uma LISTA (descrição do parcelamento), não um
 // número. Valor padrão; vira campo editável por orçamento na tela de criação.
