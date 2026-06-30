@@ -15,7 +15,6 @@ import {
   TrendingUp,
   FileSpreadsheet,
   HardHat,
-  KanbanSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
@@ -40,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { GerarPdfButton } from "../[id]/_components/gerar-pdf";
 import { NfRegimeMini } from "../[id]/_components/nf-regime-mini";
 import { StatusSelect } from "./status-select";
+import { ViewToggle } from "./view-toggle";
 import { Tooltip } from "@/components/ui/tooltip";
 
 type FiltroRapido = "todos" | OrcamentoStatus;
@@ -158,13 +158,7 @@ export function OrcamentosLista({
         description="Propostas comerciais — itens, valores e prazos. Orçamento aprovado vira obra em 1 clique."
         actions={
           <div className="flex items-center gap-2">
-            <Link
-              href="/comercial/orcamentos/funil"
-              className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
-            >
-              <KanbanSquare className="size-4" />
-              Funil
-            </Link>
+            <ViewToggle active="lista" />
             <Link
               href="/comercial/orcamentos/novo"
               className={cn(buttonVariants({ size: "default" }), "gap-2")}

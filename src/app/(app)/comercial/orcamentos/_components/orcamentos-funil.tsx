@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, List, HardHat, GripVertical } from "lucide-react";
+import { Plus, HardHat, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,8 +14,10 @@ import {
   type OrcamentoStatus,
 } from "@/lib/types/orcamento";
 import { setOrcamentoStatus } from "@/lib/actions/orcamentos";
+import { converterOrcamentoEmObra } from "@/lib/actions/obras";
 import { formatBRL, normalizeSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ViewToggle } from "./view-toggle";
 
 const COLUNAS: OrcamentoStatus[] = [
   "rascunho",
@@ -57,25 +59,58 @@ export function OrcamentosFunil({
     return mapa;
   }, [filtrados]);
 
+  function setStatusLocal(id: string, status: OrcamentoStatus) {
+    setItens((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, status } : x)),
+    );
+  }
+
   async function mover(o: OrcamentoListRow, novo: OrcamentoStatus) {
     if (o.status === novo) return;
     const anterior = o.status;
     // Otimista: move o card imediatamente.
-    setItens((prev) =>
-      prev.map((x) => (x.id === o.id ? { ...x, status: novo } : x)),
-    );
+    setStatusLocal(o.id, novo);
     const res = await setOrcamentoStatus(o.id, novo);
     if (res.ok) {
-      toast.success(
-        `"${o.numero}" → ${ORCAMENTO_STATUS_LABEL[novo]}`,
-      );
+      toast.success(`"${o.numero}" → ${ORCAMENTO_STATUS_LABEL[novo]}`);
       router.refresh();
     } else {
-      // Reverte em caso de erro.
-      setItens((prev) =>
-        prev.map((x) => (x.id === o.id ? { ...x, status: anterior } : x)),
-      );
+      setStatusLocal(o.id, anterior); // reverte
       toast.error("Não foi possível mover", { description: res.error });
+    }
+  }
+
+  /**
+   * Soltar em "Aprovado" um orçamento ainda sem obra: oferece gerar a obra
+   * na hora. OK = aprova e gera a obra (vai pra ela); Cancelar = só aprova.
+   */
+  async function aprovarComOpcaoDeObra(o: OrcamentoListRow) {
+    const anterior = o.status;
+    setStatusLocal(o.id, "aprovado"); // otimista
+    const gerar = window.confirm(
+      `Gerar a obra a partir de "${o.numero}" agora?\n\n` +
+        `OK = aprovar e gerar a obra\n` +
+        `Cancelar = apenas aprovar (gera a obra depois)`,
+    );
+    if (gerar) {
+      const res = await converterOrcamentoEmObra(o.id);
+      if (res.ok) {
+        toast.success("Obra criada a partir do orçamento");
+        router.push(`/obras/${res.obraId}`);
+        router.refresh();
+      } else {
+        setStatusLocal(o.id, anterior); // reverte
+        toast.error("Não foi possível gerar a obra", { description: res.error });
+      }
+      return;
+    }
+    const res = await setOrcamentoStatus(o.id, "aprovado");
+    if (res.ok) {
+      toast.success(`"${o.numero}" → Aprovado`);
+      router.refresh();
+    } else {
+      setStatusLocal(o.id, anterior); // reverte
+      toast.error("Não foi possível aprovar", { description: res.error });
     }
   }
 
@@ -86,13 +121,7 @@ export function OrcamentosFunil({
         description="Arraste os cards entre as colunas para mudar o status. Orçamento aprovado vira obra pela tela do orçamento."
         actions={
           <div className="flex items-center gap-2">
-            <Link
-              href="/comercial/orcamentos"
-              className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
-            >
-              <List className="size-4" />
-              Lista
-            </Link>
+            <ViewToggle active="kanban" />
             <Link
               href="/comercial/orcamentos/novo"
               className={cn(buttonVariants({ size: "default" }), "gap-2")}
@@ -133,7 +162,12 @@ export function OrcamentosFunil({
                 const card = itens.find((x) => x.id === arrastando);
                 setColunaAlvo(null);
                 setArrastando(null);
-                if (card) mover(card, status);
+                if (!card || card.status === status) return;
+                if (status === "aprovado" && !card.obra_id) {
+                  aprovarComOpcaoDeObra(card);
+                } else {
+                  mover(card, status);
+                }
               }}
               className={cn(
                 "flex flex-col rounded-xl border bg-muted/30 transition-colors",
